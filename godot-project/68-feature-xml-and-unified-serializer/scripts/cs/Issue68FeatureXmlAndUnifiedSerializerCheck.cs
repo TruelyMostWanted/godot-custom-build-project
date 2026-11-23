@@ -93,7 +93,7 @@ public partial class Issue68FeatureXmlAndUnifiedSerializerCheck : FeatureCheckCs
             + "  <name>Sword</name>\n"
             + "  <count>1</count>\n"
             + "  <weight>0.5</weight>\n"
-            + "  <rarity>EPIC</rarity>\n"
+            + "  <rarity>Epic</rarity>\n"
             + "  <offset kind=\"array\">0.5, -2.0</offset>\n"
             + "  <code kind=\"string\">007</code>\n"
             + "</resource>\n";
