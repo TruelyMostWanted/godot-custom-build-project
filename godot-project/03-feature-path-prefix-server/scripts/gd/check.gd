@@ -76,10 +76,59 @@ func _check_callable_prefix() -> void:
 	var loaded := ResourceLoader.load("mods://r.tres", "", ResourceLoader.CACHE_MODE_IGNORE)
 	expect(loaded != null and loaded.resource_name == "from_mods", "ResourceLoader.load(mods://r.tres)")
 
+	_check_resource_io()
+
 	var info := PathPrefixServer.resolve(ProjectSettings.globalize_path("user://pp_gd_mods/sub/a.txt"))
 	expect(info.local_path == "user://pp_gd_mods/sub/a.txt" or info.local_path == "mods://sub/a.txt", "a global path below two prefixes resolves to one of them: %s" % info.local_path)
 	expect(PathPrefixServer.unregister_prefix("mods://") == OK, "unregister_prefix(mods://)")
 	expect(not PathPrefixServer.has_prefix("mods://"), "mods:// is gone")
+
+
+func _check_resource_io() -> void:
+	# exists(), default cache mode, has_cached()
+	expect(ResourceLoader.exists("mods://r.tres"), "ResourceLoader.exists(mods://r.tres) is true")
+	expect(not ResourceLoader.exists("mods://missing.tres"), "ResourceLoader.exists(mods://missing.tres) is false")
+	var first := ResourceLoader.load("mods://r.tres")
+	var second := ResourceLoader.load("mods://r.tres")
+	expect(first != null and first == second, "load(mods://r.tres) twice gives the same object (cache)")
+	expect(first != null and first.resource_path == "mods://r.tres", "resource_path is mods://r.tres")
+	expect(ResourceLoader.has_cached("mods://r.tres"), "ResourceLoader.has_cached(mods://r.tres)")
+
+	# threaded loading
+	var res2 := Resource.new()
+	res2.resource_name = "threaded"
+	expect(ResourceSaver.save(res2, "mods://r2.tres") == OK, "ResourceSaver.save(mods://r2.tres)")
+	expect(ResourceLoader.load_threaded_request("mods://r2.tres") == OK, "load_threaded_request(mods://r2.tres)")
+	var deadline := Time.get_ticks_msec() + 10000
+	var status := ResourceLoader.load_threaded_get_status("mods://r2.tres")
+	while status == ResourceLoader.THREAD_LOAD_IN_PROGRESS and Time.get_ticks_msec() < deadline:
+		OS.delay_msec(10)
+		status = ResourceLoader.load_threaded_get_status("mods://r2.tres")
+	expect(status == ResourceLoader.THREAD_LOAD_LOADED, "load_threaded_get_status(mods://r2.tres) is LOADED: %d" % status)
+	var threaded := ResourceLoader.load_threaded_get("mods://r2.tres")
+	expect(threaded != null and threaded.resource_name == "threaded", "load_threaded_get(mods://r2.tres) is not null")
+
+	# references between files
+	var b := Gradient.new()
+	b.set_color(0, Color.RED)
+	b.take_over_path("mods://b.tres")
+	expect(ResourceSaver.save(b, "mods://b.tres") == OK, "ResourceSaver.save(mods://b.tres)")
+	expect(b.resource_path == "mods://b.tres", "take_over_path() sets resource_path to mods://b.tres")
+	var a := GradientTexture1D.new()
+	a.gradient = b
+	expect(ResourceSaver.save(a, "mods://a.tres") == OK, "ResourceSaver.save(mods://a.tres)")
+	var text := FileAccess.get_file_as_string("mods://a.tres")
+	expect(text.contains("path=\"mods://b.tres\""), "a.tres has an ext_resource with path mods://b.tres")
+	var a_loaded := ResourceLoader.load("mods://a.tres", "", ResourceLoader.CACHE_MODE_IGNORE_DEEP) as GradientTexture1D
+	expect(a_loaded != null and a_loaded.gradient != null, "a.tres loads with its gradient")
+	if a_loaded and a_loaded.gradient:
+		expect(a_loaded.gradient.resource_path == "mods://b.tres", "the loaded gradient has resource_path mods://b.tres: %s" % a_loaded.gradient.resource_path)
+	var found := false
+	for dependency: String in ResourceLoader.get_dependencies("mods://a.tres"):
+		if dependency.contains("mods://b.tres"):
+			found = true
+	expect(found, "get_dependencies(mods://a.tres) contains mods://b.tres")
+	print("INFO gd: uid of mods://b.tres = %d, .uid file exists = %s" % [ResourceLoader.get_resource_uid("mods://b.tres"), FileAccess.file_exists("mods://b.tres.uid")])
 
 
 func _check_platforms() -> void:

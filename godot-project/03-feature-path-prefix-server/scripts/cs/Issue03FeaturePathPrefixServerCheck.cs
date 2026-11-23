@@ -88,9 +88,59 @@ public partial class Issue03FeaturePathPrefixServerCheck : FeatureCheckCs
         var loaded = ResourceLoader.Load("csmods://r.tres", "", ResourceLoader.CacheMode.Ignore);
         Expect(loaded != null && loaded.ResourceName == "from_csmods", "ResourceLoader.Load(csmods://r.tres)");
 
+        CheckResourceIo();
+
         Expect(PathPrefixServer.Localize(ProjectSettings.GlobalizePath("user://pp_cs_mods/sub/a.txt")) == "csmods://sub/a.txt", "Localize() uses _Localize of the C# subclass");
         Expect(PathPrefixServer.UnregisterPrefix("csmods://") == Error.Ok, "UnregisterPrefix(csmods://)");
         Expect(!PathPrefixServer.HasPrefix("csmods://"), "csmods:// is gone");
+    }
+
+    private void CheckResourceIo()
+    {
+        Expect(ResourceLoader.Exists("csmods://r.tres"), "ResourceLoader.Exists(csmods://r.tres) is true");
+        Expect(!ResourceLoader.Exists("csmods://missing.tres"), "ResourceLoader.Exists(csmods://missing.tres) is false");
+        var first = ResourceLoader.Load("csmods://r.tres");
+        var second = ResourceLoader.Load("csmods://r.tres");
+        Expect(first != null && ReferenceEquals(first, second), "Load(csmods://r.tres) twice gives the same object (cache)");
+        Expect(first != null && first.ResourcePath == "csmods://r.tres", "ResourcePath is csmods://r.tres");
+        Expect(ResourceLoader.HasCached("csmods://r.tres"), "ResourceLoader.HasCached(csmods://r.tres)");
+
+        var res2 = new Resource { ResourceName = "threaded" };
+        Expect(ResourceSaver.Save(res2, "csmods://r2.tres") == Error.Ok, "ResourceSaver.Save(csmods://r2.tres)");
+        Expect(ResourceLoader.LoadThreadedRequest("csmods://r2.tres") == Error.Ok, "LoadThreadedRequest(csmods://r2.tres)");
+        ulong deadline = Time.GetTicksMsec() + 10000;
+        var status = ResourceLoader.LoadThreadedGetStatus("csmods://r2.tres");
+        while (status == ResourceLoader.ThreadLoadStatus.InProgress && Time.GetTicksMsec() < deadline)
+        {
+            OS.DelayMsec(10);
+            status = ResourceLoader.LoadThreadedGetStatus("csmods://r2.tres");
+        }
+        Expect(status == ResourceLoader.ThreadLoadStatus.Loaded, $"LoadThreadedGetStatus(csmods://r2.tres) is Loaded: {status}");
+        var threaded = ResourceLoader.LoadThreadedGet("csmods://r2.tres");
+        Expect(threaded != null && threaded.ResourceName == "threaded", "LoadThreadedGet(csmods://r2.tres) is not null");
+
+        var b = new Gradient();
+        b.SetColor(0, Colors.Red);
+        b.TakeOverPath("csmods://b.tres");
+        Expect(ResourceSaver.Save(b, "csmods://b.tres") == Error.Ok, "ResourceSaver.Save(csmods://b.tres)");
+        Expect(b.ResourcePath == "csmods://b.tres", "TakeOverPath() sets ResourcePath to csmods://b.tres");
+        var a = new GradientTexture1D { Gradient = b };
+        Expect(ResourceSaver.Save(a, "csmods://a.tres") == Error.Ok, "ResourceSaver.Save(csmods://a.tres)");
+        string text = FileAccess.GetFileAsString("csmods://a.tres");
+        Expect(text.Contains("path=\"csmods://b.tres\""), "a.tres has an ext_resource with path csmods://b.tres");
+        var aLoaded = ResourceLoader.Load("csmods://a.tres", "", ResourceLoader.CacheMode.IgnoreDeep) as GradientTexture1D;
+        Expect(aLoaded?.Gradient != null, "a.tres loads with its gradient");
+        if (aLoaded?.Gradient != null)
+        {
+            Expect(aLoaded.Gradient.ResourcePath == "csmods://b.tres", $"the loaded gradient has ResourcePath csmods://b.tres: {aLoaded.Gradient.ResourcePath}");
+        }
+        bool found = false;
+        foreach (string dependency in ResourceLoader.GetDependencies("csmods://a.tres"))
+        {
+            found |= dependency.Contains("csmods://b.tres");
+        }
+        Expect(found, "GetDependencies(csmods://a.tres) contains csmods://b.tres");
+        GD.Print($"INFO cs: uid of csmods://b.tres = {ResourceLoader.GetResourceUid("csmods://b.tres")}, .uid file exists = {FileAccess.FileExists("csmods://b.tres.uid")}");
     }
 
     private void CheckPlatforms()
