@@ -18,3 +18,7 @@ config/icon="res://icon.svg"
 [dotnet]
 
 project/assembly_name="GodotCustomBuildProject"
+
+[settings]
+
+startup/custom_servers=PackedStringArray("res://15-feature-settings-server/scripts/gd/check_domain.gd", "res://15-feature-settings-server/scripts/cs/Issue15CheckDomainCs.cs")
