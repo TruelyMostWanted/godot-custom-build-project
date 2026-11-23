@@ -62,7 +62,7 @@ func _run_checks() -> void:
 	# Changing the texture updates every handed-out texture.
 	var image_texture := ImageTexture.create_from_image(sheet.get_image() if sheet.get_image() != null else Image.create_empty(128, 64, false, Image.FORMAT_RGBA8))
 	atlas.texture = image_texture
-	expect(coin.atlas == image_texture and sprite.texture.atlas == image_texture, "changing texture updates the handed-out textures")
+	expect(coin.atlas == image_texture and (sprite.texture as AtlasTexture).atlas == image_texture, "changing texture updates the handed-out textures")
 	expect(atlas.texture_path == "", "setting texture from code clears texture_path")
 
 	# GradientTexture2D as texture.
@@ -112,7 +112,7 @@ func _run_checks() -> void:
 
 	# CSV and INI round-trip through files, .tres through ResourceSaver.
 	atlas.set_region_margin("sword", Rect2i(2, 2, 4, 4))
-	for extension in ["json", "csv", "ini"]:
+	for extension: String in ["json", "csv", "ini"]:
 		var path := USER_DIR + "icons." + extension
 		expect(atlas.save_to_file(path) == OK, "save_to_file(.%s)" % extension)
 		var copy := TextureAtlas.new()
