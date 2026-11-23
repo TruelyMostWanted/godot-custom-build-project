@@ -1,0 +1,96 @@
+name: Bug report
+description: Something does not work as expected.
+title: "[Bug] "
+labels: ["type: bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! A good bug report can be reproduced by someone else in under five minutes.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What is wrong? One or two sentences.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - Blocker · crash, data loss or no workaround
+        - Major · feature unusable, workaround exists
+        - Minor · cosmetic or small inconvenience
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - Core · core/ (Variant, Object, I/O, math)
+        - Scene · scene/ (nodes, resources, GUI)
+        - Servers · servers/ (rendering, physics, audio, navigation, text)
+        - Editor · editor/
+        - Modules · modules/ (GDScript, glTF, …)
+        - .NET · modules/mono (C# bindings)
+        - Platform & drivers · platform/, drivers/
+        - Third-party · thirdparty/
+        - Build & CI · SCons, .github/, misc/
+        - Tests · tests/
+        - Docs · doc/ (class reference)
+    validations:
+      required: true
+
+  - type: input
+    id: commit
+    attributes:
+      label: Commit / version
+      description: Output of `git rev-parse --short HEAD` or the release tag.
+      placeholder: 3d26b11
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Godot version, .NET version, operating system.
+      placeholder: Godot 4.8 (mono) @ commit abc1234, .NET 10, Windows 11, Vulkan Forward+
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and screenshots
+      description: Godot output, stack traces, screenshots. Logs are formatted as code automatically.
+      render: text
