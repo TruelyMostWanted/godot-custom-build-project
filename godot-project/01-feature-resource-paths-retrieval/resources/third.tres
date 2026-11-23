@@ -1,0 +1,8 @@
+[gd_resource type="Resource" format=3]
+
+[sub_resource type="Resource" id="Resource_child"]
+metadata/name = "child"
+
+[resource]
+metadata/name = "third"
+metadata/child = SubResource("Resource_child")
