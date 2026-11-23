@@ -201,6 +201,12 @@ public partial class Issue37FeatureCachedPathsFiltersCheck : FeatureCheckCs
 
     private void CheckPerformance()
     {
+        // Release the resources of the earlier checks, so that only the 100 Curves below match the type filter.
+        foreach (var res in _held)
+        {
+            res?.Dispose();
+        }
+        _held.Clear();
         var held = new List<Resource>(PerfCount);
         int step = PerfCount / PerfHits;
         for (int i = 0; i < PerfCount; i++)
@@ -234,7 +240,8 @@ public partial class Issue37FeatureCachedPathsFiltersCheck : FeatureCheckCs
         int scriptType = 0;
         foreach (string path in ResourceLoader.GetCachedPaths())
         {
-            using var cached = ResourceLoader.GetCachedRef(path);
+            // No `using`: the wrapper is shared with `held`, disposing it would free the resource.
+            var cached = ResourceLoader.GetCachedRef(path);
             if (cached != null && cached.GetClass() == "Curve")
             {
                 scriptType++;

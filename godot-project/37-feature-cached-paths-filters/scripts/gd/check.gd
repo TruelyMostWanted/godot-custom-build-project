@@ -179,6 +179,8 @@ func _check_threads() -> void:
 
 
 func _check_performance() -> void:
+	# Release the resources of the earlier checks, so that only the 100 Curves below match the type filter.
+	_held.clear()
 	var held: Array[Resource] = []
 	var step := PERF_COUNT / PERF_HITS
 	for i in PERF_COUNT:
