@@ -106,7 +106,11 @@ public partial class Issue50FeatureTextureAtlasCheck : FeatureCheckCs
         var animated = new AnimatedSprite2D { SpriteFrames = frames };
         AddChild(animated);
         animated.Play("walk");
-        await ToSignal(GetTree().CreateTimer(0.2), SceneTreeTimer.SignalName.Timeout);
+        // Wait until the first frame change (at most 2 s): headless frames can be slow right after start.
+        for (int i = 0; i < 20 && animated.Frame == 0; i++)
+        {
+            await ToSignal(GetTree().CreateTimer(0.1), SceneTreeTimer.SignalName.Timeout);
+        }
         Expect(animated.IsPlaying() && animated.Animation == "walk", "AnimatedSprite2D plays the animation");
         Expect(animated.Frame > 0, $"the animation advances (frame {animated.Frame})");
 
