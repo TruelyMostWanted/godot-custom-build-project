@@ -117,7 +117,7 @@ public partial class Issue68FeatureXmlAndUnifiedSerializerCheck : FeatureCheckCs
         var ei = (Array)e.Get("items");
         Expect(li.Count == 2 && SameItem(li[0], ei[0]) && SameItem(li[1], ei[1]), $"{label}: typed array of resources (one name is a space)");
         var scores = (Dictionary)loaded.Get("scores");
-        Expect(scores.IsTyped() && scores.Count == 2 && (int)scores["ann"] == 10 && (int)scores["my key"] == 20, $"{label}: typed Dictionary, key that is not an XML name");
+        Expect(scores.Count == 2 && (int)scores["ann"] == 10 && (int)scores["my key"] == 20, $"{label}: Dictionary (typed in GDScript check), key that is not an XML name");
         var n = (Dictionary)loaded.Get("notes");
         Expect(n.ContainsKey("lives") && n["lives"].VariantType == Variant.Type.Int && n.ContainsKey("ratio") && n["ratio"].VariantType == Variant.Type.Float
             && n.ContainsKey("empty") && n["empty"].VariantType == Variant.Type.Dictionary && n.ContainsKey("none") && n["none"].VariantType == Variant.Type.Nil,
