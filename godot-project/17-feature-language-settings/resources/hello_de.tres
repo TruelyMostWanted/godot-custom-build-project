@@ -1,0 +1,7 @@
+[gd_resource type="Translation" format=3]
+
+[resource]
+messages = {
+"CHECK17_HELLO": "Hallo"
+}
+locale = "de"

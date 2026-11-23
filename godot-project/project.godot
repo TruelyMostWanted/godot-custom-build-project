@@ -23,6 +23,10 @@ buses/default_bus_layout="res://16-feature-audio-settings/resources/bus_layout.t
 
 project/assembly_name="GodotCustomBuildProject"
 
+[internationalization]
+
+locale/translations=PackedStringArray("res://17-feature-language-settings/resources/hello_de.tres", "res://17-feature-language-settings/resources/hello_fr.tres")
+
 [settings]
 
 startup/custom_servers=PackedStringArray("res://15-feature-settings-server/scripts/gd/check_domain.gd", "res://15-feature-settings-server/scripts/cs/Issue15CheckDomainCs.cs")
