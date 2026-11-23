@@ -26,7 +26,7 @@ godot-custom-build-project/
     ├── nuget.config                local NuGet folder with the custom C# SDK
     ├── checks/                     shared check base (GDScript + C#) and the scripts that run them
     ├── _feature-template/          copied for every new feature by checks/new-feature.ps1
-    └── feature-<name>/             one folder per engine feature, named like its feature branch
+    └── <nn>-feature-<name>/        one folder per engine feature, named like its feature branch (issue number first)
         ├── scripts/gd/             checks in GDScript
         ├── scripts/cs/             checks in C#
         ├── scenes/                 check_gd.tscn, check_cs.tscn and other test scenes
@@ -49,8 +49,9 @@ godot-custom-build-project/
 ## A new feature
 
 ```powershell
-./godot-project/checks/new-feature.ps1 -Name feature-resource-paths-server
+./godot-project/checks/new-feature.ps1 -Name 03-feature-path-prefix-server
 ```
 
-This copies `_feature-template/` to `feature-resource-paths-server/`, renames the C# check class and namespace, and gives
+Feature branches and folders start with the number of their issue, at least two digits (`03-feature-path-prefix-server` for issue #3).
+This copies `_feature-template/` to `03-feature-path-prefix-server/`, renames the C# check class and namespace, and gives
 two passing example checks (`check_gd.tscn`, `check_cs.tscn`) to start from.

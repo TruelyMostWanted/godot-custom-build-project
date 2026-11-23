@@ -3,14 +3,15 @@
     Creates a feature folder from _feature-template.
 .DESCRIPTION
     Copies godot-project/_feature-template to godot-project/<Name>, replaces the placeholders
-    __FEATURE_NAME__ (folder name) and __FEATURE_PASCAL__ (folder name in PascalCase) in file names and contents.
-    The name should be the name of the feature branch in the engine, e.g. feature-resource-paths-server.
+    __FEATURE_NAME__ (folder name) and __FEATURE_PASCAL__ ('Issue' + folder name in PascalCase, because a C# name
+    must not start with a digit) in file names and contents.
+    The name is the name of the feature branch in the engine: issue number (at least two digits) first, e.g. 03-feature-path-prefix-server.
 .EXAMPLE
-    ./godot-project/checks/new-feature.ps1 -Name feature-resource-paths-server
+    ./godot-project/checks/new-feature.ps1 -Name 03-feature-path-prefix-server
 #>
 param(
     [Parameter(Mandatory = $true)]
-    [ValidatePattern('^[a-z0-9]+(-[a-z0-9]+)*$')]
+    [ValidatePattern('^[0-9]{2,}(-[a-z0-9]+)+$')]
     [string]$Name
 )
 
@@ -21,7 +22,7 @@ $target = Join-Path $projectDir $Name
 
 if (Test-Path $target) { throw "Folder already exists: $target" }
 
-$pascal = (($Name -split '-') | ForEach-Object { $_.Substring(0, 1).ToUpper() + $_.Substring(1) }) -join ''
+$pascal = 'Issue' + ((($Name -split '-') | ForEach-Object { $_.Substring(0, 1).ToUpper() + $_.Substring(1) }) -join '')
 
 Copy-Item -Path $template -Destination $target -Recurse
 

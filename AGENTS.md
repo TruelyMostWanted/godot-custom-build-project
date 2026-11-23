@@ -17,11 +17,11 @@ Der vollständige Ablauf steht in der Engine unter `truely/FEATURE-WORKFLOW.md`.
 | `godot-project/` | das Godot-Projekt (`res://`) |
 | `godot-project/checks/` | gemeinsame Basis der Checks (`FeatureCheck` in GDScript und C#) und die Skripte `run-checks.ps1`, `new-feature.ps1` |
 | `godot-project/_feature-template/` | Vorlage für einen neuen Feature-Ordner |
-| `godot-project/feature-<name>/` | ein Ordner pro Feature, benannt wie sein Feature-Branch in der Engine |
+| `godot-project/<nn>-feature-<name>/` | ein Ordner pro Feature, benannt wie sein Feature-Branch in der Engine (Issue-Nummer, mindestens zweistellig, vorne) |
 
 - **Engine:** eigener Build von `truely-godot-engine` (Godot 4.8 beta, Mono), C#-SDK `Godot.NET.Sdk/4.8.0-beta` aus dem lokalen NuGet-Ordner `../nuget-local`.
-- **C#:** .NET 11 (`net11.0`), Namespace-Root `TruelyInteractive`. Der Namespace eines Features ist der Ordnername in PascalCase:
-  `feature-resource-paths-server` → `TruelyInteractive.FeatureResourcePathsServer`.
+- **C#:** .NET 11 (`net11.0`), Namespace-Root `TruelyInteractive`. Der Namespace eines Features ist `Issue` + der Ordnername in PascalCase
+  (ein C#-Namespace darf nicht mit einer Ziffer beginnen): `03-feature-path-prefix-server` → `TruelyInteractive.Issue03FeaturePathPrefixServer`.
 - **Bauen:** in `godot-project/` `dotnet build`; das Ergebnis hat 0 Fehler und 0 Warnungen.
 
 ## Ein Feature prüfen

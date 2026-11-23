@@ -8,7 +8,7 @@
 .EXAMPLE
     ./godot-project/checks/run-checks.ps1 -Godot P:/Projects/GitHub/truelymostwanted-godot-engine/bin/godot.windows.editor.x86_64.mono.exe
 .EXAMPLE
-    ./godot-project/checks/run-checks.ps1 -Godot <path> -Feature feature-resource-paths-server
+    ./godot-project/checks/run-checks.ps1 -Godot <path> -Feature 03-feature-path-prefix-server
 #>
 param(
     [Parameter(Mandatory = $true)]
@@ -36,7 +36,7 @@ if (-not $NoBuild) {
 Write-Host '==> import' -ForegroundColor Cyan
 & $Godot --headless --path $projectDir --import | Out-Null
 
-$folders = Get-ChildItem -Path $projectDir -Directory | Where-Object { $_.Name -like 'feature-*' }
+$folders = Get-ChildItem -Path $projectDir -Directory | Where-Object { $_.Name -match '^[0-9]{2,}-' }
 if ($Feature) { $folders = $folders | Where-Object { $_.Name -eq $Feature } }
 if (-not $folders) { Write-Host 'No feature folders found.' -ForegroundColor Yellow; exit 0 }
 
