@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://68-feature-xml-and-unified-serializer/scripts/cs/Issue68FeatureXmlAndUnifiedSerializerCheck.cs" id="1"]
+
+[node name="CheckCs" type="Node"]
+script = ExtResource("1")
