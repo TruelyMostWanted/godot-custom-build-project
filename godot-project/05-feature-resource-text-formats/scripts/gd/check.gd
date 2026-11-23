@@ -81,10 +81,10 @@ func _check_csv() -> void:
 
 
 func _check_string_api() -> void:
-	var json := ResourceTextSerializer.serialize(_make_settings(), &"json")
-	expect(json.contains("Cleo"), "serialize(&\"json\") returns text")
-	_check_settings(ResourceTextSerializer.deserialize(json, &"json"), "deserialize(&\"json\")")
-	_check_settings(ResourceTextSerializer.deserialize(ResourceTextSerializer.serialize(_make_settings(), &"ini"), &"ini"), "deserialize(&\"ini\")")
+	var json := ResourceTextSerializer.resource_to_json(_make_settings())
+	expect(json.contains("Cleo"), "resource_to_json() returns text")
+	_check_settings(ResourceTextSerializer.json_to_resource(json), "json_to_resource()")
+	_check_settings(ResourceTextSerializer.ini_to_resource(ResourceTextSerializer.resource_to_ini(_make_settings())), "ini_to_resource()")
 
 
 func _check_plain_json() -> void:
