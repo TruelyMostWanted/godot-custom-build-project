@@ -74,7 +74,7 @@ func _check_file_round_trip() -> void:
 
 
 func _check_key_order() -> void:
-	var text := TOML.resource_to_toml(_make_settings())
+	var text := TOML.serialize(_make_settings())
 	var order := ["\"$type\" = ", "\"$format_version\" = 1", "volume = ", "title = ", "spare = \"\"", "numbers = [4, -7]", "tint = ", "\n[main]\n", "\n[main.child]\n", "\n[[entries]]\n", "\n[entries.child]\n", "\n[extra]\n"]
 	var last := -1
 	var ordered := true
@@ -89,14 +89,14 @@ func _check_key_order() -> void:
 
 
 func _check_string_api() -> void:
-	var text := TOML.resource_to_toml(_make_settings())
+	var text := TOML.serialize(_make_settings())
 	expect(text.contains("mode = \"Angry\""), "enums are written as names")
-	_check_settings(TOML.toml_to_resource(text), "toml_to_resource()")
-	var numbers := TOML.resource_to_toml(_make_settings(), { "enums_as_names": false })
+	_check_settings(TOML.deserialize(text), "deserialize()")
+	var numbers := TOML.serialize(_make_settings(), { "enums_as_names": false })
 	expect(numbers.contains("mode = 5"), "option enums_as_names = false writes numbers")
-	_check_settings(TOML.toml_to_resource(numbers), "toml_to_resource() with enum numbers")
+	_check_settings(TOML.deserialize(numbers), "deserialize() with enum numbers")
 	var untyped := text.replace("\"$type\" = \"Issue36GdTomlSettings\"\n", "")
-	_check_settings(TOML.toml_to_resource(untyped, "Issue36GdTomlSettings"), "toml_to_resource() with type hint")
+	_check_settings(TOML.deserialize(untyped, "Issue36GdTomlSettings"), "deserialize() with type hint")
 
 
 func _check_parse() -> void:
