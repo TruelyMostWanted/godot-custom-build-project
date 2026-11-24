@@ -9,8 +9,10 @@ func _get_domain() -> StringName:
 	return &"check15_gd"
 
 
+# Asks for the first phase on purpose (#71): a script domain from settings/startup/custom_servers
+# still starts in APPLY_PHASE_SCENE, before the main scene.
 func _get_apply_phase() -> SettingsServer.ApplyPhase:
-	return SettingsServer.APPLY_PHASE_SCENE
+	return SettingsServer.APPLY_PHASE_PRE_DISPLAY
 
 
 func _create_settings() -> Resource:
