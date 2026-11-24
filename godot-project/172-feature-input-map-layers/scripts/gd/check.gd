@@ -126,7 +126,7 @@ func _check_input_actions() -> void:
 func _check_layers() -> void:
 	expect(InputMap.is_builtin_input_action(&"ui_accept"), "ui_accept is built-in")
 	expect(not InputMap.is_custom_input_action(&"ui_accept"), "ui_accept is not custom")
-	expect(InputMap.is_builtin_input_action(&"ui_text_backspace_word.macos"), "a feature variant of a built-in action is built-in")
+	expect(not InputMap.is_builtin_input_action(&"ui_text_backspace_word.macos"), "a platform variant is not an action of the built-in layer")
 	expect(InputMap.is_custom_input_action(ATTACK), "a project action is custom")
 	expect(not InputMap.is_builtin_input_action(ATTACK), "a project action is not built-in")
 	expect(not InputMap.is_custom_input_action(&"l172_not_there"), "a missing action is not custom")
@@ -140,6 +140,8 @@ func _check_layers() -> void:
 	expect(custom.has_action(ATTACK), "the custom layer has the project action")
 	expect(not custom.has_action(&"ui_accept"), "the custom layer has no built-in action")
 	expect_equal(builtin.get_action_count() + custom.get_action_count(), InputMap.get_actions().size(), "the layers together are all actions")
+	expect(InputMap.get_input_actions(InputMap.INPUT_ACTION_LAYER_BUILTIN) == builtin, "the built-in layer is the same object every time")
+	expect(InputMap.get_input_actions(InputMap.INPUT_ACTION_LAYER_CUSTOM) == custom, "the custom layer is the same object every time")
 	for builtin_name in builtin.get_action_names():
 		if not InputMap.is_builtin_input_action(builtin_name):
 			expect(false, "%s is in the built-in layer but not built-in" % builtin_name)
@@ -149,8 +151,23 @@ func _check_layers() -> void:
 	expect_equal(attack.action, ATTACK, "get_input_action() name")
 	expect(is_equal_approx(attack.deadzone, 0.3), "get_input_action() deadzone from the project")
 	expect_equal(attack.bindings, "Key:F", "get_input_action() events as text")
-	attack.add_event(InputAction.text_to_event("Key:H"))
-	expect_equal(InputMap.get_input_action(ATTACK).get_event_count(), 1, "the returned action is a copy")
+	expect(attack == custom.get_action(ATTACK), "get_input_action() is the action of the custom layer")
+	var key_h := InputAction.text_to_event("Key:H")
+	attack.add_event(key_h)
+	expect(InputMap.event_is_action(pressed_key(KEY_H), ATTACK), "an event added to the returned action works")
+	attack.remove_event(key_h)
+	expect(not InputMap.event_is_action(pressed_key(KEY_H), ATTACK), "an event removed from the returned action no longer works")
+	expect_equal(InputMap.get_input_action(ATTACK).get_event_count(), 1, "one event again")
+
+	# Direct edits of a layer reach the InputMap.
+	var direct := InputAction.new()
+	direct.action = &"l172_direct"
+	direct.bindings = "Key:F9"
+	custom.add_action(direct)
+	expect(InputMap.has_action(&"l172_direct"), "an action added to the custom layer is in the InputMap")
+	expect(InputMap.event_is_action(pressed_key(KEY_F9), &"l172_direct"), "its key works")
+	expect(custom.remove_action(&"l172_direct"), "remove it from the layer")
+	expect(not InputMap.has_action(&"l172_direct"), "an action removed from the layer is gone from the InputMap")
 
 
 func _check_set_input_action() -> void:
@@ -250,7 +267,8 @@ func _check_settings_server() -> void:
 	expect(not InputMap.event_is_action(pressed_key(KEY_X), ATTACK), "reset_all(): X no longer works")
 
 	# SAVE_MODE_ALL manages the built-in actions too.
-	var saved_accept := InputMap.get_input_action(&"ui_accept")
+	# A copy: the server changes the action of the InputMap itself.
+	var saved_accept := InputMap.get_input_action(&"ui_accept").duplicate() as InputAction
 	InputMapSettingsServer.save_mode = InputMapSettingsServer.SAVE_MODE_ALL
 	expect_equal(InputMapSettingsServer.rebind(&"ui_accept", pressed_key(KEY_Q)), OK, "SAVE_MODE_ALL: a built-in action can be rebound")
 	expect(InputMapSettingsServer.has_action(&"ui_accept"), "SAVE_MODE_ALL: ui_accept is managed now")

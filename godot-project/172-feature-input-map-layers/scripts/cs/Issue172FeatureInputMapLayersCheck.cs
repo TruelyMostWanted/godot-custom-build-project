@@ -146,7 +146,7 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
     {
         Expect(InputMap.IsBuiltinInputAction("ui_accept"), "ui_accept is built-in");
         Expect(!InputMap.IsCustomInputAction("ui_accept"), "ui_accept is not custom");
-        Expect(InputMap.IsBuiltinInputAction("ui_text_backspace_word.macos"), "a feature variant of a built-in action is built-in");
+        Expect(!InputMap.IsBuiltinInputAction("ui_text_backspace_word.macos"), "a platform variant is not an action of the built-in layer");
         Expect(InputMap.IsCustomInputAction(Attack), "a project action is custom");
         Expect(!InputMap.IsBuiltinInputAction(Attack), "a project action is not built-in");
         Expect(!InputMap.IsCustomInputAction("l172_not_there"), "a missing action is not custom");
@@ -160,6 +160,8 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
         Expect(custom.HasAction(Attack), "the custom layer has the project action");
         Expect(!custom.HasAction("ui_accept"), "the custom layer has no built-in action");
         ExpectEqual(builtin.GetActionCount() + custom.GetActionCount(), InputMap.GetActions().Count, "the layers together are all actions");
+        ExpectEqual(InputMap.GetInputActions(InputMap.InputActionLayer.Builtin).GetInstanceId(), builtin.GetInstanceId(), "the built-in layer is the same object every time");
+        ExpectEqual(InputMap.GetInputActions(InputMap.InputActionLayer.Custom).GetInstanceId(), custom.GetInstanceId(), "the custom layer is the same object every time");
         foreach (StringName name in builtin.GetActionNames())
         {
             if (!InputMap.IsBuiltinInputAction(name))
@@ -173,8 +175,20 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
         ExpectEqual(attack.Action.ToString(), "l172_attack", "GetInputAction() name");
         Expect(Approx((float)attack.Deadzone, 0.3f), "GetInputAction() deadzone from the project");
         ExpectEqual(attack.Bindings, "Key:F", "GetInputAction() events as text");
-        attack.AddEvent(InputAction.TextToEvent("Key:H"));
-        ExpectEqual(InputMap.GetInputAction(Attack).GetEventCount(), 1, "the returned action is a copy");
+        ExpectEqual(attack.GetInstanceId(), custom.GetAction(Attack).GetInstanceId(), "GetInputAction() is the action of the custom layer");
+        InputEvent keyH = InputAction.TextToEvent("Key:H");
+        attack.AddEvent(keyH);
+        Expect(IsAction(PressedKey(Key.H), Attack), "an event added to the returned action works");
+        attack.RemoveEvent(keyH);
+        Expect(!IsAction(PressedKey(Key.H), Attack), "an event removed from the returned action no longer works");
+        ExpectEqual(InputMap.GetInputAction(Attack).GetEventCount(), 1, "one event again");
+
+        // Direct edits of a layer reach the InputMap.
+        custom.AddAction(new InputAction { Action = "l172_direct", Bindings = "Key:F9" });
+        Expect(InputMap.HasAction("l172_direct"), "an action added to the custom layer is in the InputMap");
+        Expect(IsAction(PressedKey(Key.F9), "l172_direct"), "its key works");
+        Expect(custom.RemoveAction("l172_direct"), "remove it from the layer");
+        Expect(!InputMap.HasAction("l172_direct"), "an action removed from the layer is gone from the InputMap");
     }
 
     private void CheckSetInputAction()
@@ -283,7 +297,8 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
         Expect(!IsAction(PressedKey(Key.X), Attack), "ResetAll(): X no longer works");
 
         // SAVE_MODE_ALL manages the built-in actions too.
-        InputAction savedAccept = InputMap.GetInputAction("ui_accept");
+        // A copy: the server changes the action of the InputMap itself.
+        var savedAccept = (InputAction)InputMap.GetInputAction("ui_accept").Duplicate();
         server.Set("save_mode", 1);
         ExpectEqual(InputMapSettingsServer.Rebind("ui_accept", PressedKey(Key.Q)), Error.Ok, "SAVE_MODE_ALL: a built-in action can be rebound");
         Expect(InputMapSettingsServer.HasAction("ui_accept"), "SAVE_MODE_ALL: ui_accept is managed now");
