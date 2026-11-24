@@ -97,7 +97,7 @@ public partial class Issue37FeatureCachedPathsFiltersCheck : FeatureCheckCs
         ExpectPaths(Under(ResourceLoader.GetCachedPathsForType("Gradient")), Sorted(P("a/grad.tres"), _texSubPath), "type Gradient: the file and the sub-resource, not the texture");
         string[] curves = Sorted(P("a/curve.res"), P("a/b/curve2.res"));
         ExpectPaths(Under(ResourceLoader.GetCachedPathsForType("Curve")), curves, "type Curve: both curves");
-        ExpectPaths(Under(ResourceLoader.GetCachedPathsForType("Curve", true)), curves, "type Curve, exact: both curves");
+        ExpectPaths(Under(ResourceLoader.GetCachedPathsForType("Curve", exactType: true)), curves, "type Curve, exactType: both curves (named argument)");
         // StyleBoxFlat inherits StyleBox.
         ExpectPaths(Under(ResourceLoader.GetCachedPathsForType("StyleBox")), [P("a/flat.tres")], "type StyleBox includes the subclass StyleBoxFlat");
         ExpectPaths(Under(ResourceLoader.GetCachedPathsForType("StyleBox", true)), [], "type StyleBox, exact: not the subclass StyleBoxFlat");
