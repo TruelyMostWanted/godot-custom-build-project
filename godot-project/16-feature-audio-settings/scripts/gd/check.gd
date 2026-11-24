@@ -92,10 +92,10 @@ func _check_manual_mode() -> void:
 
 
 func _check_csv() -> void:
-	ProjectSettings.set_setting("settings/storage/format", ResourceTextSerializer.FORMAT_CSV)
+	ProjectSettings.set_setting("settings/general/default_format", ResourceTextSerializer.FORMAT_CSV)
 	expect_equal(AudioBusSettingsServer.get_file_path(), "user://settings/audio_buses.csv", "the bus list can be stored as CSV")
 	expect_equal(AudioDeviceSettingsServer.get_file_path(), DEVICES_FILE, "the devices stay INI (a warning is printed once)")
-	ProjectSettings.set_setting("settings/storage/format", ResourceTextSerializer.FORMAT_INI)
+	ProjectSettings.set_setting("settings/general/default_format", ResourceTextSerializer.FORMAT_INI)
 
 	var path := DIR.path_join("buses.csv")
 	AudioBusSettingsServer.set_bus_volume_db(&"Music", -20.0)

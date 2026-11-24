@@ -133,9 +133,16 @@ public partial class Issue29FeatureTtsPersonaSettingsCheck : FeatureCheckCs
     private void CheckCsv()
     {
         var server = TtsPersonaSettingsServer.Singleton;
-        ProjectSettings.SetSetting("settings/storage/format", (int)ResourceTextSerializer.Format.Csv);
+        ProjectSettings.SetSetting("settings/general/default_format", (int)ResourceTextSerializer.Format.Csv);
         ExpectEqual(server.GetFilePath(), "user://settings/tts_personas.csv", "the personas can be stored as CSV");
-        ProjectSettings.SetSetting("settings/storage/format", (int)ResourceTextSerializer.Format.Ini);
+        ProjectSettings.SetSetting("settings/general/default_format", (int)ResourceTextSerializer.Format.Ini);
+        // #184: only this domain as CSV, through its own group settings/tts_personas/.
+        ProjectSettings.SetSetting("settings/tts_personas/override_format", true);
+        ProjectSettings.SetSetting("settings/tts_personas/format", (int)ResourceTextSerializer.Format.Csv);
+        ExpectEqual(server.GetFilePath(), "user://settings/tts_personas.csv", "#184: override_format stores only this domain as CSV");
+        ProjectSettings.SetSetting("settings/tts_personas/override_format", false);
+        ProjectSettings.SetSetting("settings/tts_personas/format", (int)ResourceTextSerializer.Format.Ini);
+        ExpectEqual(server.GetFilePath(), "user://settings/tts_personas.ini", "#184: without override_format the default format is used");
 
         string path = Dir.PathJoin("personas_cs.csv");
         TtsPersonaSettingsServer.AddPersona(MakePersona("guard", "", "de", 0.8f));

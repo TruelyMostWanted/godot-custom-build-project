@@ -109,10 +109,10 @@ public partial class Issue16FeatureAudioSettingsCheck : FeatureCheckCs
     private void CheckCsv()
     {
         var server = AudioBusSettingsServer.Singleton;
-        ProjectSettings.SetSetting("settings/storage/format", (int)ResourceTextSerializer.Format.Csv);
+        ProjectSettings.SetSetting("settings/general/default_format", (int)ResourceTextSerializer.Format.Csv);
         ExpectEqual(server.GetFilePath(), "user://settings/audio_buses.csv", "the bus list can be stored as CSV");
         ExpectEqual(AudioDeviceSettingsServer.Singleton.GetFilePath(), DevicesFile, "the devices stay INI (a warning is printed once)");
-        ProjectSettings.SetSetting("settings/storage/format", (int)ResourceTextSerializer.Format.Ini);
+        ProjectSettings.SetSetting("settings/general/default_format", (int)ResourceTextSerializer.Format.Ini);
 
         string path = Dir.PathJoin("buses.csv");
         AudioBusSettingsServer.SetBusVolumeDb("Music", -20.0f);
