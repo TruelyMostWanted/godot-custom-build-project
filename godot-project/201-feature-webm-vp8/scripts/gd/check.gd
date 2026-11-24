@@ -35,7 +35,8 @@ func _check_file(path: String) -> void:
 	expect(texture != null, "%s: a video texture exists" % name)
 	if texture != null:
 		expect(texture.get_width() == 64 and texture.get_height() == 64, "%s: the video texture is 64x64" % name)
-		if path == ALPHA_PATH:
+		# The headless dummy renderer keeps no pixels: check alpha only with a real renderer.
+		if path == ALPHA_PATH and DisplayServer.get_name() != "headless":
 			var image := texture.get_image()
 			if image != null and not image.is_empty():
 				expect(image.get_pixel(8, 32).a < 0.5, "alpha: pixel in the transparent half has alpha < 0.5 (%s)" % image.get_pixel(8, 32).a)

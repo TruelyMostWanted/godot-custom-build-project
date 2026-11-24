@@ -44,7 +44,8 @@ public partial class Issue201FeatureWebmVp8Check : FeatureCheckCs
         if (texture != null)
         {
             Expect(texture.GetWidth() == 64 && texture.GetHeight() == 64, $"{name}: the video texture is 64x64");
-            if (path == AlphaPath)
+            // The headless dummy renderer keeps no pixels: check alpha only with a real renderer.
+            if (path == AlphaPath && DisplayServer.GetName() != "headless")
             {
                 Image image = texture.GetImage();
                 if (image != null && !image.IsEmpty())
