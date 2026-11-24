@@ -154,7 +154,7 @@ func _check_defaults() -> void:
 	expect(PathPrefixServer.globalize("temp://x") == OS.get_temp_dir().replace("\\", "/").path_join("x"), "temp:// maps to OS.get_temp_path()")
 	expect(PathPrefixServer.register_prefix_folder("appdata://", "user://pp_appdata") == OK, "appdata:// can be replaced")
 	expect(PathPrefixServer.globalize("appdata://a") == ProjectSettings.globalize_path("user://pp_appdata/a"), "the replacement is used")
-	PathPrefixServer.register_prefix("appdata://", PathPrefixServer.create_os_path_logic(PathPrefixServer.OS_PATH_DATA))
+	PathPrefixServer.register_prefix("appdata://", PathPrefixServer.create_os_path_prefix(PathPrefixServer.OS_PATH_DATA))
 
 
 func _check_resolve() -> void:
@@ -174,13 +174,13 @@ func _check_resolve() -> void:
 
 
 func _check_resolve_safe() -> void:
-	expect(PathPrefixServer.resolve_safe("user://saves/a.json", true).valid, "resolve_safe(user://saves/a.json) is valid")
-	expect(PathPrefixServer.resolve_safe("user://saves/../../x", false).error == ERR_FILE_BAD_PATH, "resolve_safe rejects user://saves/../../x")
-	expect(PathPrefixServer.resolve_safe("/etc/passwd", false).error == ERR_FILE_BAD_PATH, "resolve_safe rejects /etc/passwd")
-	expect(PathPrefixServer.resolve_safe("C:\\Windows\\win.ini", false).error == ERR_FILE_BAD_PATH, "resolve_safe rejects C:\\Windows\\win.ini")
-	expect(PathPrefixServer.resolve_safe("user://other/a.json", true, ["user://saves/"]).error == ERR_FILE_BAD_PATH, "resolve_safe rejects paths outside allowed_roots")
-	expect(PathPrefixServer.resolve_safe("user://saves/a.json", true, ["user://saves/"]).valid, "resolve_safe accepts paths inside allowed_roots")
-	var res_write := PathPrefixServer.resolve_safe("res://a.tres", true)
+	expect(PathPrefixServer.resolve_safe("user://saves/a.json", PathPrefixServer.ACCESS_WRITE).valid, "resolve_safe(user://saves/a.json) is valid")
+	expect(PathPrefixServer.resolve_safe("user://saves/../../x", PathPrefixServer.ACCESS_READ).error == ERR_FILE_BAD_PATH, "resolve_safe rejects user://saves/../../x")
+	expect(PathPrefixServer.resolve_safe("/etc/passwd", PathPrefixServer.ACCESS_READ).error == ERR_FILE_BAD_PATH, "resolve_safe rejects /etc/passwd")
+	expect(PathPrefixServer.resolve_safe("C:\\Windows\\win.ini", PathPrefixServer.ACCESS_READ).error == ERR_FILE_BAD_PATH, "resolve_safe rejects C:\\Windows\\win.ini")
+	expect(PathPrefixServer.resolve_safe("user://other/a.json", PathPrefixServer.ACCESS_WRITE, ["user://saves/"]).error == ERR_FILE_BAD_PATH, "resolve_safe rejects paths outside allowed_roots")
+	expect(PathPrefixServer.resolve_safe("user://saves/a.json", PathPrefixServer.ACCESS_WRITE, ["user://saves/"]).valid, "resolve_safe accepts paths inside allowed_roots")
+	var res_write := PathPrefixServer.resolve_safe("res://a.tres", PathPrefixServer.ACCESS_WRITE)
 	if OS.has_feature("template"):
 		expect(res_write.error == ERR_FILE_NO_PERMISSION, "resolve_safe rejects res:// for writing in an exported build")
 	else:
