@@ -17,6 +17,8 @@ func _run_checks() -> void:
 	_check_resolve()
 	_check_resolve_safe()
 	_check_performance()
+	# Last: mounting a pack switches the res:// directory access of this run.
+	_check_engine_path_redispatch()
 
 
 func _check_engine_prefixes() -> void:
@@ -196,3 +198,61 @@ func _check_performance() -> void:
 	var exists_ms := (Time.get_ticks_usec() - start) / 1000.0
 	print("PERF gd: 100000 x resolve() = %.1f ms, 10000 x FileAccess.file_exists(res://) = %.1f ms" % [resolve_ms, exists_ms])
 	expect(resolve_ms < 10000.0, "100000 resolve() calls take less than 10 s")
+
+
+# 87: prefixes that resolve into res:// or user:// use the engine access, including the PCK.
+func _check_engine_path_redispatch() -> void:
+	expect(PathPrefixServer.register_prefix_folder("pp_pack://", "res://pp87_gd_pack") == OK, "register_prefix_folder(pp_pack://, res://pp87_gd_pack)")
+	expect(PathPrefixServer.register_prefix_folder("pp_chain://", "pp_pack://sub") == OK, "register_prefix_folder(pp_chain://, pp_pack://sub)")
+	expect(PathPrefixServer.register_prefix_folder("pp_user://", "user://pp87_gd_user") == OK, "register_prefix_folder(pp_user://, user://pp87_gd_user)")
+	expect(PathPrefixServer.register_prefix_callable("pp_call://", func(path: String) -> String: return "res://pp87_gd_pack/" + path.trim_prefix("pp_call://")) == OK, "register_prefix_callable(pp_call://) returning res://")
+	expect_equal(PathPrefixServer.resolve_engine_path("pp_pack://data.txt"), "res://pp87_gd_pack/data.txt", "resolve_engine_path(pp_pack://data.txt)")
+	expect_equal(PathPrefixServer.resolve_engine_path("pp_pack://x/../data.txt"), "res://pp87_gd_pack/data.txt", "resolve_engine_path() resolves ..")
+	expect_equal(PathPrefixServer.resolve_engine_path("pp_chain://b.txt"), "res://pp87_gd_pack/sub/b.txt", "resolve_engine_path() follows pp_chain:// -> pp_pack:// -> res://")
+	expect_equal(PathPrefixServer.resolve_engine_path("pp_call://data.txt"), "res://pp87_gd_pack/data.txt", "resolve_engine_path() of a callable prefix")
+	expect_equal(PathPrefixServer.resolve_engine_path("pp_user://a.txt"), "user://pp87_gd_user/a.txt", "resolve_engine_path(pp_user://a.txt)")
+	expect_equal(PathPrefixServer.resolve_engine_path("temp://a.txt"), "temp://a.txt", "a prefix that ends in an OS path stays unchanged")
+	expect_equal(PathPrefixServer.resolve_engine_path("res://a.txt"), "res://a.txt", "engine paths stay unchanged")
+
+	# user:// alias: files and folders go through the user:// access.
+	expect(DirAccess.make_dir_recursive_absolute("pp_user://saves") == OK, "make_dir_recursive_absolute(pp_user://saves)")
+	var file := FileAccess.open("pp_user://saves/a.txt", FileAccess.WRITE)
+	expect(file != null, "FileAccess.open(pp_user://saves/a.txt, WRITE)")
+	if file:
+		expect_equal(file.get_path(), "user://pp87_gd_user/saves/a.txt", "get_path() is the user:// path")
+		file.store_string("saved")
+		file.close()
+	expect_equal(FileAccess.get_file_as_string("user://pp87_gd_user/saves/a.txt"), "saved", "the file is in user://pp87_gd_user")
+	var dir := DirAccess.open("pp_user://saves")
+	expect(dir != null and dir.get_current_dir().begins_with("user://") and dir.file_exists("a.txt"), "DirAccess.open(pp_user://saves) is a user:// access")
+	expect(DirAccess.remove_absolute("pp_user://saves/a.txt") == OK and DirAccess.remove_absolute("pp_user://saves") == OK, "remove_absolute() through pp_user://")
+	expect(not DirAccess.dir_exists_absolute("pp_user://saves"), "dir_exists_absolute(pp_user://saves) is false after removal")
+
+	# res:// alias: the files exist only in a pack, as in an exported game.
+	var pack := "user://pp87_gd.pck"
+	var packer := PCKPacker.new()
+	packer.pck_start(pack)
+	packer.add_file_from_buffer("pp87_gd_pack/data.txt", "Packed".to_utf8_buffer())
+	packer.add_file_from_buffer("pp87_gd_pack/sub/b.txt", "Nested".to_utf8_buffer())
+	packer.add_file_from_buffer("pp87_gd_pack/res.tres", "[gd_resource type=\"Resource\" format=3]\n\n[resource]\nresource_name = \"packed\"\n".to_utf8_buffer())
+	expect(packer.flush() == OK, "PCKPacker writes user://pp87_gd.pck")
+	expect(not FileAccess.file_exists(ProjectSettings.globalize_path("res://pp87_gd_pack/data.txt")), "the file is not on disk")
+	expect(ProjectSettings.load_resource_pack(ProjectSettings.globalize_path(pack)), "load_resource_pack()")
+	expect(FileAccess.file_exists("pp_pack://data.txt"), "FileAccess.file_exists(pp_pack://data.txt) finds the packed file")
+	expect(not FileAccess.file_exists("pp_pack://missing.txt"), "FileAccess.file_exists(pp_pack://missing.txt) is false")
+	expect_equal(FileAccess.get_file_as_string("pp_pack://data.txt"), "Packed", "FileAccess reads pp_pack://data.txt from the pack")
+	expect_equal(FileAccess.get_file_as_string("pp_chain://b.txt"), "Nested", "FileAccess reads pp_chain://b.txt from the pack")
+	expect_equal(FileAccess.get_file_as_string("pp_call://data.txt"), "Packed", "FileAccess reads pp_call://data.txt from the pack")
+	var packed := FileAccess.open("pp_pack://data.txt", FileAccess.READ)
+	expect(packed != null and packed.get_path() == "res://pp87_gd_pack/data.txt", "get_path() of a packed file is the res:// path")
+	expect(DirAccess.dir_exists_absolute("pp_pack://sub"), "DirAccess.dir_exists_absolute(pp_pack://sub) finds the packed folder")
+	var pack_dir := DirAccess.open("pp_pack://")
+	expect(pack_dir != null and pack_dir.file_exists("data.txt"), "DirAccess.open(pp_pack://) lists the packed files")
+	expect(ResourceLoader.exists("pp_pack://res.tres"), "ResourceLoader.exists(pp_pack://res.tres)")
+	var by_alias := ResourceLoader.load("pp_pack://res.tres")
+	expect(by_alias != null and by_alias.resource_name == "packed", "ResourceLoader.load(pp_pack://res.tres) from the pack")
+	expect(by_alias != null and by_alias.resource_path == "res://pp87_gd_pack/res.tres", "resource_path is the res:// path")
+	expect(by_alias != null and by_alias == ResourceLoader.load("res://pp87_gd_pack/res.tres"), "the alias and the res:// path share the cache")
+
+	for prefix: String in ["pp_pack://", "pp_chain://", "pp_user://", "pp_call://"]:
+		PathPrefixServer.unregister_prefix(prefix)
