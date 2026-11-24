@@ -25,7 +25,7 @@ project/assembly_name="GodotCustomBuildProject"
 
 [internationalization]
 
-locale/translations=PackedStringArray("res://17-feature-language-settings/resources/hello_de.tres", "res://17-feature-language-settings/resources/hello_fr.tres")
+locale/translations=PackedStringArray("res://17-feature-language-settings/resources/hello_de.translation", "res://17-feature-language-settings/resources/hello_fr.translation")
 
 [settings]
 

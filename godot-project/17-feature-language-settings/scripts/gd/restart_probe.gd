@@ -13,7 +13,7 @@ func _ready() -> void:
 		"command_line_locale": LanguageSettingsServer.get_command_line_locale(),
 		"hello": tr("CHECK17_HELLO"),
 		"pseudolocalization": TranslationServer.pseudolocalization_enabled,
-		"layout_direction": root.layout_direction,
+		"layout_direction": root.get_layout_direction(),
 		"auto_translate_mode": root.auto_translate_mode,
 	}
 	print("CHECK17_PROBE " + JSON.stringify(probe))

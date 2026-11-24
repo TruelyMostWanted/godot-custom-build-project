@@ -1,7 +1,7 @@
 extends FeatureCheck
 ## GDScript checks of 17-feature-language-settings. Check the same things as scripts/cs/Issue17FeatureLanguageSettingsCheck.cs.
 ##
-## The project has two translations (resources/hello_de.tres and hello_fr.tres, set in
+## The project has two translations (resources/hello_de.translation and hello_fr.translation, set in
 ## internationalization/locale/translations) with the key CHECK17_HELLO. The restart checks start the project
 ## again as its own processes (desktop only) and read what the domain applied before the main scene was ready.
 
@@ -107,12 +107,12 @@ func _check_pseudolocalization() -> void:
 func _check_layout_direction() -> void:
 	var root := get_tree().root
 	LanguageSettingsServer.set_layout_direction(Window.LAYOUT_DIRECTION_RTL)
-	expect_equal(root.layout_direction, Window.LAYOUT_DIRECTION_RTL, "the root window gets the layout direction")
+	expect_equal(root.get_layout_direction(), Window.LAYOUT_DIRECTION_RTL, "the root window gets the layout direction")
 	expect_equal(LanguageSettingsServer.get_layout_direction(), Window.LAYOUT_DIRECTION_RTL, "get_layout_direction()")
 	LanguageSettingsServer.set_layout_direction(Window.LAYOUT_DIRECTION_LTR)
-	expect_equal(root.layout_direction, Window.LAYOUT_DIRECTION_LTR, "left-to-right")
+	expect_equal(root.get_layout_direction(), Window.LAYOUT_DIRECTION_LTR, "left-to-right")
 	LanguageSettingsServer.reset_to_defaults()
-	expect_equal(root.layout_direction, Window.LAYOUT_DIRECTION_INHERITED, "reset_to_defaults() gives back the inherited direction")
+	expect_equal(root.get_layout_direction(), Window.LAYOUT_DIRECTION_INHERITED, "reset_to_defaults() gives back the inherited direction")
 
 
 func _check_auto_translate_mode() -> void:
@@ -170,12 +170,13 @@ func _check_restart() -> void:
 
 
 func _read_stored_locale() -> String:
-	var config := ConfigFile.new()
-	if config.load(LANGUAGE_FILE) != OK:
+	# The settings file is written in the plain INI mode of the text formats, not as a ConfigFile.
+	if not FileAccess.file_exists(LANGUAGE_FILE):
 		return "<no file>"
-	for section in config.get_sections():
-		if config.has_section_key(section, "locale"):
-			return str(config.get_value(section, "locale"))
+	for line in FileAccess.get_file_as_string(LANGUAGE_FILE).split("\n"):
+		var stripped := line.strip_edges()
+		if stripped.begins_with("locale="):
+			return stripped.trim_prefix("locale=").trim_prefix("\"").trim_suffix("\"")
 	return "<no locale key>"
 
 

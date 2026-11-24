@@ -6,7 +6,7 @@ namespace TruelyInteractive.Issue17FeatureLanguageSettings;
 
 /// <summary>
 /// C# checks of 17-feature-language-settings. Check the same things as scripts/gd/check.gd.
-/// The project has two translations (resources/hello_de.tres and hello_fr.tres) with the key CHECK17_HELLO.
+/// The project has two translations (resources/hello_de.translation and hello_fr.translation) with the key CHECK17_HELLO.
 /// Typed methods are called on the generated static class, the methods of the base class through
 /// <c>Singleton</c>. The restart checks start the project again as their own processes (desktop only).
 /// </summary>
@@ -52,7 +52,7 @@ public partial class Issue17FeatureLanguageSettingsCheck : FeatureCheckCs
         server.ResetToDefaults();
         ExpectEqual(server.GetDefaultValue("locale").AsString(), "", "default locale follows the OS");
         ExpectEqual(server.GetDefaultValue("pseudolocalization_enabled").AsBool(), false, "default: no pseudolocalization");
-        ExpectEqual(server.GetDefaultValue("layout_direction").AsInt32(), (int)Window.LayoutDirectionEnum.Inherited, "default layout direction is inherited");
+        ExpectEqual(server.GetDefaultValue("layout_direction").AsInt32(), (int)Window.LayoutDirection.Inherited, "default layout direction is inherited");
         ExpectEqual(server.GetDefaultValue("root_auto_translate_mode").AsInt32(), (int)Node.AutoTranslateModeEnum.Always, "default auto-translate mode is ALWAYS (project setting)");
         ExpectEqual(LanguageSettingsServer.GetLocale(), "", "locale is empty after reset");
         ExpectEqual(TranslationServer.GetLocale(), ProjectLocale(), "an empty locale gives the project (test or OS) locale");
@@ -119,13 +119,13 @@ public partial class Issue17FeatureLanguageSettingsCheck : FeatureCheckCs
     private void CheckLayoutDirection()
     {
         var root = GetTree().Root;
-        LanguageSettingsServer.SetLayoutDirection(Window.LayoutDirectionEnum.Rtl);
-        ExpectEqual((int)root.LayoutDirection, (int)Window.LayoutDirectionEnum.Rtl, "the root window gets the layout direction");
-        ExpectEqual((int)LanguageSettingsServer.GetLayoutDirection(), (int)Window.LayoutDirectionEnum.Rtl, "GetLayoutDirection()");
-        LanguageSettingsServer.SetLayoutDirection(Window.LayoutDirectionEnum.Ltr);
-        ExpectEqual((int)root.LayoutDirection, (int)Window.LayoutDirectionEnum.Ltr, "left-to-right");
+        LanguageSettingsServer.SetLayoutDirection(Window.LayoutDirection.Rtl);
+        ExpectEqual((int)root.GetLayoutDirection(), (int)Window.LayoutDirection.Rtl, "the root window gets the layout direction");
+        ExpectEqual((int)LanguageSettingsServer.GetLayoutDirection(), (int)Window.LayoutDirection.Rtl, "GetLayoutDirection()");
+        LanguageSettingsServer.SetLayoutDirection(Window.LayoutDirection.Ltr);
+        ExpectEqual((int)root.GetLayoutDirection(), (int)Window.LayoutDirection.Ltr, "left-to-right");
         LanguageSettingsServer.Singleton.ResetToDefaults();
-        ExpectEqual((int)root.LayoutDirection, (int)Window.LayoutDirectionEnum.Inherited, "ResetToDefaults() gives back the inherited direction");
+        ExpectEqual((int)root.GetLayoutDirection(), (int)Window.LayoutDirection.Inherited, "ResetToDefaults() gives back the inherited direction");
     }
 
     private void CheckAutoTranslateMode()
@@ -143,7 +143,7 @@ public partial class Issue17FeatureLanguageSettingsCheck : FeatureCheckCs
         var settings = new LanguageSettings();
         ExpectEqual(settings.Locale, "", "LanguageSettings: default locale");
         ExpectEqual(settings.PseudolocalizationEnabled, false, "LanguageSettings: default pseudolocalization");
-        ExpectEqual((int)settings.LayoutDirection, (int)Window.LayoutDirectionEnum.Inherited, "LanguageSettings: default layout direction");
+        ExpectEqual((int)settings.LayoutDirection, (int)Window.LayoutDirection.Inherited, "LanguageSettings: default layout direction");
         settings.Locale = "fr";
         ExpectEqual(settings.Locale, "fr", "LanguageSettings: locale is a plain property");
     }
@@ -159,7 +159,7 @@ public partial class Issue17FeatureLanguageSettingsCheck : FeatureCheckCs
 
         // 1) The saved locale, layout direction and auto-translate mode are applied before the main scene.
         LanguageSettingsServer.SetLocale("fr");
-        LanguageSettingsServer.SetLayoutDirection(Window.LayoutDirectionEnum.Rtl);
+        LanguageSettingsServer.SetLayoutDirection(Window.LayoutDirection.Rtl);
         LanguageSettingsServer.SetRootAutoTranslateMode(Node.AutoTranslateModeEnum.Disabled);
         ExpectEqual(server.Save(), Error.Ok, "Save() writes the player file");
         Expect(FileAccess.FileExists(LanguageFile), "the player file is in user://settings/");
@@ -168,7 +168,7 @@ public partial class Issue17FeatureLanguageSettingsCheck : FeatureCheckCs
         Expect(probe.ContainsKey("started") && probe["started"].AsBool(), "restart: the domain was started");
         ExpectEqual(ProbeString(probe, "locale"), "fr", "restart: the saved locale is active");
         ExpectEqual(ProbeString(probe, "hello"), "Bonjour", "restart: the first text is already French");
-        ExpectEqual(ProbeInt(probe, "layout_direction"), (int)Window.LayoutDirectionEnum.Rtl, "restart: the saved layout direction is on the root window");
+        ExpectEqual(ProbeInt(probe, "layout_direction"), (int)Window.LayoutDirection.Rtl, "restart: the saved layout direction is on the root window");
         ExpectEqual(ProbeInt(probe, "auto_translate_mode"), (int)Node.AutoTranslateModeEnum.Disabled, "restart: the saved auto-translate mode is on the root window");
         ExpectEqual(ProbeInt(probe, "ready_frame"), 0, "restart: applied before the first frame");
 
@@ -194,16 +194,17 @@ public partial class Issue17FeatureLanguageSettingsCheck : FeatureCheckCs
 
     private static string ReadStoredLocale()
     {
-        var config = new ConfigFile();
-        if (config.Load(LanguageFile) != Error.Ok)
+        // The settings file is written in the plain INI mode of the text formats, not as a ConfigFile.
+        if (!FileAccess.FileExists(LanguageFile))
         {
             return "<no file>";
         }
-        foreach (string section in config.GetSections())
+        foreach (string line in FileAccess.GetFileAsString(LanguageFile).Split('\n'))
         {
-            if (config.HasSectionKey(section, "locale"))
+            string stripped = line.StripEdges();
+            if (stripped.StartsWith("locale="))
             {
-                return config.GetValue(section, "locale").AsString();
+                return stripped["locale=".Length..].Trim('"');
             }
         }
         return "<no locale key>";
