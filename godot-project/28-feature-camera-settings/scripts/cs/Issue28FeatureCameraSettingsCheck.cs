@@ -62,7 +62,8 @@ public partial class Issue28FeatureCameraSettingsCheck : FeatureCheckCs
         DirAccess.RemoveAbsolute(CameraFile);
     }
 
-    private static bool Approx(double a, double b) => Mathf.IsEqualApprox(a, b);
+    // Camera values are floats: compare at float precision (the double overload uses 1e-14).
+    private static bool Approx(double a, double b) => Mathf.IsEqualApprox((float)a, (float)b);
 
     private static Camera3D AuthoredCamera()
     {
