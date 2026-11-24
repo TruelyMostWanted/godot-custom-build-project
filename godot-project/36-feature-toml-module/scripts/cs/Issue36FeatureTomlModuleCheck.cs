@@ -93,7 +93,7 @@ public partial class Issue36FeatureTomlModuleCheck : FeatureCheckCs
         CheckSettings(ResourceLoader.Load(path, "Issue36GdTomlSettings", ResourceLoader.CacheMode.Ignore), ".toml with type hint");
 
         // Key order.
-        string text = Toml.ResourceToToml(MakeSettings());
+        string text = Toml.Serialize(MakeSettings());
         string[] order = { "\"$type\" = ", "\"$format_version\" = 1", "volume = ", "title = ", "spare = \"\"", "numbers = [4, -7]", "tint = ", "\n[main]\n", "\n[main.child]\n", "\n[[entries]]\n", "\n[entries.child]\n", "\n[extra]\n" };
         int last = -1;
         bool ordered = true;
@@ -112,12 +112,12 @@ public partial class Issue36FeatureTomlModuleCheck : FeatureCheckCs
 
         // String API.
         Expect(text.Contains("mode = \"Angry\""), "enums are written as names");
-        CheckSettings(Toml.TomlToResource(text), "TomlToResource()");
-        string numbersText = Toml.ResourceToToml(MakeSettings(), new Dictionary { { "enums_as_names", false } });
+        CheckSettings(Toml.Deserialize(text), "Deserialize()");
+        string numbersText = Toml.Serialize(MakeSettings(), new Dictionary { { "enums_as_names", false } });
         Expect(numbersText.Contains("mode = 5"), "option enums_as_names = false writes numbers");
-        CheckSettings(Toml.TomlToResource(numbersText), "TomlToResource() with enum numbers");
+        CheckSettings(Toml.Deserialize(numbersText), "Deserialize() with enum numbers");
         string untyped = text.Replace("\"$type\" = \"Issue36GdTomlSettings\"\n", "");
-        CheckSettings(Toml.TomlToResource(untyped, "Issue36GdTomlSettings"), "TomlToResource() with type hint");
+        CheckSettings(Toml.Deserialize(untyped, "Issue36GdTomlSettings"), "Deserialize() with type hint");
 
         // Parse.
         const string source = "# Hand-written\n"

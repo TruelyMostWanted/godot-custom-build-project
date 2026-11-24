@@ -94,10 +94,10 @@ public partial class Issue05FeatureResourceTextFormatsCheck : FeatureCheckCs
         var le = loadedList?.Get("entries").As<Array>();
         Expect(le != null && le.Count == 2 && SameBus(le[0], entries[0]) && SameBus(le[1], entries[1]), ".csv: rows with comma and quotes round-trip");
 
-        string json = ResourceTextSerializer.ResourceToJson(MakeSettings());
-        Expect(json.Contains("Cleo"), "ResourceToJson() returns text");
-        CheckSettings(ResourceTextSerializer.JsonToResource(json), "JsonToResource()");
-        CheckSettings(ResourceTextSerializer.IniToResource(ResourceTextSerializer.ResourceToIni(MakeSettings())), "IniToResource()");
+        string json = ResourceTextSerializer.Serialize(MakeSettings(), "json");
+        Expect(json.Contains("Cleo"), "Serialize(\"json\") returns text");
+        CheckSettings(ResourceTextSerializer.Deserialize(json, "json"), "Deserialize(\"json\")");
+        CheckSettings(ResourceTextSerializer.Deserialize(ResourceTextSerializer.Serialize(MakeSettings(), "ini"), "ini"), "Deserialize(\"ini\")");
 
         using (var f = FileAccess.Open(Root + "plain.json", FileAccess.ModeFlags.Write))
         {
