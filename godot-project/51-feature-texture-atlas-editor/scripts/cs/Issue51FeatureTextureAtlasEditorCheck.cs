@@ -30,7 +30,7 @@ public partial class Issue51FeatureTextureAtlasEditorCheck : FeatureCheckCs
         return image;
     }
 
-    private static bool SameRegions(TextureAtlas a, TextureAtlas b)
+    private static bool SameRegions(SpriteSheet a, SpriteSheet b)
     {
         if (!a.GetRegionNames().SequenceEqual(b.GetRegionNames()))
         {
@@ -53,25 +53,25 @@ public partial class Issue51FeatureTextureAtlasEditorCheck : FeatureCheckCs
         Image image = MakeSheet(expected);
 
         // Auto slice: 50 sprites of mixed sizes become 50 correct regions, in rows from left to right.
-        Godot.Collections.Array<Rect2I> found = TextureAtlas.DetectSpriteRects(image);
+        Godot.Collections.Array<Rect2I> found = SpriteSheet.DetectSpriteRects(image);
         Expect(found.Count == 50, $"DetectSpriteRects finds 50 sprites (found {found.Count})");
         Expect(found.Count == 50 && found.Select((rect, i) => rect == expected[i]).All(match => match), "every detected rectangle matches its sprite, in row order");
-        Expect(TextureAtlas.DetectSpriteRects(image, 0.99f).Count == 50, "opaque sprites are found with a high alpha threshold too");
+        Expect(SpriteSheet.DetectSpriteRects(image, 0.99f).Count == 50, "opaque sprites are found with a high alpha threshold too");
 
         // The same through a PNG file (as an editor user would paint it).
         string pngPath = UserDir + "sheet50.png";
         Expect(image.SavePng(pngPath) == Error.Ok, "the sheet is saved as PNG");
         ImageTexture sheet = ImageTexture.CreateFromImage(Image.LoadFromFile(pngPath));
-        var atlas = new TextureAtlas { Texture = sheet };
+        var atlas = new SpriteSheet { Texture = sheet };
         string[] names = atlas.AutoSlice("enemy_");
         Expect(names.Length == 50 && names[0] == "enemy_0" && names[49] == "enemy_49", "AutoSlice adds 50 regions named enemy_0 ... enemy_49");
         Expect(atlas.GetRegion("enemy_17") == expected[17], "AutoSlice region enemy_17 has the sprite rectangle");
         Expect(atlas.AutoSlice("enemy_").Length == 0, "AutoSlice again adds nothing");
 
         // Grid and generated names ("Add from Grid" in the editor).
-        Godot.Collections.Array<Rect2I> cells = TextureAtlas.MakeGridRects(new Vector2I(240, 120), new Vector2I(24, 24));
+        Godot.Collections.Array<Rect2I> cells = SpriteSheet.MakeGridRects(new Vector2I(240, 120), new Vector2I(24, 24));
         Expect(cells.Count == 50 && cells[11] == new Rect2I(24, 24, 24, 24), "MakeGridRects returns 10x5 cells, row by row");
-        var gridAtlas = new TextureAtlas { Texture = sheet };
+        var gridAtlas = new SpriteSheet { Texture = sheet };
         string[] gridNames = gridAtlas.AddRegions(cells, "cell_");
         Expect(gridNames.Length == 50 && gridAtlas.GetRegion("cell_11") == new Rect2I(24, 24, 24, 24), "AddRegions adds the grid cells with generated names");
         Expect(gridAtlas.MakeUniqueRegionName("cell_") == "cell_50", "MakeUniqueRegionName returns the next free name");
@@ -84,7 +84,7 @@ public partial class Issue51FeatureTextureAtlasEditorCheck : FeatureCheckCs
         atlas.SetRegionMargin("boss", new Rect2I(1, 2, 3, 4));
         string tresPath = UserDir + "enemies.atlas.tres";
         Expect(ResourceSaver.Save(atlas, tresPath) == Error.Ok, "the atlas is saved as .tres");
-        var reloaded = ResourceLoader.Load<TextureAtlas>(tresPath, "", ResourceLoader.CacheMode.Ignore);
+        var reloaded = ResourceLoader.Load<SpriteSheet>(tresPath, "", ResourceLoader.CacheMode.Ignore);
         Expect(reloaded != null && SameRegions(atlas, reloaded), ".tres keeps 50 regions, their order and the margin");
         foreach (string extension in new[] { "json", "csv", "ini" })
         {
@@ -92,13 +92,13 @@ public partial class Issue51FeatureTextureAtlasEditorCheck : FeatureCheckCs
             atlas.TexturePath = pngPath;
             Expect(atlas.SaveToFile(path) == Error.Ok, "export as " + extension);
             // The editor imports into an atlas that has the sheet already; the same path keeps that texture.
-            var imported = new TextureAtlas { Texture = sheet };
+            var imported = new SpriteSheet { Texture = sheet };
             imported.TexturePath = pngPath;
             Expect(imported.LoadFromFile(path) == Error.Ok && SameRegions(atlas, imported), "import of the " + extension + " export gives the same regions");
         }
 
         // "Create SpriteFrames" from selected regions: a copy with only the selected ones.
-        var selected = new TextureAtlas { Texture = sheet };
+        var selected = new SpriteSheet { Texture = sheet };
         foreach (string name in new[] { "enemy_12", "enemy_10", "enemy_11" })
         {
             selected.SetRegion(name, atlas.GetRegion(name));
@@ -113,7 +113,7 @@ public partial class Issue51FeatureTextureAtlasEditorCheck : FeatureCheckCs
         Expect(framesReloaded != null && framesReloaded.GetFrameCount("enemy") == 3, "the saved SpriteFrames load with 3 frames");
 
         // "Assign to Selected Nodes": a Sprite2D shows the region.
-        var sprite = new Sprite2D { Texture = atlas.GetTexture("enemy_17") };
+        var sprite = new Sprite2D { Texture = atlas.GetRegionTexture("enemy_17") };
         AddChild(sprite);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         Expect(sprite.GetRect().Size == new Vector2(expected[17].Size.X, expected[17].Size.Y), "a Sprite2D with the region texture has the sprite size");
