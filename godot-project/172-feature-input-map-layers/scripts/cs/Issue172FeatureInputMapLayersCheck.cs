@@ -197,7 +197,7 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
     {
         Expect(InputMap.IsBuiltinInputAction("ui_accept"), "ui_accept is built-in");
         Expect(!InputMap.IsCustomInputAction("ui_accept"), "ui_accept is not custom");
-        Expect(!InputMap.IsBuiltinInputAction("ui_text_backspace_word.macos"), "a platform variant is not an action of the built-in layer");
+        Expect(!InputMap.IsCustomInputAction("ui_text_backspace_word.macos"), "a platform variant of a built-in action is never custom");
         Expect(InputMap.IsCustomInputAction(Attack), "a project action is custom");
         Expect(!InputMap.IsBuiltinInputAction(Attack), "a project action is not built-in");
         Expect(!InputMap.IsCustomInputAction("l172_not_there"), "a missing action is not custom");

@@ -172,7 +172,7 @@ func _check_resource_files() -> void:
 func _check_layers() -> void:
 	expect(InputMap.is_builtin_input_action(&"ui_accept"), "ui_accept is built-in")
 	expect(not InputMap.is_custom_input_action(&"ui_accept"), "ui_accept is not custom")
-	expect(not InputMap.is_builtin_input_action(&"ui_text_backspace_word.macos"), "a platform variant is not an action of the built-in layer")
+	expect(not InputMap.is_custom_input_action(&"ui_text_backspace_word.macos"), "a platform variant of a built-in action is never custom")
 	expect(InputMap.is_custom_input_action(ATTACK), "a project action is custom")
 	expect(not InputMap.is_builtin_input_action(ATTACK), "a project action is not built-in")
 	expect(not InputMap.is_custom_input_action(&"l172_not_there"), "a missing action is not custom")
