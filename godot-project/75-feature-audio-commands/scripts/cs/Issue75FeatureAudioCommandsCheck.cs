@@ -95,7 +95,7 @@ public partial class Issue75FeatureAudioCommandsCheck : FeatureCheckCs
             Expect(Enumerable.Range(0, 4).All(i => SameCommand(loaded.Commands[i], list.Commands[i])), "every property of every command survives the CSV round trip");
             Expect(loaded.Commands[1].StreamPath == longWav, "paths stay paths");
         }
-        foreach (string format in new[] { "json", "ini" })
+        foreach (ResourceTextSerializer.Format format in new[] { ResourceTextSerializer.Format.Json, ResourceTextSerializer.Format.Ini })
         {
             string text = ResourceTextSerializer.Serialize(list, format);
             var back = ResourceTextSerializer.Deserialize(text, format, "AudioCommandList") as AudioCommandList;

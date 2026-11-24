@@ -99,7 +99,7 @@ func _run_checks() -> void:
 			same = same and _same_command(loaded.commands[i], list.commands[i])
 		expect(same, "every property of every command survives the CSV round trip")
 		expect(loaded.commands[1].stream_path == long_wav and loaded.commands[0].channel is StringName, "paths stay paths, names stay StringNames")
-	for format in ["json", "ini"]:
+	for format: ResourceTextSerializer.Format in [ResourceTextSerializer.FORMAT_JSON, ResourceTextSerializer.FORMAT_INI]:
 		var text := ResourceTextSerializer.serialize(list, format)
 		var back := ResourceTextSerializer.deserialize(text, format, "AudioCommandList") as AudioCommandList
 		expect(back != null and back.commands.size() == 4 and _same_command(back.commands[1], fade), "%s round trip keeps the commands" % format)
