@@ -43,7 +43,7 @@ func _check_bindings() -> void:
 func _check_expand_template() -> void:
 	expect_equal(StreamingAssetsExportPlugin.expand_template("{exe_name}_Data/StreamingAssets", "MyGame"), "MyGame_Data/StreamingAssets", "default target expands {exe_name}")
 	expect_equal(StreamingAssetsExportPlugin.expand_template("{exe_name}/{exe_name}.data", "a"), "a/a.data", "every {exe_name} is replaced")
-	expect_equal(StreamingAssetsExportPlugin.expand_template("{app_name}/x", "MyGame"), "{app_name}/x", "unknown placeholders stay")
+	expect_equal(StreamingAssetsExportPlugin.expand_template("{unknown}/x", "MyGame"), "{unknown}/x", "unknown placeholders stay")
 
 
 func _check_target_folder() -> void:
