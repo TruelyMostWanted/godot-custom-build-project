@@ -37,6 +37,8 @@ public partial class Issue22FeatureVideoTextureSettingsCheck : FeatureCheckCs
 
     protected override async Task RunChecks()
     {
+        await CheckTypedSignals();
+
         var server = VideoTextureSettingsServer.Singleton;
         Expect(Engine.HasSingleton("VideoTextureSettingsServer"), "VideoTextureSettingsServer is a registered singleton");
         Expect(server is VideoTextureSettingsServerInstance, "VideoTextureSettingsServer.Singleton is the instance type");
@@ -271,5 +273,50 @@ public partial class Issue22FeatureVideoTextureSettingsCheck : FeatureCheckCs
         }
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         DirAccess.RemoveAbsolute(StreamingFile);
+    }
+
+    /// <summary>Issue #173: the typed signal fires once per applied change, not for pending changes in manual mode.</summary>
+    private async Task CheckTypedSignals()
+    {
+        if (!Engine.HasSingleton("VideoTextureSettingsServer"))
+        {
+            return;
+        }
+        var s = (SettingsServer)Engine.GetSingleton("VideoTextureSettingsServer");
+        Expect(s.HasSignal("texture_mipmap_bias_changed"), "VideoTextureSettingsServer has the typed signal texture_mipmap_bias_changed");
+        string filePath = s.GetFilePath();
+        bool hadFile = FileAccess.FileExists(filePath);
+        var previousMode = s.ApplyMode;
+        s.ApplyMode = SettingsServer.ApplyModeEnum.Immediate;
+        s.ResetValue("texture_mipmap_bias");
+        double newValue = s.GetAppliedValue("texture_mipmap_bias").AsDouble() != 0.5 ? 0.5 : -0.5;
+        var received = new System.Collections.Generic.List<Variant>();
+        var onChanged = Callable.From((Variant v) => received.Add(v));
+        s.Connect("texture_mipmap_bias_changed", onChanged);
+
+        s.ApplyMode = SettingsServer.ApplyModeEnum.Manual;
+        s.SetValue("texture_mipmap_bias", newValue);
+        ExpectEqual(received.Count, 0, "texture_mipmap_bias_changed does not fire for a pending change in manual mode");
+        s.Apply();
+        ExpectEqual(received.Count, 1, "texture_mipmap_bias_changed fires once on Apply()");
+        if (received.Count > 0)
+        {
+            ExpectEqual(received[0].VariantType, Variant.Type.Float, "texture_mipmap_bias_changed passes a typed value");
+            ExpectEqual((float)received[0].AsDouble(), (float)newValue, "texture_mipmap_bias_changed passes the applied value");
+        }
+        s.Apply();
+        ExpectEqual(received.Count, 1, "texture_mipmap_bias_changed does not fire when nothing changed");
+        s.ResetValue("texture_mipmap_bias");
+        ExpectEqual(received.Count, 1, "texture_mipmap_bias_changed waits for Apply() after a reset in manual mode");
+        s.Apply();
+        ExpectEqual(received.Count, 2, "texture_mipmap_bias_changed fires again when the default is applied");
+
+        s.Disconnect("texture_mipmap_bias_changed", onChanged);
+        s.ApplyMode = previousMode;
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        if (!hadFile)
+        {
+            DirAccess.RemoveAbsolute(filePath);
+        }
     }
 }

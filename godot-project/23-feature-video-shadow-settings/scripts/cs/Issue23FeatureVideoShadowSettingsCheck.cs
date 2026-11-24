@@ -31,6 +31,8 @@ public partial class Issue23FeatureVideoShadowSettingsCheck : FeatureCheckCs
 
     protected override async Task RunChecks()
     {
+        await CheckTypedSignals();
+
         var server = VideoShadowSettingsServer.Singleton;
         Expect(Engine.HasSingleton("VideoShadowSettingsServer"), "VideoShadowSettingsServer is a registered singleton");
         Expect(server is VideoShadowSettingsServerInstance, "VideoShadowSettingsServer.Singleton is the instance type");
@@ -268,5 +270,50 @@ public partial class Issue23FeatureVideoShadowSettingsCheck : FeatureCheckCs
 
         scene.QueueFree();
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+    }
+
+    /// <summary>Issue #173: the typed signal fires once per applied change, not for pending changes in manual mode.</summary>
+    private async Task CheckTypedSignals()
+    {
+        if (!Engine.HasSingleton("VideoShadowSettingsServer"))
+        {
+            return;
+        }
+        var s = (SettingsServer)Engine.GetSingleton("VideoShadowSettingsServer");
+        Expect(s.HasSignal("directional_shadow_atlas_size_changed"), "VideoShadowSettingsServer has the typed signal directional_shadow_atlas_size_changed");
+        string filePath = s.GetFilePath();
+        bool hadFile = FileAccess.FileExists(filePath);
+        var previousMode = s.ApplyMode;
+        s.ApplyMode = SettingsServer.ApplyModeEnum.Immediate;
+        s.ResetValue("directional_shadow_atlas_size");
+        long newValue = s.GetAppliedValue("directional_shadow_atlas_size").AsInt64() != 2048L ? 2048L : 1024L;
+        var received = new System.Collections.Generic.List<Variant>();
+        var onChanged = Callable.From((Variant v) => received.Add(v));
+        s.Connect("directional_shadow_atlas_size_changed", onChanged);
+
+        s.ApplyMode = SettingsServer.ApplyModeEnum.Manual;
+        s.SetValue("directional_shadow_atlas_size", newValue);
+        ExpectEqual(received.Count, 0, "directional_shadow_atlas_size_changed does not fire for a pending change in manual mode");
+        s.Apply();
+        ExpectEqual(received.Count, 1, "directional_shadow_atlas_size_changed fires once on Apply()");
+        if (received.Count > 0)
+        {
+            ExpectEqual(received[0].VariantType, Variant.Type.Int, "directional_shadow_atlas_size_changed passes a typed value");
+            ExpectEqual(received[0].AsInt64(), newValue, "directional_shadow_atlas_size_changed passes the applied value");
+        }
+        s.Apply();
+        ExpectEqual(received.Count, 1, "directional_shadow_atlas_size_changed does not fire when nothing changed");
+        s.ResetValue("directional_shadow_atlas_size");
+        ExpectEqual(received.Count, 1, "directional_shadow_atlas_size_changed waits for Apply() after a reset in manual mode");
+        s.Apply();
+        ExpectEqual(received.Count, 2, "directional_shadow_atlas_size_changed fires again when the default is applied");
+
+        s.Disconnect("directional_shadow_atlas_size_changed", onChanged);
+        s.ApplyMode = previousMode;
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        if (!hadFile)
+        {
+            DirAccess.RemoveAbsolute(filePath);
+        }
     }
 }

@@ -18,6 +18,8 @@ public partial class Issue27FeatureAccessibilitySettingsCheck : FeatureCheckCs
 
     protected override async Task RunChecks()
     {
+        await CheckTypedSignals();
+
         var server = AccessibilitySettingsServer.Singleton;
         Expect(Engine.HasSingleton("AccessibilitySettingsServer"), "AccessibilitySettingsServer is a registered singleton");
         Expect(server is AccessibilitySettingsServerInstance, "AccessibilitySettingsServer.Singleton is the instance type");
@@ -261,5 +263,50 @@ public partial class Issue27FeatureAccessibilitySettingsCheck : FeatureCheckCs
         }
         Expect(false, "restart: the probe printed its result");
         return new Godot.Collections.Dictionary();
+    }
+
+    /// <summary>Issue #173: the typed signal fires once per applied change, not for pending changes in manual mode.</summary>
+    private async Task CheckTypedSignals()
+    {
+        if (!Engine.HasSingleton("AccessibilitySettingsServer"))
+        {
+            return;
+        }
+        var s = (SettingsServer)Engine.GetSingleton("AccessibilitySettingsServer");
+        Expect(s.HasSignal("ui_scale_changed"), "AccessibilitySettingsServer has the typed signal ui_scale_changed");
+        string filePath = s.GetFilePath();
+        bool hadFile = FileAccess.FileExists(filePath);
+        var previousMode = s.ApplyMode;
+        s.ApplyMode = SettingsServer.ApplyModeEnum.Immediate;
+        s.ResetValue("ui_scale");
+        double newValue = s.GetAppliedValue("ui_scale").AsDouble() != 1.5 ? 1.5 : 2.0;
+        var received = new System.Collections.Generic.List<Variant>();
+        var onChanged = Callable.From((Variant v) => received.Add(v));
+        s.Connect("ui_scale_changed", onChanged);
+
+        s.ApplyMode = SettingsServer.ApplyModeEnum.Manual;
+        s.SetValue("ui_scale", newValue);
+        ExpectEqual(received.Count, 0, "ui_scale_changed does not fire for a pending change in manual mode");
+        s.Apply();
+        ExpectEqual(received.Count, 1, "ui_scale_changed fires once on Apply()");
+        if (received.Count > 0)
+        {
+            ExpectEqual(received[0].VariantType, Variant.Type.Float, "ui_scale_changed passes a typed value");
+            ExpectEqual((float)received[0].AsDouble(), (float)newValue, "ui_scale_changed passes the applied value");
+        }
+        s.Apply();
+        ExpectEqual(received.Count, 1, "ui_scale_changed does not fire when nothing changed");
+        s.ResetValue("ui_scale");
+        ExpectEqual(received.Count, 1, "ui_scale_changed waits for Apply() after a reset in manual mode");
+        s.Apply();
+        ExpectEqual(received.Count, 2, "ui_scale_changed fires again when the default is applied");
+
+        s.Disconnect("ui_scale_changed", onChanged);
+        s.ApplyMode = previousMode;
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        if (!hadFile)
+        {
+            DirAccess.RemoveAbsolute(filePath);
+        }
     }
 }

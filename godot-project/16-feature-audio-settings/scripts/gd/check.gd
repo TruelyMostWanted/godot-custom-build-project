@@ -16,6 +16,7 @@ func _get_check_name() -> String:
 
 
 func _run_checks() -> void:
+	await _check_typed_signals()
 	DirAccess.make_dir_recursive_absolute(DIR)
 	expect(Engine.has_singleton("AudioBusSettingsServer"), "AudioBusSettingsServer is a registered singleton")
 	expect(Engine.has_singleton("AudioDeviceSettingsServer"), "AudioDeviceSettingsServer is a registered singleton")
@@ -242,3 +243,53 @@ func _remove_dir(path: String) -> void:
 	for file_name in DirAccess.get_files_at(path):
 		DirAccess.remove_absolute(path.path_join(file_name))
 	DirAccess.remove_absolute(path)
+
+
+## Issue #173: the typed bus signals fire once per applied change, not for pending changes in manual mode.
+func _check_typed_signals() -> void:
+	if not Engine.has_singleton("AudioBusSettingsServer") or not Engine.has_singleton("AudioDeviceSettingsServer"):
+		return
+	var devices: SettingsServer = Engine.get_singleton("AudioDeviceSettingsServer")
+	expect(devices.has_signal(&"output_device_changed"), "AudioDeviceSettingsServer has output_device_changed")
+	expect(devices.has_signal(&"input_device_changed"), "AudioDeviceSettingsServer has input_device_changed")
+	var buses: Object = Engine.get_singleton("AudioBusSettingsServer")
+	var s: SettingsServer = buses
+	for sig in [&"bus_volume_changed", &"bus_mute_changed", &"bus_solo_changed", &"bus_layout_changed"]:
+		expect(s.has_signal(sig), "AudioBusSettingsServer has %s" % sig)
+	var file_path := s.get_file_path()
+	var had_file := FileAccess.file_exists(file_path)
+	var previous_mode := s.apply_mode
+	s.apply_mode = SettingsServer.APPLY_MODE_IMMEDIATE
+	s.reset_to_defaults()
+	var volumes: Array = []
+	var mutes: Array = []
+	var on_volume := func(bus_name: StringName, volume_db: float) -> void: volumes.append([bus_name, volume_db])
+	var on_mute := func(bus_name: StringName, muted: bool) -> void: mutes.append([bus_name, muted])
+	s.connect(&"bus_volume_changed", on_volume)
+	s.connect(&"bus_mute_changed", on_mute)
+
+	s.apply_mode = SettingsServer.APPLY_MODE_MANUAL
+	var volume: float = -6.0 if buses.get_bus_volume_db(&"Master") != -6.0 else -12.0
+	buses.set_bus_volume_db(&"Master", volume)
+	expect_equal(volumes.size(), 0, "bus_volume_changed does not fire for a pending change in manual mode")
+	s.apply()
+	expect_equal(volumes, [[&"Master", volume]], "bus_volume_changed fires once on apply() with the bus and the volume")
+	expect_equal(mutes.size(), 0, "bus_mute_changed does not fire for an unchanged mute state")
+	if not volumes.is_empty():
+		expect_equal(typeof(volumes[0][0]), TYPE_STRING_NAME, "bus_volume_changed passes the bus name as StringName")
+		expect_equal(typeof(volumes[0][1]), TYPE_FLOAT, "bus_volume_changed passes the volume as float")
+	buses.set_bus_mute(&"Master", not buses.is_bus_mute(&"Master"))
+	s.apply()
+	expect_equal(mutes.size(), 1, "bus_mute_changed fires once on apply()")
+	expect_equal(volumes.size(), 1, "bus_volume_changed does not fire again")
+	s.reset_to_defaults()
+	s.apply()
+	expect_equal(volumes.size(), 2, "bus_volume_changed fires again when the default is applied")
+	expect_equal(mutes.size(), 2, "bus_mute_changed fires again when the default is applied")
+
+	s.disconnect(&"bus_volume_changed", on_volume)
+	s.disconnect(&"bus_mute_changed", on_mute)
+	s.apply_mode = previous_mode
+	await get_tree().process_frame
+	if not had_file:
+		DirAccess.remove_absolute(file_path)

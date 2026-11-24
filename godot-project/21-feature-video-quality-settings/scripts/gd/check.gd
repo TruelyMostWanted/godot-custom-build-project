@@ -13,6 +13,7 @@ func _get_check_name() -> String:
 
 
 func _run_checks() -> void:
+	await _check_typed_signals()
 	expect(Engine.has_singleton("VideoQualitySettingsServer"), "VideoQualitySettingsServer is a registered singleton")
 	expect(Engine.get_singleton("VideoQualitySettingsServer") is SettingsServer, "VideoQualitySettingsServer is a SettingsServer")
 	expect_equal(SettingsServerManager.get_server(&"video_quality"), Engine.get_singleton("VideoQualitySettingsServer"), "the domain is registered as \"video_quality\"")
@@ -191,3 +192,45 @@ func _check_storage() -> void:
 	expect(VideoQualitySettingsServer.is_using_taa(), "use_taa is loaded (also where the renderer ignores it)")
 	VideoQualitySettingsServer.apply()
 	expect_equal(get_tree().root.msaa_3d, Viewport.MSAA_2X, "the loaded value reaches the root after apply()")
+
+
+## Issue #173: the typed signal fires once per applied change, not for pending changes in manual mode.
+func _check_typed_signals() -> void:
+	if not Engine.has_singleton("VideoQualitySettingsServer"):
+		return
+	var s: SettingsServer = Engine.get_singleton("VideoQualitySettingsServer")
+	expect(s.has_signal(&"scaling_3d_scale_changed"), "VideoQualitySettingsServer has the typed signal scaling_3d_scale_changed")
+	var arg_info: Dictionary = {}
+	for info: Dictionary in s.get_signal_list():
+		if info.name == "scaling_3d_scale_changed":
+			arg_info = info.args[0]
+	expect_equal(arg_info.get("type"), TYPE_FLOAT, "scaling_3d_scale_changed has a typed argument")
+	var file_path := s.get_file_path()
+	var had_file := FileAccess.file_exists(file_path)
+	var previous_mode := s.apply_mode
+	s.apply_mode = SettingsServer.APPLY_MODE_IMMEDIATE
+	s.reset_value(&"scaling_3d_scale")
+	var new_value: Variant = 0.5 if s.get_applied_value(&"scaling_3d_scale") != 0.5 else 0.75
+	var received: Array = []
+	var on_changed := func(v: Variant) -> void: received.append(v)
+	s.connect(&"scaling_3d_scale_changed", on_changed)
+
+	s.apply_mode = SettingsServer.APPLY_MODE_MANUAL
+	s.set_value(&"scaling_3d_scale", new_value)
+	expect_equal(received.size(), 0, "scaling_3d_scale_changed does not fire for a pending change in manual mode")
+	s.apply()
+	expect_equal(received, [new_value], "scaling_3d_scale_changed fires once on apply() with the applied value")
+	if not received.is_empty():
+		expect_equal(typeof(received[0]), TYPE_FLOAT, "scaling_3d_scale_changed passes a typed value")
+	s.apply()
+	expect_equal(received.size(), 1, "scaling_3d_scale_changed does not fire when nothing changed")
+	s.reset_value(&"scaling_3d_scale")
+	expect_equal(received.size(), 1, "scaling_3d_scale_changed waits for apply() after a reset in manual mode")
+	s.apply()
+	expect_equal(received.size(), 2, "scaling_3d_scale_changed fires again when the default is applied")
+
+	s.disconnect(&"scaling_3d_scale_changed", on_changed)
+	s.apply_mode = previous_mode
+	await get_tree().process_frame
+	if not had_file:
+		DirAccess.remove_absolute(file_path)

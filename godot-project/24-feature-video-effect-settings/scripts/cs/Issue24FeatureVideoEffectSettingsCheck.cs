@@ -35,6 +35,8 @@ public partial class Issue24FeatureVideoEffectSettingsCheck : FeatureCheckCs
 
     protected override async Task RunChecks()
     {
+        await CheckTypedSignals();
+
         var server = VideoEffectSettingsServer.Singleton;
         Expect(Engine.HasSingleton("VideoEffectSettingsServer"), "VideoEffectSettingsServer is a registered singleton");
         Expect(server is VideoEffectSettingsServerInstance, "VideoEffectSettingsServer.Singleton is the instance type");
@@ -179,5 +181,50 @@ public partial class Issue24FeatureVideoEffectSettingsCheck : FeatureCheckCs
         ExpectEqual(VideoEffectSettingsServer.GetSsilQuality(), RenderingServer.EnvironmentSsilQuality.High, "the SSIL quality is loaded (also where the renderer ignores it)");
         Expect(!VideoEffectSettingsServer.IsVolumetricFogAllowed(), "the fog switch is loaded");
         Expect(Mathf.IsEqualApprox(VideoEffectSettingsServer.GetContrast(), 1.2f), "the contrast is loaded");
+    }
+
+    /// <summary>Issue #173: the typed signal fires once per applied change, not for pending changes in manual mode.</summary>
+    private async Task CheckTypedSignals()
+    {
+        if (!Engine.HasSingleton("VideoEffectSettingsServer"))
+        {
+            return;
+        }
+        var s = (SettingsServer)Engine.GetSingleton("VideoEffectSettingsServer");
+        Expect(s.HasSignal("brightness_changed"), "VideoEffectSettingsServer has the typed signal brightness_changed");
+        string filePath = s.GetFilePath();
+        bool hadFile = FileAccess.FileExists(filePath);
+        var previousMode = s.ApplyMode;
+        s.ApplyMode = SettingsServer.ApplyModeEnum.Immediate;
+        s.ResetValue("brightness");
+        double newValue = s.GetAppliedValue("brightness").AsDouble() != 1.5 ? 1.5 : 2.0;
+        var received = new System.Collections.Generic.List<Variant>();
+        var onChanged = Callable.From((Variant v) => received.Add(v));
+        s.Connect("brightness_changed", onChanged);
+
+        s.ApplyMode = SettingsServer.ApplyModeEnum.Manual;
+        s.SetValue("brightness", newValue);
+        ExpectEqual(received.Count, 0, "brightness_changed does not fire for a pending change in manual mode");
+        s.Apply();
+        ExpectEqual(received.Count, 1, "brightness_changed fires once on Apply()");
+        if (received.Count > 0)
+        {
+            ExpectEqual(received[0].VariantType, Variant.Type.Float, "brightness_changed passes a typed value");
+            ExpectEqual((float)received[0].AsDouble(), (float)newValue, "brightness_changed passes the applied value");
+        }
+        s.Apply();
+        ExpectEqual(received.Count, 1, "brightness_changed does not fire when nothing changed");
+        s.ResetValue("brightness");
+        ExpectEqual(received.Count, 1, "brightness_changed waits for Apply() after a reset in manual mode");
+        s.Apply();
+        ExpectEqual(received.Count, 2, "brightness_changed fires again when the default is applied");
+
+        s.Disconnect("brightness_changed", onChanged);
+        s.ApplyMode = previousMode;
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        if (!hadFile)
+        {
+            DirAccess.RemoveAbsolute(filePath);
+        }
     }
 }
