@@ -39,7 +39,7 @@ public partial class Issue27FeatureAccessibilitySettingsCheck : FeatureCheckCs
         CheckDefaults();
         CheckValidation();
         CheckUiScale();
-        CheckTheme();
+        await CheckTheme();
         CheckHelpers();
         CheckSpeech();
         CheckResources();
@@ -91,7 +91,7 @@ public partial class Issue27FeatureAccessibilitySettingsCheck : FeatureCheckCs
         Expect(Mathf.IsEqualApprox(root.ContentScaleFactor, baseFactor), "UI scale 100 % gives the factor back");
     }
 
-    private void CheckTheme()
+    private async Task CheckTheme()
     {
         var server = AccessibilitySettingsServer.Singleton;
         Window root = GetTree().Root;
@@ -116,11 +116,14 @@ public partial class Issue27FeatureAccessibilitySettingsCheck : FeatureCheckCs
         }
         var button = new Button { Text = "Play" };
         AddChild(button);
+        // Controls see a changed root theme from the next frame (before the first draw).
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         ExpectEqual(button.GetThemeColor("font_color"), Colors.White, "a button in the tree gets the scheme's text color");
 
         int fontSizeBefore = button.GetThemeFontSize("font_size");
         AccessibilitySettingsServer.SetFontSizeFactor(1.5f);
         Expect(AccessibilitySettingsServer.GetOverlayTheme().HasDefaultFontSize(), "the font size factor sets the default font size of the overlay");
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         ExpectEqual(button.GetThemeFontSize("font_size"), Mathf.RoundToInt(fontSizeBefore * 1.5f), "a button in the tree gets the bigger font");
         AccessibilitySettingsServer.SetFocusOutlineWidth(4);
         var focusBox = AccessibilitySettingsServer.GetOverlayTheme().GetStylebox("focus", "Button") as StyleBoxFlat;

@@ -43,7 +43,7 @@ func _run_checks() -> void:
 	_check_defaults()
 	_check_validation()
 	_check_ui_scale()
-	_check_theme()
+	await _check_theme()
 	_check_helpers()
 	_check_speech()
 	_check_resources()
@@ -114,6 +114,8 @@ func _check_theme() -> void:
 	var button := Button.new()
 	button.text = "Play"
 	add_child(button)
+	# Controls see a changed root theme from the next frame (before the first draw).
+	await get_tree().process_frame
 	expect_equal(button.get_theme_color(&"font_color"), Color.WHITE, "a button in the tree gets the scheme's text color")
 	expect_equal(server.get_scheme_color(&"problem", Color.MAGENTA), server.get_active_color_scheme().problem_color, "get_scheme_color() returns the role color")
 
@@ -121,6 +123,7 @@ func _check_theme() -> void:
 	server.set_font_size_factor(1.5)
 	overlay = server.get_overlay_theme()
 	expect(overlay.has_default_font_size(), "the font size factor sets the default font size of the overlay")
+	await get_tree().process_frame
 	expect_equal(button.get_theme_font_size(&"font_size"), roundi(font_size_before * 1.5), "a button in the tree gets the bigger font")
 	server.set_focus_outline_width(4)
 	var focus_box := server.get_overlay_theme().get_stylebox(&"focus", &"Button") as StyleBoxFlat
