@@ -18,15 +18,15 @@ func _get_check_name() -> String:
 func _run_checks() -> void:
 	DirAccess.make_dir_recursive_absolute(DIR)
 	expect(Engine.has_singleton("AudioBusSettingsServer"), "AudioBusSettingsServer is a registered singleton")
-	expect(Engine.has_singleton("AudioSettingsServer"), "AudioSettingsServer is a registered singleton")
+	expect(Engine.has_singleton("AudioDeviceSettingsServer"), "AudioDeviceSettingsServer is a registered singleton")
 	expect(Engine.get_singleton("AudioBusSettingsServer") is ListSettingsServer, "AudioBusSettingsServer is a ListSettingsServer")
-	expect(Engine.get_singleton("AudioSettingsServer") is SettingsServer, "AudioSettingsServer is a SettingsServer")
+	expect(Engine.get_singleton("AudioDeviceSettingsServer") is SettingsServer, "AudioDeviceSettingsServer is a SettingsServer")
 	expect_equal(SettingsServerManager.get_server(&"audio_buses"), Engine.get_singleton("AudioBusSettingsServer"), "the bus domain is registered as \"audio_buses\"")
-	expect_equal(SettingsServerManager.get_server(&"audio"), Engine.get_singleton("AudioSettingsServer"), "the device domain is registered as \"audio\"")
+	expect_equal(SettingsServerManager.get_server(&"audio"), Engine.get_singleton("AudioDeviceSettingsServer"), "the device domain is registered as \"audio\"")
 	expect(AudioBusSettingsServer.is_started(), "the bus domain was started before the main scene")
-	expect(AudioSettingsServer.is_started(), "the device domain was started before the main scene")
+	expect(AudioDeviceSettingsServer.is_started(), "the device domain was started before the main scene")
 	expect_equal(AudioBusSettingsServer.get_file_path(), BUSES_FILE, "bus file path")
-	expect_equal(AudioSettingsServer.get_file_path(), DEVICES_FILE, "device file path")
+	expect_equal(AudioDeviceSettingsServer.get_file_path(), DEVICES_FILE, "device file path")
 
 	_check_buses()
 	_check_manual_mode()
@@ -37,7 +37,7 @@ func _run_checks() -> void:
 
 	# Leave no player files behind for later runs.
 	AudioBusSettingsServer.reset_to_defaults()
-	AudioSettingsServer.reset_to_defaults()
+	AudioDeviceSettingsServer.reset_to_defaults()
 	await get_tree().process_frame
 	DirAccess.remove_absolute(BUSES_FILE)
 	DirAccess.remove_absolute(DEVICES_FILE)
@@ -90,10 +90,10 @@ func _check_manual_mode() -> void:
 
 
 func _check_csv() -> void:
-	ProjectSettings.set_setting("settings/storage/format", "csv")
+	ProjectSettings.set_setting("settings/storage/format", ResourceTextSerializer.FORMAT_CSV)
 	expect_equal(AudioBusSettingsServer.get_file_path(), "user://settings/audio_buses.csv", "the bus list can be stored as CSV")
-	expect_equal(AudioSettingsServer.get_file_path(), DEVICES_FILE, "the devices stay INI (a warning is printed once)")
-	ProjectSettings.set_setting("settings/storage/format", "ini")
+	expect_equal(AudioDeviceSettingsServer.get_file_path(), DEVICES_FILE, "the devices stay INI (a warning is printed once)")
+	ProjectSettings.set_setting("settings/storage/format", ResourceTextSerializer.FORMAT_INI)
 
 	var path := DIR.path_join("buses.csv")
 	AudioBusSettingsServer.set_bus_volume_db(&"Music", -20.0)
@@ -145,30 +145,30 @@ func _check_missing_bus() -> void:
 
 
 func _check_devices() -> void:
-	expect_equal(AudioSettingsServer.get_setting_names(), PackedStringArray(["output_device", "input_device"]), "device setting names")
-	expect_equal(AudioSettingsServer.is_value_supported(&"output_device"), AudioSettingsServer.is_device_selection_supported(), "is_value_supported() follows the driver")
-	AudioSettingsServer.set_output_device("Check16 device that does not exist")
-	expect_equal(AudioSettingsServer.get_output_device(), "Default", "an unknown output device falls back to \"Default\"")
+	expect_equal(AudioDeviceSettingsServer.get_setting_names(), PackedStringArray(["output_device", "input_device"]), "device setting names")
+	expect_equal(AudioDeviceSettingsServer.is_value_supported(&"output_device"), AudioDeviceSettingsServer.is_device_selection_supported(), "is_value_supported() follows the driver")
+	AudioDeviceSettingsServer.set_output_device("Check16 device that does not exist")
+	expect_equal(AudioDeviceSettingsServer.get_output_device(), "Default", "an unknown output device falls back to \"Default\"")
 	expect_equal(AudioServer.output_device, "Default", "AudioServer keeps \"Default\"")
-	AudioSettingsServer.set_input_device("")
-	expect_equal(AudioSettingsServer.get_input_device(), "Default", "an empty input device is \"Default\"")
+	AudioDeviceSettingsServer.set_input_device("")
+	expect_equal(AudioDeviceSettingsServer.get_input_device(), "Default", "an empty input device is \"Default\"")
 
 	var path := DIR.path_join("devices.json")
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	file.store_string(JSON.stringify({"output_device": "Speakers (unplugged)", "input_device": "Microphone (unplugged)"}))
 	file.close()
-	AudioSettingsServer.file_path = path
-	expect_equal(AudioSettingsServer.load(), OK, "a file with devices of another machine loads without an error")
-	expect_equal(AudioSettingsServer.get_output_device(), "Default", "a stored output device that no longer exists becomes \"Default\"")
-	expect_equal(AudioSettingsServer.get_input_device(), "Default", "a stored input device that no longer exists becomes \"Default\"")
-	AudioSettingsServer.file_path = ""
-	AudioSettingsServer.apply()
+	AudioDeviceSettingsServer.file_path = path
+	expect_equal(AudioDeviceSettingsServer.load(), OK, "a file with devices of another machine loads without an error")
+	expect_equal(AudioDeviceSettingsServer.get_output_device(), "Default", "a stored output device that no longer exists becomes \"Default\"")
+	expect_equal(AudioDeviceSettingsServer.get_input_device(), "Default", "a stored input device that no longer exists becomes \"Default\"")
+	AudioDeviceSettingsServer.file_path = ""
+	AudioDeviceSettingsServer.apply()
 
 	var devices := AudioServer.get_output_device_list()
-	if AudioSettingsServer.is_device_selection_supported() and devices.size() > 1:
-		AudioSettingsServer.set_output_device(devices[1])
-		expect_equal(AudioSettingsServer.get_output_device(), devices[1], "a listed output device is kept")
-		AudioSettingsServer.set_output_device("Default")
+	if AudioDeviceSettingsServer.is_device_selection_supported() and devices.size() > 1:
+		AudioDeviceSettingsServer.set_output_device(devices[1])
+		expect_equal(AudioDeviceSettingsServer.get_output_device(), devices[1], "a listed output device is kept")
+		AudioDeviceSettingsServer.set_output_device("Default")
 	else:
 		print("  SKIP  device switch (the driver has no device list or only one device)")
 
