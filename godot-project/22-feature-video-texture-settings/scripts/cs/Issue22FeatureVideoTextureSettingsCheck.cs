@@ -29,9 +29,9 @@ public partial class Issue22FeatureVideoTextureSettingsCheck : FeatureCheckCs
     private static readonly Viewport.AnisotropicFiltering Anisotropy2X = (Viewport.AnisotropicFiltering)1;
     private static readonly Viewport.AnisotropicFiltering Anisotropy8X = (Viewport.AnisotropicFiltering)3;
     private static readonly Viewport.AnisotropicFiltering Anisotropy16X = (Viewport.AnisotropicFiltering)4;
-    private static readonly Viewport.SdfOversize SdfOversize200 = (Viewport.SdfOversize)3;
-    private static readonly Viewport.SdfScale SdfScale100 = (Viewport.SdfScale)0;
-    private static readonly Viewport.SdfScale SdfScale25 = (Viewport.SdfScale)2;
+    private static readonly Viewport.SdfOversizeEnum SdfOversize200 = (Viewport.SdfOversizeEnum)3;
+    private static readonly Viewport.SdfScaleEnum SdfScale100 = (Viewport.SdfScaleEnum)0;
+    private static readonly Viewport.SdfScaleEnum SdfScale25 = (Viewport.SdfScaleEnum)2;
 
     protected override string CheckName => "22-feature-video-texture-settings";
 
