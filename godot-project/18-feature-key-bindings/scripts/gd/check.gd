@@ -66,11 +66,11 @@ func _check_text_form() -> void:
 	expect_equal(InputMapSettingsServer.get_event_label(InputAction.text_to_event("JoypadMotion:LeftX+")), "Left Stick Right", "label of a stick direction")
 
 	var entry := InputAction.new()
-	entry.bindings = "JoypadButton:B; Key:Space"
-	expect_equal(entry.get_event_count(), 2, "bindings gives one event per entry")
+	entry.events = InputMapSettingsServer.text_to_events("JoypadButton:B; Key:Space")
+	expect_equal(entry.get_event_count(), 2, "the text gives one event per entry")
 	expect_equal(entry.get_device_events(InputAction.INPUT_DEVICE_GAMEPAD).size(), 1, "the gamepad event is found by device")
 	expect(entry.events[0] is InputEventJoypadButton, "the first event is parsed from the text")
-	expect_equal(entry.bindings, "JoypadButton:B; Key:Space", "bindings round trip")
+	expect_equal(InputMapSettingsServer.events_to_text(entry.events), "JoypadButton:B; Key:Space", "text round trip")
 
 
 func _check_defaults() -> void:
@@ -171,7 +171,7 @@ func _check_restart() -> void:
 	# A row of an action that a later game version no longer has.
 	var gone := InputAction.new()
 	gone.action = "kb18_removed"
-	gone.bindings = "Key:G"
+	gone.events = InputMapSettingsServer.text_to_events("Key:G")
 	InputMapSettingsServer.add_entry(gone)
 	expect_equal(InputMapSettingsServer.save(), OK, "save() writes the player file")
 	var text := FileAccess.get_file_as_string(INPUT_MAP_FILE)

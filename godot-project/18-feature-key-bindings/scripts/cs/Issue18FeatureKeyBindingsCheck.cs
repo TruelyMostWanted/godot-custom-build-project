@@ -79,11 +79,11 @@ public partial class Issue18FeatureKeyBindingsCheck : FeatureCheckCs
         ExpectEqual(InputMapSettingsServer.GetEventLabel(InputAction.TextToEvent("MouseButton:Right")), "Right Mouse Button", "label of a mouse button");
         ExpectEqual(InputMapSettingsServer.GetEventLabel(InputAction.TextToEvent("JoypadMotion:LeftX+")), "Left Stick Right", "label of a stick direction");
 
-        var entry = new InputAction { Bindings = "JoypadButton:B; Key:Space" };
-        ExpectEqual(entry.GetEventCount(), 2, "bindings gives one event per entry");
+        var entry = new InputAction { Events = InputMapSettingsServer.TextToEvents("JoypadButton:B; Key:Space") };
+        ExpectEqual(entry.GetEventCount(), 2, "the text gives one event per entry");
         ExpectEqual(entry.GetDeviceEvents(InputAction.InputDevice.Gamepad).Count, 1, "the gamepad event is found by device");
         Expect(entry.Events[0] is InputEventJoypadButton, "the first event is parsed from the text");
-        ExpectEqual(entry.Bindings, "JoypadButton:B; Key:Space", "bindings round trip");
+        ExpectEqual(InputMapSettingsServer.EventsToText(entry.Events), "JoypadButton:B; Key:Space", "text round trip");
     }
 
     private void CheckDefaults()
@@ -185,7 +185,7 @@ public partial class Issue18FeatureKeyBindingsCheck : FeatureCheckCs
         var server = InputMapSettingsServer.Singleton;
         InputMapSettingsServer.Rebind(Jump, PressedKey(Key.W));
         // A row of an action that a later game version no longer has.
-        server.AddEntry(new InputAction { Action = "kb18_removed", Bindings = "Key:G" });
+        server.AddEntry(new InputAction { Action = "kb18_removed", Events = InputMapSettingsServer.TextToEvents("Key:G") });
         ExpectEqual(server.Save(), Error.Ok, "Save() writes the player file");
         string text = FileAccess.GetFileAsString(InputMapFile);
         Expect(text.Contains("PhysicalKey:W"), "the INI file contains PhysicalKey:W");
