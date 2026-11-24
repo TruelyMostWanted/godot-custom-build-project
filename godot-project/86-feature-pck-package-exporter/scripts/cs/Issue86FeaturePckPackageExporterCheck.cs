@@ -82,7 +82,7 @@ public partial class Issue86FeaturePckPackageExporterCheck : FeatureCheckCs
         description.AddFile("other.png.import", "res://other.png.import");
         var plan = PckPackageExporter.PlanDescription(description);
         string[] errors = Strings(plan["errors"]);
-        ExpectEqual(errors.Length, 2, "a renamed res:// target and a lone .import are refused");
+        ExpectEqual(errors.Length, 3, "a renamed res:// target and both .import files are refused");
         Expect(errors.Length > 0 && errors[0].Contains("textures/icon.svg"), "the error names the renamed entry");
         Expect(Strings(plan["skipped"]).Length == 0, "no .import is skipped without its exported source");
 

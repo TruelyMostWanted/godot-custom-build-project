@@ -55,7 +55,7 @@ func _check_plan_refusals() -> void:
 	description.add_file("other.png.import", "res://other.png.import")
 	var plan := PCKPackageExporter.plan_description(description)
 	var errors := PackedStringArray(plan["errors"])
-	expect_equal(errors.size(), 2, "a renamed res:// target and a lone .import are refused")
+	expect_equal(errors.size(), 3, "a renamed res:// target and both .import files are refused")
 	expect(errors.size() > 0 and errors[0].contains("textures/icon.svg"), "the error names the renamed entry")
 	expect(PackedStringArray(plan["skipped"]).is_empty(), "no .import is skipped without its exported source")
 
