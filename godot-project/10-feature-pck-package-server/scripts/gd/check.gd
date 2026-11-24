@@ -25,13 +25,13 @@ func _write_pack(path: String, files: Dictionary, key: String = ZERO_KEY, encryp
 
 func _run_checks() -> void:
 	DirAccess.make_dir_recursive_absolute(ROOT)
-	var server := PckPackageServer
-	expect(Engine.has_singleton("PckPackageServer"), "PckPackageServer singleton exists")
+	var server := PCKPackageServer
+	expect(Engine.has_singleton("PCKPackageServer"), "PCKPackageServer singleton exists")
 	server.pack_mounted.connect(func(p: String): _mounted.append(p))
 	server.pack_unmounted.connect(func(p: String): _unmounted.append(p))
 
 	# The main pack of an exported project opens and lists its files.
-	for pack in server.get_mounted():
+	for pack in server.get_mounted_packs():
 		if server.is_main_pack(pack):
 			var main := server.open(pack)
 			expect(main != null and main.get_file_count() > 0, "main pack %s opens and lists files" % pack)
@@ -43,9 +43,10 @@ func _run_checks() -> void:
 	expect(package != null, "open() returns a package")
 	expect_equal(package.format_version, 4, "format_version is 4")
 	expect(not package.engine_version.is_empty(), "engine_version is set")
-	expect_equal(package.get_paths(), PackedStringArray(["res://pck10gd/a.txt", "res://pck10gd/b.txt"]), "get_paths() lists all files")
+	expect_equal(package.get_file_paths(), PackedStringArray(["res://pck10gd/a.txt", "res://pck10gd/b.txt"]), "get_file_paths() lists all files")
 	var entries := package.get_entries()
 	expect(entries.size() == 2 and entries[0].size == 5 and entries[0].md5 == "Alpha".md5_text(), "get_entries() has size and md5")
+	expect(entries[0] is PCKPackageEntry and entries[0].path == "res://pck10gd/a.txt" and not entries[0].removal, "get_entries() returns PCKPackageEntry objects")
 	expect_equal(server.read_file(package, "res://pck10gd/a.txt").get_string_from_utf8(), "Alpha", "read_file() without mounting")
 	expect_equal(server.verify(package), OK, "verify()")
 	expect(not server.is_mounted(base), "open() does not mount")
@@ -58,19 +59,19 @@ func _run_checks() -> void:
 	var edited := ROOT + "edited.pck"
 	expect_equal(server.build(package, edited), OK, "build()")
 	expect_equal(server.mount(edited), OK, "mount()")
-	expect(server.is_mounted(edited) and server.get_mounted().has(edited), "is_mounted() and get_mounted()")
+	expect(server.is_mounted(edited) and server.get_mounted_packs().has(edited), "is_mounted() and get_mounted_packs()")
 	expect(_mounted.has(edited), "pack_mounted emitted")
 	expect_equal(FileAccess.get_file_as_string("res://pck10gd/c.txt"), "Gamma", "added file is in res://")
 	expect_equal(FileAccess.get_file_as_string("res://pck10gd/b2.txt"), "Beta", "renamed file is in res://")
 	expect(not FileAccess.file_exists("res://pck10gd/a.txt"), "removed file is not in res://")
 
-	# Two packs provide the same path: get_pack_of() names the one that is used.
+	# Two packs provide the same path: get_providing_pack() names the one that is used.
 	var overlay := ROOT + "overlay.pck"
 	_write_pack(overlay, {"pck10gd/c.txt": "Overlay", "pck10gd/only_overlay.txt": "Only"})
 	expect(ProjectSettings.load_resource_pack(overlay), "load_resource_pack() still works")
 	expect(server.is_mounted(overlay), "load_resource_pack() goes through the server")
-	expect_equal(server.get_pack_of("res://pck10gd/c.txt"), overlay, "get_pack_of() names the later pack")
-	expect_equal(server.get_pack_of("res://pck10gd/b2.txt"), edited, "get_pack_of() names the only pack")
+	expect_equal(server.get_providing_pack("res://pck10gd/c.txt"), overlay, "get_providing_pack() names the later pack")
+	expect_equal(server.get_providing_pack("res://pck10gd/b2.txt"), edited, "get_providing_pack() names the only pack")
 	expect_equal(FileAccess.get_file_as_string("res://pck10gd/c.txt"), "Overlay", "later pack replaces the file")
 
 	# Unmount: files of the pack disappear, replaced files come back.
@@ -78,7 +79,7 @@ func _run_checks() -> void:
 	expect(_unmounted.has(overlay), "pack_unmounted emitted")
 	expect(not server.is_mounted(overlay), "is_mounted() false after unmount()")
 	expect(not FileAccess.file_exists("res://pck10gd/only_overlay.txt"), "file of the unmounted pack is gone")
-	expect_equal(server.get_pack_of("res://pck10gd/c.txt"), edited, "get_pack_of() names the remaining pack")
+	expect_equal(server.get_providing_pack("res://pck10gd/c.txt"), edited, "get_providing_pack() names the remaining pack")
 	expect_equal(FileAccess.get_file_as_string("res://pck10gd/c.txt"), "Gamma", "replaced file is back")
 	expect_equal(server.unmount(overlay), ERR_DOES_NOT_EXIST, "unmount() twice: ERR_DOES_NOT_EXIST")
 	expect_equal(server.unmount(edited), OK, "unmount() the edited pack")
@@ -97,17 +98,17 @@ func _run_checks() -> void:
 	_check_extract()
 
 
-# #83: PckPackage is a Resource. `.pck` files load and save through ResourceLoader and ResourceSaver,
+# #83: PCKPackage is a Resource. `.pck` files load and save through ResourceLoader and ResourceSaver,
 # and a description is saved as `.tres`. The missing-source check prints an engine error on purpose.
 func _check_resource() -> void:
-	var server := PckPackageServer
+	var server := PCKPackageServer
 	var pack := ROOT + "resource.pck"
 	_write_pack(pack, {"pck83gd/a.txt": "Alpha", "pck83gd/b.txt": "Beta"})
 
-	expect(ClassDB.is_parent_class("PckPackage", "Resource"), "PckPackage is a Resource")
-	expect(ResourceLoader.exists(pack, "PckPackage"), "ResourceLoader knows .pck files")
-	var loaded: PckPackage = ResourceLoader.load(pack)
-	expect(loaded != null, "load() of a .pck returns a PckPackage")
+	expect(ClassDB.is_parent_class("PCKPackage", "Resource"), "PCKPackage is a Resource")
+	expect(ResourceLoader.exists(pack, "PCKPackage"), "ResourceLoader knows .pck files")
+	var loaded: PCKPackage = ResourceLoader.load(pack)
+	expect(loaded != null, "load() of a .pck returns a PCKPackage")
 	expect_equal(loaded.pack_path, pack, "pack_path is the loaded pack")
 	expect_equal(loaded.get_pack_path(), pack, "get_pack_path()")
 	expect(not loaded.is_description(), "a loaded .pck is not a description")
@@ -119,12 +120,12 @@ func _check_resource() -> void:
 	_write_pack(pack, {"pck83gd/a.txt": "Alpha 2", "pck83gd/c.txt": "Gamma"})
 	var replaced := ResourceLoader.load(pack, "", ResourceLoader.CACHE_MODE_REPLACE)
 	expect(replaced == loaded, "CACHE_MODE_REPLACE keeps the cached object")
-	expect_equal(loaded.get_paths(), PackedStringArray(["res://pck83gd/a.txt", "res://pck83gd/c.txt"]), "CACHE_MODE_REPLACE sees the new entries")
+	expect_equal(loaded.get_file_paths(), PackedStringArray(["res://pck83gd/a.txt", "res://pck83gd/c.txt"]), "CACHE_MODE_REPLACE sees the new entries")
 	expect_equal(server.read_file(loaded, "res://pck83gd/a.txt").get_string_from_utf8(), "Alpha 2", "CACHE_MODE_REPLACE sees the new data")
 
 	# duplicate() keeps the entries.
-	var copy: PckPackage = loaded.duplicate()
-	expect(copy != loaded and copy.get_paths() == loaded.get_paths(), "duplicate() keeps the entries")
+	var copy: PCKPackage = loaded.duplicate()
+	expect(copy != loaded and copy.get_file_paths() == loaded.get_file_paths(), "duplicate() keeps the entries")
 	expect_equal(server.read_file(copy, "res://pck83gd/c.txt").get_string_from_utf8(), "Gamma", "duplicate() can read the files")
 
 	# A description saved as .tres: no key, and loaded again it is the same.
@@ -134,8 +135,8 @@ func _check_resource() -> void:
 	f.close()
 	var later := ROOT + "later.txt"
 	DirAccess.remove_absolute(later)
-	var description := PckPackage.new()
-	expect(description.is_description(), "PckPackage.new() is a description")
+	var description := PCKPackage.new()
+	expect(description.is_description(), "PCKPackage.new() is a description")
 	expect_equal(description.set_key(KEY_A), OK, "set_key()")
 	description.base_pack = pack
 	description.alignment = 64
@@ -145,17 +146,18 @@ func _check_resource() -> void:
 	var files: Array = description.files
 	files.append({"path": "pck83gd/from_base.txt", "from_pack": "pck83gd/c.txt"})
 	description.files = files
-	description.mark_removal("res://pck83gd/old.txt")
+	description.add_removal("res://pck83gd/old.txt")
 	var entries := description.get_entries()
-	expect(entries.size() == 5 and entries[0].source_type == PckPackage.SOURCE_FILE and entries[2].source_type == PckPackage.SOURCE_DATA and entries[3].source_type == PckPackage.SOURCE_PACK, "get_entries() has source_type")
+	expect(entries.size() == 5 and entries[0].source_type == PCKPackage.SOURCE_FILE and entries[2].source_type == PCKPackage.SOURCE_DATA and entries[3].source_type == PCKPackage.SOURCE_PACK, "get_entries() has source_type")
 	expect_equal(entries[3].source, "res://pck83gd/c.txt", "get_entries() has source")
+	expect(entries[4].removal and entries[4].path == "res://pck83gd/old.txt", "add_removal() adds a removal entry")
 
 	var tres := ROOT + "description.tres"
 	expect_equal(ResourceSaver.save(description, tres), OK, "ResourceSaver.save() as .tres")
 	var text := FileAccess.get_file_as_string(tres)
 	expect(not text.contains(KEY_A), "the key is not in the .tres")
 	expect(text.contains("base_pack") and text.contains("from_pack") and text.contains("removals"), "the .tres has base_pack, files and removals")
-	var reloaded: PckPackage = ResourceLoader.load(tres, "", ResourceLoader.CACHE_MODE_IGNORE)
+	var reloaded: PCKPackage = ResourceLoader.load(tres, "", ResourceLoader.CACHE_MODE_IGNORE)
 	expect(reloaded != null and reloaded.is_description(), "the .tres loads as a description")
 	expect_equal(reloaded.files, description.files, "files are identical after the round trip")
 	expect_equal(reloaded.removals, PackedStringArray(["pck83gd/old.txt"]), "removals are identical after the round trip")
@@ -171,7 +173,7 @@ func _check_resource() -> void:
 	f.close()
 	expect_equal(ResourceSaver.save(reloaded, built), OK, "ResourceSaver.save() as .pck builds the pack")
 	var opened := server.open(built)
-	expect(opened != null and opened.get_paths() == PackedStringArray(["res://pck83gd/source.txt", "res://pck83gd/later.txt", "res://pck83gd/data.txt", "res://pck83gd/from_base.txt"]), "the built pack has all files")
+	expect(opened != null and opened.get_file_paths() == PackedStringArray(["res://pck83gd/source.txt", "res://pck83gd/later.txt", "res://pck83gd/data.txt", "res://pck83gd/from_base.txt"]), "the built pack has all files")
 	expect(opened != null and opened.has_file("res://pck83gd/old.txt"), "the built pack has the removal entry")
 	expect_equal(server.read_file(opened, "res://pck83gd/source.txt").get_string_from_utf8(), "Source", "encrypted file reads back")
 	expect_equal(server.verify(opened), OK, "verify() of the built pack")
@@ -188,10 +190,10 @@ func _remove_dir(path: String) -> void:
 	DirAccess.remove_absolute(path)
 
 
-# #84: PckPackageServer.extract() writes the files of a pack into a folder.
+# #84: PCKPackageServer.extract() writes the files of a pack into a folder.
 # The null-package check prints an engine error on purpose.
 func _check_extract() -> void:
-	var server := PckPackageServer
+	var server := PCKPackageServer
 	var pack := ROOT + "extract.pck"
 	var uid := ResourceUID.create_id()
 	var uid_text := ResourceUID.id_to_text(uid)
@@ -217,7 +219,7 @@ func _check_extract() -> void:
 	server.extract_progress.connect(on_progress)
 	var result := server.extract(package, out)
 	server.extract_progress.disconnect(on_progress)
-	expect(result is PckExtractResult, "extract() returns a PckExtractResult")
+	expect(result is PCKExtractResult, "extract() returns a PCKExtractResult")
 	expect(result.is_ok() and result.error == OK and result.errors.is_empty(), "extract() without errors")
 	expect_equal(result.written, PackedStringArray([out.path_join("pck84gd/a.txt"), out.path_join("pck84gd/sub/b.txt"), out.path_join("pck84gd/icon.png"), out.path_join("pck84gd/icon.png.import"), out.path_join("pck84gd/tool.gd"), out.path_join("pck84gd/tool.gd.uid")]), "written lists the extracted files in pack order")
 	expect_equal(result.skipped, PackedStringArray(["res://pck84gd/orphan.png.import", "res://.godot/imported/pck84gd-icon.ctex"]), "skipped: .import without source and .godot/")
@@ -237,10 +239,10 @@ func _check_extract() -> void:
 	var kept := server.extract(package, out, ["res://pck84gd/a.txt"])
 	expect(kept.written.is_empty() and kept.skipped == PackedStringArray(["res://pck84gd/a.txt"]), "EXTRACT_SKIP keeps existing files")
 	expect_equal(FileAccess.get_file_as_string(out.path_join("pck84gd/a.txt")), "Edited", "the existing file is unchanged")
-	var overwritten := server.extract(package, out, ["pck84gd/a.txt"], PckPackageServer.EXTRACT_OVERWRITE)
+	var overwritten := server.extract(package, out, ["pck84gd/a.txt"], PCKPackageServer.EXTRACT_OVERWRITE)
 	expect_equal(overwritten.written, PackedStringArray([out.path_join("pck84gd/a.txt")]), "EXTRACT_OVERWRITE writes the file")
 	expect_equal(FileAccess.get_file_as_string(out.path_join("pck84gd/a.txt")), "Alpha", "the existing file is overwritten")
-	var renamed := server.extract(package, out, ["pck84gd/icon.png"], PckPackageServer.EXTRACT_RENAME)
+	var renamed := server.extract(package, out, ["pck84gd/icon.png"], PCKPackageServer.EXTRACT_RENAME)
 	expect_equal(renamed.written, PackedStringArray([out.path_join("pck84gd/icon_2.png"), out.path_join("pck84gd/icon_2.png.import")]), "EXTRACT_RENAME renames the file and its .import")
 	expect_equal(renamed.renamed.get("res://pck84gd/icon.png", ""), out.path_join("pck84gd/icon_2.png"), "renamed maps the pack path to the new path")
 

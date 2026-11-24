@@ -38,12 +38,12 @@ public partial class Issue10FeaturePckPackageServerCheck : FeatureCheckCs
     protected override Task RunChecks()
     {
         DirAccess.MakeDirRecursiveAbsolute(Root);
-        Expect(Engine.HasSingleton("PckPackageServer"), "PckPackageServer singleton exists");
+        Expect(Engine.HasSingleton("PCKPackageServer"), "PckPackageServer singleton exists");
         PckPackageServer.PackMounted += OnMounted;
         PckPackageServer.PackUnmounted += OnUnmounted;
 
         // The main pack of an exported project opens and lists its files.
-        foreach (string pack in PckPackageServer.GetMounted())
+        foreach (string pack in PckPackageServer.GetMountedPacks())
         {
             if (PckPackageServer.IsMainPack(pack))
             {
@@ -59,9 +59,10 @@ public partial class Issue10FeaturePckPackageServerCheck : FeatureCheckCs
         Expect(package != null, "Open() returns a package");
         ExpectEqual(package.FormatVersion, 4, "FormatVersion is 4");
         Expect(!string.IsNullOrEmpty(package.EngineVersion), "EngineVersion is set");
-        ExpectEqual(string.Join(",", package.GetPaths()), "res://pck10cs/a.txt,res://pck10cs/b.txt", "GetPaths() lists all files");
-        Godot.Collections.Array<Godot.Collections.Dictionary> entries = package.GetEntries();
-        Expect(entries.Count == 2 && (long)entries[0]["size"] == 5 && (string)entries[0]["md5"] == "Alpha".Md5Text(), "GetEntries() has size and md5");
+        ExpectEqual(string.Join(",", package.GetFilePaths()), "res://pck10cs/a.txt,res://pck10cs/b.txt", "GetFilePaths() lists all files");
+        Godot.Collections.Array<PckPackageEntry> entries = package.GetEntries();
+        Expect(entries.Count == 2 && entries[0].Size == 5 && entries[0].Md5 == "Alpha".Md5Text(), "GetEntries() has size and md5");
+        Expect(entries[0].Path == "res://pck10cs/a.txt" && !entries[0].Removal, "GetEntries() returns PckPackageEntry objects");
         ExpectEqual(PckPackageServer.ReadFile(package, "res://pck10cs/a.txt").GetStringFromUtf8(), "Alpha", "ReadFile() without mounting");
         ExpectEqual(PckPackageServer.Verify(package), Error.Ok, "Verify()");
         Expect(!PckPackageServer.IsMounted(basePack), "Open() does not mount");
@@ -74,19 +75,19 @@ public partial class Issue10FeaturePckPackageServerCheck : FeatureCheckCs
         string edited = Root + "edited.pck";
         ExpectEqual(PckPackageServer.Build(package, edited), Error.Ok, "Build()");
         ExpectEqual(PckPackageServer.Mount(edited), Error.Ok, "Mount()");
-        Expect(PckPackageServer.IsMounted(edited) && PckPackageServer.GetMounted().Contains(edited), "IsMounted() and GetMounted()");
+        Expect(PckPackageServer.IsMounted(edited) && PckPackageServer.GetMountedPacks().Contains(edited), "IsMounted() and GetMountedPacks()");
         Expect(_mounted.Contains(edited), "PackMounted emitted");
         ExpectEqual(FileAccess.GetFileAsString("res://pck10cs/c.txt"), "Gamma", "added file is in res://");
         ExpectEqual(FileAccess.GetFileAsString("res://pck10cs/b2.txt"), "Beta", "renamed file is in res://");
         Expect(!FileAccess.FileExists("res://pck10cs/a.txt"), "removed file is not in res://");
 
-        // Two packs provide the same path: GetPackOf() names the one that is used.
+        // Two packs provide the same path: GetProvidingPack() names the one that is used.
         string overlay = Root + "overlay.pck";
         WritePack(overlay, new Dictionary<string, string> { { "pck10cs/c.txt", "Overlay" }, { "pck10cs/only_overlay.txt", "Only" } });
         Expect(ProjectSettings.LoadResourcePack(overlay), "LoadResourcePack() still works");
         Expect(PckPackageServer.IsMounted(overlay), "LoadResourcePack() goes through the server");
-        ExpectEqual(PckPackageServer.GetPackOf("res://pck10cs/c.txt"), overlay, "GetPackOf() names the later pack");
-        ExpectEqual(PckPackageServer.GetPackOf("res://pck10cs/b2.txt"), edited, "GetPackOf() names the only pack");
+        ExpectEqual(PckPackageServer.GetProvidingPack("res://pck10cs/c.txt"), overlay, "GetProvidingPack() names the later pack");
+        ExpectEqual(PckPackageServer.GetProvidingPack("res://pck10cs/b2.txt"), edited, "GetProvidingPack() names the only pack");
         ExpectEqual(FileAccess.GetFileAsString("res://pck10cs/c.txt"), "Overlay", "later pack replaces the file");
 
         // Unmount: files of the pack disappear, replaced files come back.
@@ -94,7 +95,7 @@ public partial class Issue10FeaturePckPackageServerCheck : FeatureCheckCs
         Expect(_unmounted.Contains(overlay), "PackUnmounted emitted");
         Expect(!PckPackageServer.IsMounted(overlay), "IsMounted() false after Unmount()");
         Expect(!FileAccess.FileExists("res://pck10cs/only_overlay.txt"), "file of the unmounted pack is gone");
-        ExpectEqual(PckPackageServer.GetPackOf("res://pck10cs/c.txt"), edited, "GetPackOf() names the remaining pack");
+        ExpectEqual(PckPackageServer.GetProvidingPack("res://pck10cs/c.txt"), edited, "GetProvidingPack() names the remaining pack");
         ExpectEqual(FileAccess.GetFileAsString("res://pck10cs/c.txt"), "Gamma", "replaced file is back");
         ExpectEqual(PckPackageServer.Unmount(overlay), Error.DoesNotExist, "Unmount() twice: DoesNotExist");
         ExpectEqual(PckPackageServer.Unmount(edited), Error.Ok, "Unmount() the edited pack");
@@ -131,8 +132,8 @@ public partial class Issue10FeaturePckPackageServerCheck : FeatureCheckCs
         string pack = Root + "resource.pck";
         WritePack(pack, new Dictionary<string, string> { { "pck83cs/a.txt", "Alpha" }, { "pck83cs/b.txt", "Beta" } });
 
-        Expect(ClassDB.IsParentClass("PckPackage", "Resource"), "PckPackage is a Resource");
-        Expect(ResourceLoader.Exists(pack, "PckPackage"), "ResourceLoader knows .pck files");
+        Expect(ClassDB.IsParentClass("PCKPackage", "Resource"), "PckPackage is a Resource");
+        Expect(ResourceLoader.Exists(pack, "PCKPackage"), "ResourceLoader knows .pck files");
         PckPackage loaded = GD.Load<PckPackage>(pack);
         Expect(loaded != null, "Load() of a .pck returns a PckPackage");
         ExpectEqual(loaded.PackPath, pack, "PackPath is the loaded pack");
@@ -145,12 +146,12 @@ public partial class Issue10FeaturePckPackageServerCheck : FeatureCheckCs
         WritePack(pack, new Dictionary<string, string> { { "pck83cs/a.txt", "Alpha 2" }, { "pck83cs/c.txt", "Gamma" } });
         Resource replaced = ResourceLoader.Load(pack, "", ResourceLoader.CacheMode.Replace);
         Expect(ReferenceEquals(replaced, loaded), "CacheMode.Replace keeps the cached object");
-        ExpectEqual(string.Join(",", loaded.GetPaths()), "res://pck83cs/a.txt,res://pck83cs/c.txt", "CacheMode.Replace sees the new entries");
+        ExpectEqual(string.Join(",", loaded.GetFilePaths()), "res://pck83cs/a.txt,res://pck83cs/c.txt", "CacheMode.Replace sees the new entries");
         ExpectEqual(PckPackageServer.ReadFile(loaded, "res://pck83cs/a.txt").GetStringFromUtf8(), "Alpha 2", "CacheMode.Replace sees the new data");
 
         // Duplicate() keeps the entries.
         var copy = (PckPackage)loaded.Duplicate();
-        Expect(!ReferenceEquals(copy, loaded) && string.Join(",", copy.GetPaths()) == string.Join(",", loaded.GetPaths()), "Duplicate() keeps the entries");
+        Expect(!ReferenceEquals(copy, loaded) && string.Join(",", copy.GetFilePaths()) == string.Join(",", loaded.GetFilePaths()), "Duplicate() keeps the entries");
         ExpectEqual(PckPackageServer.ReadFile(copy, "res://pck83cs/c.txt").GetStringFromUtf8(), "Gamma", "Duplicate() can read the files");
 
         // A description saved as .tres: no key, and loaded again it is the same.
@@ -169,13 +170,14 @@ public partial class Issue10FeaturePckPackageServerCheck : FeatureCheckCs
         Godot.Collections.Array files = description.Get("files").AsGodotArray();
         files.Add(new Godot.Collections.Dictionary { { "path", "pck83cs/from_base.txt" }, { "from_pack", "pck83cs/c.txt" } });
         description.Set("files", files);
-        description.MarkRemoval("res://pck83cs/old.txt");
-        Godot.Collections.Array<Godot.Collections.Dictionary> entries = description.GetEntries();
+        description.AddRemoval("res://pck83cs/old.txt");
+        Godot.Collections.Array<PckPackageEntry> entries = description.GetEntries();
         Expect(entries.Count == 5
-                && entries[0]["source_type"].AsInt32() == (int)PckPackage.SourceType.File
-                && entries[2]["source_type"].AsInt32() == (int)PckPackage.SourceType.Data
-                && entries[3]["source_type"].AsInt32() == (int)PckPackage.SourceType.Pack, "GetEntries() has source_type");
-        ExpectEqual(entries[3]["source"].AsString(), "res://pck83cs/c.txt", "GetEntries() has source");
+                && entries[0].SourceType == PckPackage.SourceType.File
+                && entries[2].SourceType == PckPackage.SourceType.Data
+                && entries[3].SourceType == PckPackage.SourceType.Pack, "GetEntries() has source_type");
+        ExpectEqual(entries[3].Source, "res://pck83cs/c.txt", "GetEntries() has source");
+        Expect(entries[4].Removal && entries[4].Path == "res://pck83cs/old.txt", "AddRemoval() adds a removal entry");
 
         string tres = Root + "description.tres";
         ExpectEqual(ResourceSaver.Save(description, tres), Error.Ok, "ResourceSaver.Save() as .tres");
@@ -196,7 +198,7 @@ public partial class Issue10FeaturePckPackageServerCheck : FeatureCheckCs
         WriteText(later, "Later");
         ExpectEqual(ResourceSaver.Save(reloaded, built), Error.Ok, "ResourceSaver.Save() as .pck builds the pack");
         PckPackage opened = PckPackageServer.Open(built);
-        Expect(opened != null && string.Join(",", opened.GetPaths()) == "res://pck83cs/source.txt,res://pck83cs/later.txt,res://pck83cs/data.txt,res://pck83cs/from_base.txt", "the built pack has all files");
+        Expect(opened != null && string.Join(",", opened.GetFilePaths()) == "res://pck83cs/source.txt,res://pck83cs/later.txt,res://pck83cs/data.txt,res://pck83cs/from_base.txt", "the built pack has all files");
         Expect(opened != null && opened.HasFile("res://pck83cs/old.txt"), "the built pack has the removal entry");
         ExpectEqual(PckPackageServer.ReadFile(opened, "res://pck83cs/source.txt").GetStringFromUtf8(), "Source", "encrypted file reads back");
         ExpectEqual(PckPackageServer.Verify(opened), Error.Ok, "Verify() of the built pack");
