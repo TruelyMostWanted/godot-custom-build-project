@@ -89,7 +89,7 @@ func _check_placement() -> void:
 	expect_equal(StreamingAssetsExportPlugin.resolve_placement(windows, "C:/build/Game.pck", StreamingAssetsExportPlugin.FALLBACK_NONE), StreamingAssetsExportPlugin.PLACEMENT_EXTERNAL, "Windows .pck only: external")
 	expect_equal(StreamingAssetsExportPlugin.resolve_placement(linux, "/build/Game.x86_64", StreamingAssetsExportPlugin.FALLBACK_EMBED), StreamingAssetsExportPlugin.PLACEMENT_EXTERNAL, "Linux executable: external")
 	expect_equal(StreamingAssetsExportPlugin.resolve_placement(windows, "C:/build/Game.zip", StreamingAssetsExportPlugin.FALLBACK_EMBED), StreamingAssetsExportPlugin.PLACEMENT_EMBED, ".zip export: fallback embed")
-	expect_equal(StreamingAssetsExportPlugin.resolve_placement(macos, "/build/Game.app", StreamingAssetsExportPlugin.FALLBACK_EMBED), StreamingAssetsExportPlugin.PLACEMENT_EMBED, "macOS: fallback until #90")
+	expect_equal(StreamingAssetsExportPlugin.resolve_placement(macos, "/build/Game.app", StreamingAssetsExportPlugin.FALLBACK_EMBED), StreamingAssetsExportPlugin.PLACEMENT_BUNDLE, "macOS: bundle resources (#90)")
 	expect_equal(StreamingAssetsExportPlugin.resolve_placement(android, "/build/Game.apk", StreamingAssetsExportPlugin.FALLBACK_EMBED), StreamingAssetsExportPlugin.PLACEMENT_EMBED, "Android: fallback embed")
 	expect_equal(StreamingAssetsExportPlugin.resolve_placement(web, "/build/index.html", StreamingAssetsExportPlugin.FALLBACK_EMBED), StreamingAssetsExportPlugin.PLACEMENT_EMBED, "Web: fallback embed")
 	expect_equal(StreamingAssetsExportPlugin.resolve_placement(web, "/build/index.html", StreamingAssetsExportPlugin.FALLBACK_NONE), StreamingAssetsExportPlugin.PLACEMENT_NONE, "Web: fallback none")
