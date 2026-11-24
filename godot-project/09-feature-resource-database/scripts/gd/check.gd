@@ -21,13 +21,13 @@ func _save(file: String) -> String:
 	return path
 
 
-func _insert_many(index: int, failures: Array) -> void:
+func _add_many(index: int, failures: Array) -> void:
 	for i in 100:
 		var key := "thread%d/item%d" % [index, i]
-		if ResourceDatabase.insert(key, _item(key)) != OK:
+		if ResourceDatabase.add_resource(key, _item(key)) != OK:
 			failures.append(key)
-		if ResourceDatabase.select("thread%d/%%" % index).size() != i + 1:
-			failures.append("select " + key)
+		if ResourceDatabase.find_resources("thread%d/%%" % index).size() != i + 1:
+			failures.append("find " + key)
 
 
 func _run_checks() -> void:
@@ -54,10 +54,10 @@ func _run_checks() -> void:
 	expect(not list.is_empty(), "PreloadList.is_empty() is false")
 
 	var finished: Array = []
-	var on_finished := func(l: PreloadList, error: int): finished.append([l, error])
+	var on_finished := func(l: PreloadList, error: Error): finished.append([l, error])
 	db.preload_finished.connect(on_finished)
-	expect_equal(db.preload_list(list, false), OK, "preload_list() synchronous")
-	expect_equal(db.count(), 7, "count(): 3 resources + 2 paths + 2 manifest files")
+	expect_equal(db.preload_from_list(list, false), OK, "preload_from_list() synchronous")
+	expect_equal(db.get_entry_count(), 7, "get_entry_count(): 3 resources + 2 paths + 2 manifest files")
 	await get_tree().process_frame
 	expect(finished.size() == 1 and finished[0][0] == list and finished[0][1] == OK, "preload_finished(list, OK) on the main thread")
 
@@ -66,24 +66,24 @@ func _run_checks() -> void:
 	expect(db.get_resource("hero_sword") == db.get_resource(sword_iron), "found by key")
 	expect(db.has_resource("sword_wood"), "direct resource found by name")
 	expect(db.has_resource(sword_gold), "manifest file found by path")
-	expect_equal(db.select("", TYPE).size(), 7, "select('', Issue09GdItem): all 7")
-	expect_equal(db.select("", &"Resource").size(), 7, "select('', Resource): inherited classes match")
+	expect_equal(db.find_resources("", TYPE).size(), 7, "find_resources('', Issue09GdItem): all 7")
+	expect_equal(db.find_resources("", &"Resource").size(), 7, "find_resources('', Resource): inherited classes match")
 
 	# load() returns the stored instance.
 	expect(ResourceLoader.load(sword_iron) == db.get_resource(sword_iron), "ResourceLoader.load() returns the stored instance")
 
-	# select("%sword%", type) returns the matching resources only.
-	db.insert("sword_texture", Resource.new())
-	var swords := db.select("%sword%", TYPE)
-	expect_equal(swords.size(), 3, "select('%sword%', Issue09GdItem): 3 swords, not the plain Resource")
-	var keys := db.select_keys("%SWORD%", TYPE)
-	expect(keys.has("sword_wood") and keys.has(sword_iron) and keys.has(sword_gold), "select_keys() is case-insensitive")
-	expect_equal(db.select("%sword%").size(), 4, "select('%sword%') without type: 4")
+	# find_resources("%sword%", type) returns the matching resources only.
+	db.add_resource("sword_texture", Resource.new())
+	var swords := db.find_resources("%sword%", TYPE)
+	expect_equal(swords.size(), 3, "find_resources('%sword%', Issue09GdItem): 3 swords, not the plain Resource")
+	var keys := db.find_keys("%SWORD%", TYPE)
+	expect(keys.has("sword_wood") and keys.has(sword_iron) and keys.has(sword_gold), "find_keys() is case-insensitive")
+	expect_equal(db.find_resources("%sword%").size(), 4, "find_resources('%sword%') without type: 4")
 
 	# Resources stay in memory after the scene that preloaded them is freed.
 	var scene := Node.new()
 	add_child(scene)
-	expect_equal(db.preload_path(potion, "potion_key"), OK, "preload_path() from a child scene")
+	expect_equal(db.preload_resource(potion, "potion_key"), OK, "preload_resource() from a child scene")
 	scene.queue_free()
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -94,7 +94,7 @@ func _run_checks() -> void:
 	var list2 := PreloadList.new()
 	list2.paths = PackedStringArray([arrow])
 	finished.clear()
-	expect_equal(db.preload_list(list2), OK, "preload_list() with threads")
+	expect_equal(db.preload_from_list(list2), OK, "preload_from_list() with threads")
 	var end := Time.get_ticks_msec() + 5000
 	while finished.is_empty() and Time.get_ticks_msec() < end:
 		await get_tree().process_frame
@@ -103,27 +103,27 @@ func _run_checks() -> void:
 	expect(not db.is_preloading(), "is_preloading() false afterwards")
 	db.preload_finished.disconnect(on_finished)
 
-	# insert_if_absent, memory, remove.
-	expect(not db.insert_if_absent("hero_sword", _item("other")), "insert_if_absent() keeps an existing key")
+	# add_resource_if_missing, memory, remove_matching.
+	expect(not db.add_resource_if_missing("hero_sword", _item("other")), "add_resource_if_missing() keeps an existing key")
 	expect(db.get_memory_usage() > 0, "get_memory_usage() > 0")
-	expect_equal(db.remove("%sword%"), 4, "remove('%sword%') removes 4 entries")
+	expect_equal(db.remove_matching("%sword%"), 4, "remove_matching('%sword%') removes 4 entries")
 	expect(not db.has_resource("hero_sword"), "key removed with its entry")
 
-	# Parallel insert and select from 4 threads.
+	# Parallel add and find from 4 threads.
 	db.clear()
 	var failures: Array = []
 	var threads: Array[Thread] = []
 	for t in 4:
 		var thread := Thread.new()
-		thread.start(_insert_many.bind(t, failures))
+		thread.start(_add_many.bind(t, failures))
 		threads.append(thread)
 	for thread in threads:
 		thread.wait_to_finish()
-	expect(failures.is_empty(), "4 threads: no failed insert or select")
-	expect_equal(db.count(), 400, "4 threads: no lost entry")
+	expect(failures.is_empty(), "4 threads: no failed add or find")
+	expect_equal(db.get_entry_count(), 400, "4 threads: no lost entry")
 
 	db.clear()
-	expect_equal(db.count(), 0, "clear()")
+	expect_equal(db.get_entry_count(), 0, "clear()")
 	for f in ["sword_iron.tres", "shield.tres", "manifest/sword_gold.tres", "manifest/helmet.tres", "potion.tres", "arrow.tres"]:
 		DirAccess.remove_absolute(ROOT + f)
 	for d in ["manifest", ""]:
