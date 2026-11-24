@@ -23,6 +23,11 @@ buses/default_bus_layout="res://16-feature-audio-settings/resources/bus_layout.t
 
 project/assembly_name="GodotCustomBuildProject"
 
+[filesystem]
+
+streaming_assets/enabled=true
+streaming_assets/source_folder="res://88-feature-streaming-assets-server/resources/streaming_assets"
+
 [internationalization]
 
 locale/translations=PackedStringArray("res://17-feature-language-settings/resources/hello_de.translation", "res://17-feature-language-settings/resources/hello_fr.translation")
