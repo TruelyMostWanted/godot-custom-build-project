@@ -1,8 +1,9 @@
 extends FeatureCheck
 ## GDScript checks of 25-feature-video-presets. Check the same things as scripts/cs/Issue25FeatureVideoPresetsCheck.cs.
 ##
-## VideoPresetSettingsServer: apply_preset() sets the values of a VideoPreset in the four video domains, a single
-## change gives "Custom", the name is stored in the domain "video_preset", projects replace and add presets.
+## VideoPresetSettingsServer: apply_preset() sets all values of the typed domain resources of a VideoPreset
+## (VideoQualitySettings, ...) in the video domains and skips null ones, a single change gives "Custom", the name is
+## stored in the domain "video_preset", projects replace and add presets.
 
 const FILE := "user://settings/video_preset.ini"
 const DOMAINS := ["video_quality", "video_texture", "video_shadow", "video_effect"]
@@ -69,6 +70,20 @@ func _values_equal(a: Variant, b: Variant) -> bool:
 	return a == b
 
 
+## The stored values of the domain resource of a preset: setting name to value (empty for a null resource).
+func _preset_values(preset: VideoPreset, domain: String) -> Dictionary:
+	var values := {}
+	var domain_settings: Resource = preset.get_domain_settings(domain)
+	if domain_settings == null:
+		return values
+	for property in domain_settings.get_property_list():
+		var property_name: String = property.name
+		if not (property.usage & PROPERTY_USAGE_STORAGE) or property_name == "script" or property_name.begins_with("resource_") or property_name.begins_with("metadata/"):
+			continue
+		values[property_name] = domain_settings.get(property_name)
+	return values
+
+
 func _check_builtin() -> void:
 	expect_equal(VideoPresetSettingsServer.get_custom_preset_name(), "Custom", "the custom name")
 	expect_equal(VideoPresetSettingsServer.get_builtin_preset_names(), PackedStringArray(BUILTIN), "built-in names")
@@ -79,11 +94,15 @@ func _check_builtin() -> void:
 	expect(low != null and ultra != null, "create_builtin_preset()")
 	expect_equal(low.preset_name, "Low", "preset_name")
 	for domain in DOMAINS:
-		expect(not low.get_domain_values(domain).is_empty(), "Low sets values of \"%s\"" % domain)
+		expect(low.has_domain_settings(domain), "Low has settings for \"%s\"" % domain)
 		var server: SettingsServer = SettingsServerManager.get_server(domain)
-		for setting in ultra.get_domain_values(domain):
+		expect_equal(low.get_domain_settings(domain).get_class(), server.get_settings().get_class(), "Low's \"%s\" has the class of the domain" % domain)
+		for setting in _preset_values(ultra, domain):
 			expect(server.has_setting(setting), "\"%s/%s\" exists in the domain" % [domain, setting])
-	expect(int(low.get_value("video_shadow", "directional_shadow_atlas_size")) < int(ultra.get_value("video_shadow", "directional_shadow_atlas_size")), "Ultra has larger shadow maps than Low")
+	expect(low.video_quality is VideoQualitySettings and low.video_texture is VideoTextureSettings and low.video_shadow is VideoShadowSettings and low.video_effect is VideoEffectSettings, "typed domain resources")
+	expect(low.video_shadow.directional_shadow_atlas_size < ultra.video_shadow.directional_shadow_atlas_size, "Ultra has larger shadow maps than Low")
+	expect(low.video_texture.anisotropic_filtering_level < ultra.video_texture.anisotropic_filtering_level, "Ultra has more anisotropic filtering than Low")
+	expect(is_equal_approx(low.video_quality.scaling_3d_scale, 0.75), "Low renders at 75%")
 	expect(VideoPresetSettingsServer.has_preset(VideoPresetSettingsServer.suggest_preset()), "suggest_preset() names a preset: %s" % VideoPresetSettingsServer.suggest_preset())
 
 
@@ -95,7 +114,7 @@ func _check_apply(preset_name: String) -> void:
 	for domain in DOMAINS:
 		var server: SettingsServer = SettingsServerManager.get_server(domain)
 		expect(not server.is_dirty(), "\"%s\" applied the values at once" % domain)
-		var values := preset.get_domain_values(domain)
+		var values := _preset_values(preset, domain)
 		for setting in values:
 			if server.is_value_supported(setting):
 				expect(_values_equal(server.get_value(setting), values[setting]), "%s: %s/%s = %s" % [preset_name, domain, setting, values[setting]])
@@ -111,14 +130,14 @@ func _check_unsupported() -> void:
 	var before := {}
 	for domain in DOMAINS:
 		var server: SettingsServer = SettingsServerManager.get_server(domain)
-		for setting in low.get_domain_values(domain):
+		for setting in _preset_values(low, domain):
 			before[domain + "/" + setting] = server.get_value(setting)
 	VideoPresetSettingsServer.apply_preset("Low")
 	_confirm_all()
 	var skipped := 0
 	for domain in DOMAINS:
 		var server: SettingsServer = SettingsServerManager.get_server(domain)
-		for setting in low.get_domain_values(domain):
+		for setting in _preset_values(low, domain):
 			if not server.is_value_supported(setting):
 				skipped += 1
 				expect(_values_equal(server.get_value(setting), before[domain + "/" + setting]), "unsupported %s/%s keeps its value" % [domain, setting])
@@ -130,8 +149,6 @@ func _check_custom() -> void:
 	VideoPresetSettingsServer.apply_preset("High")
 	_confirm_all()
 	expect_equal(VideoPresetSettingsServer.get_current_preset(), "High", "High applied")
-	shadow.set_value("positional_shadow_atlas_quad_0", Viewport.SHADOW_ATLAS_QUADRANT_SUBDIV_16)
-	expect_equal(VideoPresetSettingsServer.get_current_preset(), "High", "a value outside the preset changes nothing")
 	changed_names.clear()
 	shadow.set_value("directional_shadow_atlas_size", 2048)
 	expect_equal(VideoPresetSettingsServer.get_current_preset(), "Custom", "a single change gives Custom")
@@ -163,13 +180,21 @@ func _check_project_presets() -> void:
 	VideoPresetSettingsServer.reload_presets()
 	expect_equal(VideoPresetSettingsServer.get_preset_names(), PackedStringArray(["Low", "Medium", "High", "Ultra", "Potato"]), "the project replaces High and adds Potato")
 	var high: VideoPreset = VideoPresetSettingsServer.get_preset("High")
-	expect_equal(int(high.get_value("video_shadow", "directional_shadow_atlas_size")), 2048, "the project's High")
-	expect(not high.has_value("video_effect", "ssao_quality"), "the project's High is partial")
+	expect(high.video_shadow is VideoShadowSettings, "the project's High loads a typed VideoShadowSettings")
+	expect_equal(high.video_shadow.directional_shadow_atlas_size, 2048, "the project's High")
+	expect(high.video_effect == null and not high.has_domain_settings("video_effect"), "the project's High leaves video_effect alone")
+	var shadow: SettingsServer = SettingsServerManager.get_server("video_shadow")
+	shadow.set_value("directional_shadow_atlas_size", 1024)
 	expect_equal(VideoPresetSettingsServer.apply_preset("Potato"), OK, "apply_preset(\"Potato\")")
 	_confirm_all()
 	expect_equal(VideoPresetSettingsServer.get_current_preset(), "Potato", "Potato is current")
 	expect_equal(int(SettingsServerManager.get_server("video_texture").get_value("anisotropic_filtering_level")), 0, "Potato's anisotropic filtering")
 	expect(is_equal_approx(float(SettingsServerManager.get_server("video_quality").get_value("scaling_3d_scale")), 0.5), "Potato's resolution scale")
+	expect_equal(int(shadow.get_value("directional_shadow_atlas_size")), 1024, "Potato leaves video_shadow as it is")
+	shadow.set_value("directional_shadow_atlas_size", 2048)
+	expect_equal(VideoPresetSettingsServer.get_current_preset(), "Potato", "a change in a domain Potato doesn't touch keeps Potato")
+	SettingsServerManager.get_server("video_texture").set_value("anisotropic_filtering_level", Viewport.ANISOTROPY_16X)
+	expect_equal(VideoPresetSettingsServer.get_current_preset(), "Custom", "a change in a domain Potato sets gives Custom")
 
 	ProjectSettings.set_setting("settings/video_preset/use_builtin_presets", false)
 	VideoPresetSettingsServer.reload_presets()
@@ -184,7 +209,8 @@ func _check_project_presets() -> void:
 func _check_runtime_presets() -> void:
 	var cinematic := VideoPresetSettingsServer.create_builtin_preset("Ultra")
 	cinematic.preset_name = "Cinematic"
-	cinematic.set_value("video_effect", "dof_blur_quality", RenderingServer.DOF_BLUR_QUALITY_HIGH)
+	cinematic.video_effect.dof_blur_quality = RenderingServer.DOF_BLUR_QUALITY_HIGH
+	expect(cinematic.video_effect != VideoPresetSettingsServer.get_preset("Ultra").video_effect, "create_builtin_preset() returns new domain resources")
 	VideoPresetSettingsServer.add_preset(cinematic)
 	expect(VideoPresetSettingsServer.has_preset("Cinematic"), "add_preset()")
 	expect_equal(VideoPresetSettingsServer.get_preset("Cinematic"), cinematic, "get_preset()")

@@ -1,7 +1,8 @@
-[gd_resource type="VideoPreset" format=3]
+[gd_resource type="VideoPreset" load_steps=2 format=3]
+
+[sub_resource type="VideoShadowSettings" id="VideoShadowSettings_high"]
+directional_shadow_atlas_size = 2048
 
 [resource]
 preset_name = "High"
-video_shadow = {
-"directional_shadow_atlas_size": 2048
-}
+video_shadow = SubResource("VideoShadowSettings_high")

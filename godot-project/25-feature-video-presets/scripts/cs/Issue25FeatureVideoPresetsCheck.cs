@@ -8,6 +8,7 @@ namespace TruelyInteractive.Issue25FeatureVideoPresets;
 
 /// <summary>
 /// C# checks of 25-feature-video-presets. Check the same things as scripts/gd/check.gd.
+/// A <see cref="VideoPreset"/> holds one typed resource per video domain (null: the domain is left alone).
 /// Typed methods are called on the generated static class, the methods of the base class through
 /// <c>Singleton</c>. The video domains are reached through <see cref="SettingsServerManager"/>.
 /// </summary>
@@ -100,6 +101,28 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
 
     private static string Join(string[] names) => string.Join(",", names);
 
+    // The stored values of the domain resource of a preset: setting name to value (empty for a null resource).
+    private static Dictionary<string, Variant> PresetValues(VideoPreset preset, string domain)
+    {
+        var values = new Dictionary<string, Variant>();
+        Resource domainSettings = preset.GetDomainSettings(domain);
+        if (domainSettings == null)
+        {
+            return values;
+        }
+        foreach (Godot.Collections.Dictionary property in domainSettings.GetPropertyList())
+        {
+            string name = property["name"].AsString();
+            var usage = (PropertyUsageFlags)property["usage"].AsInt64();
+            if ((usage & PropertyUsageFlags.Storage) == 0 || name == "script" || name.StartsWith("resource_") || name.StartsWith("metadata/"))
+            {
+                continue;
+            }
+            values[name] = domainSettings.Get(name);
+        }
+        return values;
+    }
+
     private void CheckBuiltin()
     {
         ExpectEqual(VideoPresetSettingsServer.GetCustomPresetName(), "Custom", "the custom name");
@@ -112,13 +135,17 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
         ExpectEqual(low.PresetName, "Low", "PresetName");
         foreach (string domain in Domains)
         {
-            Expect(low.GetDomainValues(domain).Count > 0, $"Low sets values of \"{domain}\"");
-            foreach (var pair in ultra.GetDomainValues(domain))
+            Expect(low.HasDomainSettings(domain), $"Low has settings for \"{domain}\"");
+            ExpectEqual(low.GetDomainSettings(domain).GetClass(), Domain(domain).GetSettings().GetClass(), $"Low's \"{domain}\" has the class of the domain");
+            foreach (string setting in PresetValues(ultra, domain).Keys)
             {
-                Expect(Domain(domain).HasSetting(pair.Key.AsString()), $"\"{domain}/{pair.Key}\" exists in the domain");
+                Expect(Domain(domain).HasSetting(setting), $"\"{domain}/{setting}\" exists in the domain");
             }
         }
-        Expect(low.GetValue("video_shadow", "directional_shadow_atlas_size").AsInt32() < ultra.GetValue("video_shadow", "directional_shadow_atlas_size").AsInt32(), "Ultra has larger shadow maps than Low");
+        Expect(low.VideoQuality != null && low.VideoTexture != null && low.VideoShadow != null && low.VideoEffect != null, "typed domain resources");
+        Expect(low.VideoShadow.DirectionalShadowAtlasSize < ultra.VideoShadow.DirectionalShadowAtlasSize, "Ultra has larger shadow maps than Low");
+        Expect(low.VideoTexture.AnisotropicFilteringLevel < ultra.VideoTexture.AnisotropicFilteringLevel, "Ultra has more anisotropic filtering than Low");
+        Expect(Mathf.IsEqualApprox((float)low.VideoQuality.Scaling3DScale, 0.75f), "Low renders at 75%");
         string suggestion = VideoPresetSettingsServer.SuggestPreset();
         Expect(VideoPresetSettingsServer.HasPreset(suggestion), $"SuggestPreset() names a preset: {suggestion}");
     }
@@ -133,9 +160,9 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
         {
             SettingsServer server = Domain(domain);
             Expect(!server.IsDirty(), $"\"{domain}\" applied the values at once");
-            foreach (var pair in preset.GetDomainValues(domain))
+            foreach (var pair in PresetValues(preset, domain))
             {
-                string setting = pair.Key.AsString();
+                string setting = pair.Key;
                 if (server.IsValueSupported(setting))
                 {
                     Expect(ValuesEqual(server.GetValue(setting), pair.Value), $"{presetName}: {domain}/{setting} = {pair.Value}");
@@ -155,9 +182,8 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
         var before = new Dictionary<string, Variant>();
         foreach (string domain in Domains)
         {
-            foreach (var pair in low.GetDomainValues(domain))
+            foreach (string setting in PresetValues(low, domain).Keys)
             {
-                string setting = pair.Key.AsString();
                 before[$"{domain}/{setting}"] = Domain(domain).GetValue(setting);
             }
         }
@@ -166,9 +192,8 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
         int skipped = 0;
         foreach (string domain in Domains)
         {
-            foreach (var pair in low.GetDomainValues(domain))
+            foreach (string setting in PresetValues(low, domain).Keys)
             {
-                string setting = pair.Key.AsString();
                 if (!Domain(domain).IsValueSupported(setting))
                 {
                     skipped++;
@@ -185,8 +210,6 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
         VideoPresetSettingsServer.ApplyPreset("High");
         ConfirmAll();
         ExpectEqual(VideoPresetSettingsServer.GetCurrentPreset(), "High", "High applied");
-        shadow.SetValue("positional_shadow_atlas_quad_0", 3); // Viewport.SHADOW_ATLAS_QUADRANT_SUBDIV_16
-        ExpectEqual(VideoPresetSettingsServer.GetCurrentPreset(), "High", "a value outside the preset changes nothing");
         _changedNames.Clear();
         shadow.SetValue("directional_shadow_atlas_size", 2048);
         ExpectEqual(VideoPresetSettingsServer.GetCurrentPreset(), "Custom", "a single change gives Custom");
@@ -225,13 +248,21 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
         VideoPresetSettingsServer.ReloadPresets();
         ExpectEqual(Join(VideoPresetSettingsServer.GetPresetNames()), "Low,Medium,High,Ultra,Potato", "the project replaces High and adds Potato");
         VideoPreset high = VideoPresetSettingsServer.GetPreset("High");
-        ExpectEqual(high.GetValue("video_shadow", "directional_shadow_atlas_size").AsInt32(), 2048, "the project's High");
-        Expect(!high.HasValue("video_effect", "ssao_quality"), "the project's High is partial");
+        Expect(high.VideoShadow != null, "the project's High loads a typed VideoShadowSettings");
+        ExpectEqual(high.VideoShadow.DirectionalShadowAtlasSize, 2048, "the project's High");
+        Expect(high.VideoEffect == null && !high.HasDomainSettings("video_effect"), "the project's High leaves video_effect alone");
+        SettingsServer shadow = Domain("video_shadow");
+        shadow.SetValue("directional_shadow_atlas_size", 1024);
         ExpectEqual(VideoPresetSettingsServer.ApplyPreset("Potato"), Error.Ok, "ApplyPreset(\"Potato\")");
         ConfirmAll();
         ExpectEqual(VideoPresetSettingsServer.GetCurrentPreset(), "Potato", "Potato is current");
         ExpectEqual(Domain("video_texture").GetValue("anisotropic_filtering_level").AsInt32(), 0, "Potato's anisotropic filtering");
         Expect(Mathf.IsEqualApprox((float)Domain("video_quality").GetValue("scaling_3d_scale").AsDouble(), 0.5f), "Potato's resolution scale");
+        ExpectEqual(shadow.GetValue("directional_shadow_atlas_size").AsInt32(), 1024, "Potato leaves video_shadow as it is");
+        shadow.SetValue("directional_shadow_atlas_size", 2048);
+        ExpectEqual(VideoPresetSettingsServer.GetCurrentPreset(), "Potato", "a change in a domain Potato doesn't touch keeps Potato");
+        Domain("video_texture").SetValue("anisotropic_filtering_level", 4); // Viewport.ANISOTROPY_16X
+        ExpectEqual(VideoPresetSettingsServer.GetCurrentPreset(), "Custom", "a change in a domain Potato sets gives Custom");
 
         ProjectSettings.SetSetting("settings/video_preset/use_builtin_presets", false);
         VideoPresetSettingsServer.ReloadPresets();
@@ -247,7 +278,8 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
     {
         VideoPreset cinematic = VideoPresetSettingsServer.CreateBuiltinPreset("Ultra");
         cinematic.PresetName = "Cinematic";
-        cinematic.SetValue("video_effect", "dof_blur_quality", 3); // RenderingServer.DOF_BLUR_QUALITY_HIGH
+        cinematic.VideoEffect.DofBlurQuality = RenderingServer.DofBlurQuality.High;
+        Expect(cinematic.VideoEffect != VideoPresetSettingsServer.GetPreset("Ultra").VideoEffect, "CreateBuiltinPreset() returns new domain resources");
         VideoPresetSettingsServer.AddPreset(cinematic);
         Expect(VideoPresetSettingsServer.HasPreset("Cinematic"), "AddPreset()");
         Expect(VideoPresetSettingsServer.GetPreset("Cinematic") == cinematic, "GetPreset()");
