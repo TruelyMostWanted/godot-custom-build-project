@@ -47,12 +47,12 @@ func _check_api() -> void:
 	expect_equal(manifest.type_hint, &"", "default type_hint is empty")
 	expect_equal(manifest.extensions, PackedStringArray(), "default extensions are empty")
 	expect_equal(manifest.recursive, true, "default recursive is true")
-	expect_equal(manifest.create_non_existing_folders, false, "default create_non_existing_folders is false")
+	expect_equal(manifest.create_missing_folders, false, "default create_missing_folders is false")
 	var stored := []
 	for property in manifest.get_property_list():
 		if property.usage & PROPERTY_USAGE_STORAGE:
 			stored.append(property.name)
-	for property_name in ["type_hint", "extensions", "folder_paths", "file_paths", "recursive", "create_non_existing_folders"]:
+	for property_name in ["type_hint", "extensions", "folder_paths", "file_paths", "recursive", "create_missing_folders"]:
 		expect(property_name in stored, "%s is stored (PROPERTY_USAGE_STORAGE)" % property_name)
 
 
@@ -95,7 +95,7 @@ func _check_manifest_file() -> void:
 	manifest.type_hint = &"Curve"
 	manifest.recursive = false
 	manifest.file_paths = PackedStringArray([_data("b/sub/deep.tres")])
-	manifest.create_non_existing_folders = true
+	manifest.create_missing_folders = true
 	var copy_path := ROOT + "copy.tres"
 	expect_equal(ResourceSaver.save(manifest, copy_path), OK, "the manifest saves as .tres")
 	var copy := ResourceLoader.load(copy_path, "", ResourceLoader.CACHE_MODE_IGNORE) as FilesManifest
@@ -106,7 +106,7 @@ func _check_manifest_file() -> void:
 		expect_equal(copy.folder_paths, manifest.folder_paths, "folder_paths survive saving")
 		expect_equal(copy.file_paths, manifest.file_paths, "file_paths survive saving")
 		expect_equal(copy.recursive, false, "recursive survives saving")
-		expect_equal(copy.create_non_existing_folders, true, "create_non_existing_folders survives saving")
+		expect_equal(copy.create_missing_folders, true, "create_missing_folders survives saving")
 
 
 func _check_filters() -> void:
@@ -154,9 +154,9 @@ func _check_missing_folders() -> void:
 	expect_equal(ResourceLoader.get_manifest_paths(manifest), PackedStringArray([_data("a/curve.tres")]), "a missing folder is skipped with an error")
 	expect(not DirAccess.dir_exists_absolute(missing), "the missing folder is not created by default")
 
-	manifest.create_non_existing_folders = true
-	expect_equal(ResourceLoader.get_manifest_paths(manifest), PackedStringArray([_data("a/curve.tres")]), "with create_non_existing_folders the other folders are still listed")
-	expect(DirAccess.dir_exists_absolute(missing), "create_non_existing_folders creates the folder in user://")
+	manifest.create_missing_folders = true
+	expect_equal(ResourceLoader.get_manifest_paths(manifest), PackedStringArray([_data("a/curve.tres")]), "with create_missing_folders the other folders are still listed")
+	expect(DirAccess.dir_exists_absolute(missing), "create_missing_folders creates the folder in user://")
 	expect_equal(ResourceLoader.load_manifest(manifest).size(), 1, "the new folder is empty")
 
 	if OS.has_feature("template"):
@@ -164,7 +164,7 @@ func _check_missing_folders() -> void:
 		var res_missing := FEATURE + "not_exported_folder"
 		var res_manifest := FilesManifest.new()
 		res_manifest.folder_paths = PackedStringArray([res_missing])
-		res_manifest.create_non_existing_folders = true
+		res_manifest.create_missing_folders = true
 		expect_equal(ResourceLoader.get_manifest_paths(res_manifest).size(), 0, "exported: a missing res:// folder gives no paths")
 		expect(not DirAccess.dir_exists_absolute(res_missing), "exported: res:// folders are not created")
 

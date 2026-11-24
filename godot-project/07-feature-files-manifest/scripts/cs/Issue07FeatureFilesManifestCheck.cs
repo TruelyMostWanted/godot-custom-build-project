@@ -59,7 +59,7 @@ public partial class Issue07FeatureFilesManifestCheck : FeatureCheckCs
         ExpectEqual(manifest.TypeHint.ToString(), "", "default TypeHint is empty");
         ExpectEqual(manifest.Extensions.Length, 0, "default Extensions are empty");
         ExpectEqual(manifest.Recursive, true, "default Recursive is true");
-        ExpectEqual(manifest.CreateNonExistingFolders, false, "default CreateNonExistingFolders is false");
+        ExpectEqual(manifest.CreateMissingFolders, false, "default CreateMissingFolders is false");
         var stored = new HashSet<string>();
         foreach (GDict property in manifest.GetPropertyList())
         {
@@ -68,7 +68,7 @@ public partial class Issue07FeatureFilesManifestCheck : FeatureCheckCs
                 stored.Add((string)property["name"]);
             }
         }
-        foreach (string name in new[] { "type_hint", "extensions", "folder_paths", "file_paths", "recursive", "create_non_existing_folders" })
+        foreach (string name in new[] { "type_hint", "extensions", "folder_paths", "file_paths", "recursive", "create_missing_folders" })
         {
             Expect(stored.Contains(name), $"{name} is stored (PROPERTY_USAGE_STORAGE)");
         }
@@ -115,7 +115,7 @@ public partial class Issue07FeatureFilesManifestCheck : FeatureCheckCs
         manifest.TypeHint = "Curve";
         manifest.Recursive = false;
         manifest.FilePaths = [D("b/sub/deep.tres")];
-        manifest.CreateNonExistingFolders = true;
+        manifest.CreateMissingFolders = true;
         string copyPath = Root + "copy.tres";
         ExpectEqual(ResourceSaver.Save(manifest, copyPath), Error.Ok, "the manifest saves as .tres");
         var copy = ResourceLoader.Load(copyPath, "", ResourceLoader.CacheMode.Ignore) as FilesManifest;
@@ -126,7 +126,7 @@ public partial class Issue07FeatureFilesManifestCheck : FeatureCheckCs
             ExpectPaths(copy.FolderPaths, manifest.FolderPaths, "FolderPaths survive saving");
             ExpectPaths(copy.FilePaths, manifest.FilePaths, "FilePaths survive saving");
             ExpectEqual(copy.Recursive, false, "Recursive survives saving");
-            ExpectEqual(copy.CreateNonExistingFolders, true, "CreateNonExistingFolders survives saving");
+            ExpectEqual(copy.CreateMissingFolders, true, "CreateMissingFolders survives saving");
         }
     }
 
@@ -183,16 +183,16 @@ public partial class Issue07FeatureFilesManifestCheck : FeatureCheckCs
         ExpectPaths(ResourceLoader.GetManifestPaths(manifest), [D("a/curve.tres")], "a missing folder is skipped with an error");
         Expect(!DirAccess.DirExistsAbsolute(missing), "the missing folder is not created by default");
 
-        manifest.CreateNonExistingFolders = true;
-        ExpectPaths(ResourceLoader.GetManifestPaths(manifest), [D("a/curve.tres")], "with CreateNonExistingFolders the other folders are still listed");
-        Expect(DirAccess.DirExistsAbsolute(missing), "CreateNonExistingFolders creates the folder in user://");
+        manifest.CreateMissingFolders = true;
+        ExpectPaths(ResourceLoader.GetManifestPaths(manifest), [D("a/curve.tres")], "with CreateMissingFolders the other folders are still listed");
+        Expect(DirAccess.DirExistsAbsolute(missing), "CreateMissingFolders creates the folder in user://");
         ExpectEqual(ResourceLoader.LoadManifest(manifest).Count, 1, "the new folder is empty");
 
         if (OS.HasFeature("template"))
         {
             // Exported build: res:// is read-only and cannot get new folders.
             string resMissing = Feature + "not_exported_folder";
-            var resManifest = new FilesManifest { FolderPaths = [resMissing], CreateNonExistingFolders = true };
+            var resManifest = new FilesManifest { FolderPaths = [resMissing], CreateMissingFolders = true };
             ExpectEqual(ResourceLoader.GetManifestPaths(resManifest).Length, 0, "exported: a missing res:// folder gives no paths");
             Expect(!DirAccess.DirExistsAbsolute(resMissing), "exported: res:// folders are not created");
         }
