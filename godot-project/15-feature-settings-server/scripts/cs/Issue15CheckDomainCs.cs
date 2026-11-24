@@ -11,7 +11,9 @@ public partial class Issue15CheckDomainCs : SettingsServer
 {
     public override StringName _GetDomain() => "check15_cs";
 
-    public override ApplyPhase _GetApplyPhase() => ApplyPhase.Scene;
+    // Asks for the first phase on purpose (#71): a script domain from settings/startup/custom_servers
+    // still starts in ApplyPhase.Scene, before the main scene.
+    public override ApplyPhase _GetApplyPhase() => ApplyPhase.PreDisplay;
 
     public override Resource _CreateSettings() => new Issue15CheckSettingsCs();
 

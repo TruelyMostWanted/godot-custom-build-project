@@ -31,6 +31,7 @@ func _run_checks() -> void:
 	if not expect(server != null, "the GDScript domain from settings/startup/custom_servers is registered"):
 		return
 	expect(server.is_started(), "the GDScript domain was started before the main scene")
+	expect_equal(server.get_apply_phase(), SettingsServer.APPLY_PHASE_PRE_DISPLAY, "#71: the script domain asks for APPLY_PHASE_PRE_DISPLAY and was still started in APPLY_PHASE_SCENE")
 	expect_equal(server.get_file_path(), PLAYER_FILE, "default file path")
 	expect_equal(server.get_setting_names(), PackedStringArray(["volume", "quality"]), "setting names come from the resource")
 
@@ -40,6 +41,10 @@ func _run_checks() -> void:
 	_check_broken_file()
 	_check_list_domain()
 	await _check_confirmation()
+	_check_apply_during_confirmation()
+	_check_restart_values()
+	_check_list_defaults()
+	_check_entry_validation()
 	await _check_restart(server)
 
 	_remove_dir(DIR)
@@ -183,6 +188,89 @@ func _check_confirmation() -> void:
 	domain.read_from_engine()
 	expect(finished[0], "read_from_engine() emits read_from_engine_finished")
 	domain.free()
+
+
+func _check_apply_during_confirmation() -> void:
+	var domain := _new_domain(DIR.path_join("confirm71.ini"))
+	domain.set_setting_flags(&"quality", SettingsServer.SETTING_FLAG_CONFIRM)
+	var finished := []
+	domain.confirmation_finished.connect(func(kept: bool) -> void: finished.append(kept))
+	domain.set_value(&"quality", 2)
+	domain.apply()
+	expect(domain.is_confirmation_pending(), "#71: a flagged value starts a confirmation")
+	domain.set_value(&"volume", 0.3)
+	expect_equal(domain.apply(), OK, "#71: apply() during a pending confirmation")
+	expect(not domain.is_confirmation_pending(), "#71: apply() kept the pending confirmation first")
+	expect_equal(finished, [true], "#71: confirmation_finished(true) for the kept confirmation")
+	expect_equal(domain.get_applied_value(&"quality"), 2, "#71: the kept value stays applied")
+
+	domain.set_value(&"quality", 0)
+	domain.apply_with_confirmation(5.0)
+	domain.set_value(&"quality", 1)
+	expect_equal(domain.apply_with_confirmation(5.0), OK, "#71: apply_with_confirmation() during a pending one (no ERR_BUSY)")
+	domain.cancel_confirmation()
+	expect_equal(domain.get_applied_value(&"quality"), 0, "#71: a cancel only reverts the values of the new confirmation")
+	expect(is_equal_approx(domain.get_applied_value(&"volume"), 0.3), "#71: values applied before stay")
+	domain.free()
+
+
+func _check_restart_values() -> void:
+	var domain := _new_domain(DIR.path_join("restart71.ini"))
+	domain.set_setting_flags(&"quality", SettingsServer.SETTING_FLAG_RESTART_REQUIRED)
+	var lists := []
+	domain.restart_required.connect(func(names: PackedStringArray) -> void: lists.append(names))
+	domain.set_value(&"quality", 2)
+	domain.apply()
+	expect_equal(domain.get_restart_required_names(), PackedStringArray(["quality"]), "#71: a changed restart value is listed")
+	domain.set_value(&"quality", 1)
+	domain.apply()
+	expect(domain.get_restart_required_names().is_empty(), "#71: the value set back to the start value is no longer listed")
+	expect_equal(lists, [PackedStringArray(["quality"]), PackedStringArray()], "#71: restart_required carries the whole list, empty when cleared")
+	domain.free()
+
+
+func _check_list_defaults() -> void:
+	var list: ListSettingsServer = load(LIST_SCRIPT).new()
+	var path := DIR.path_join("list_defaults.ini")
+	list.set_file_path(path)
+	var list_defaults: Issue15CheckList = list.get_default_settings()
+	list_defaults.entries.append(_make_entry("a", 1))
+	list.reset_to_defaults()
+	expect_equal(list.get_entry_count(), 1, "#71: the list has the default entry")
+	expect(list.get_entry(0) != list_defaults.entries[0], "#71: the entry is a copy of the default entry")
+	expect_equal(list.save(), OK, "#71: save() of an unchanged list")
+	expect(not FileAccess.get_file_as_string(path).contains("entries"), "#71: entries equal to the defaults are not written")
+	list.set_entry_value(0, &"level", 4)
+	list.save()
+	expect(FileAccess.get_file_as_string(path).contains("entries"), "#71: a changed entry writes the list")
+	list.free()
+
+
+func _check_entry_validation() -> void:
+	var list: ListSettingsServer = load(LIST_SCRIPT).new()
+	list.set_apply_mode(SettingsServer.APPLY_MODE_MANUAL)
+	list.add_entry(_make_entry("a", 1))
+	list.set_entry_value(0, &"level", 50)
+	expect_equal(list.get_entry_value(0, &"level"), 10, "#71: set_entry_value() clamps to the range hint of the entry")
+	list.set_entry_value(0, &"level", -3)
+	expect_equal(list.get_entry_value(0, &"level"), 0, "#71: set_entry_value() clamps the lower end")
+
+	var path := DIR.path_join("list_clamp.json")
+	list.set_entry_value(0, &"level", 7)
+	list.apply()
+	list.set_file_path(path)
+	list.save()
+	var text := FileAccess.get_file_as_string(path)
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	file.store_string(text.replace("7", "99"))
+	file.close()
+	var reader: ListSettingsServer = load(LIST_SCRIPT).new()
+	reader.set_file_path(path)
+	expect_equal(reader.load(), OK, "#71: load() of a hand-edited list")
+	if reader.get_entry_count() == 1:
+		expect_equal(reader.get_entry_value(0, &"level"), 10, "#71: hand-edited entry values are clamped on load")
+	reader.free()
+	list.free()
 
 
 func _check_restart(server: SettingsServer) -> void:
