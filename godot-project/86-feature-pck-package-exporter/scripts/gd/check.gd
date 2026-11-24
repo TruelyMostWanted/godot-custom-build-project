@@ -18,6 +18,7 @@ func _get_check_name() -> String:
 
 func _run_checks() -> void:
 	_check_bindings()
+	_check_build_plan_class()
 	_check_plan_of_saved_description()
 	_check_plan_refusals()
 	_check_encryption_filters()
@@ -40,12 +41,22 @@ func _check_plan_of_saved_description() -> void:
 		return
 	expect(description.is_description(), "a .tres is a description")
 	var plan := PCKPackageExporter.plan_description(description)
-	for key in ["export_sources", "raw_files", "removals", "skipped", "errors"]:
-		expect(plan.has(key), "the plan has '%s'" % key)
-	expect_equal(plan["export_sources"], PackedStringArray(["res://icon.svg"]), "res:// sources go through the export pipeline")
-	expect_equal(plan["raw_files"], PackedStringArray(["dlc/readme.txt", "dlc/settings.cfg"]), "data and user:// files are copied as they are")
-	expect_equal(plan["removals"], PackedStringArray(["old/unused.png"]), "removals stay removals")
-	expect(PackedStringArray(plan["errors"]).is_empty(), "the description can be built")
+	expect(plan is PCKBuildPlan, "plan_description() returns a PCKBuildPlan")
+	expect(plan.valid, "the description can be built (valid)")
+	expect_equal(plan.export_sources, PackedStringArray(["res://icon.svg"]), "res:// sources go through the export pipeline")
+	expect_equal(plan.raw_files, PackedStringArray(["dlc/readme.txt", "dlc/settings.cfg"]), "data and user:// files are copied as they are")
+	expect_equal(plan.removals, PackedStringArray(["old/unused.png"]), "removals stay removals")
+	expect(plan.errors.is_empty(), "the description can be built")
+
+
+func _check_build_plan_class() -> void:
+	expect(ClassDB.class_exists(&"PCKBuildPlan"), "PCKBuildPlan exists in the editor build")
+	expect_equal(ClassDB.get_parent_class(&"PCKBuildPlan"), &"RefCounted", "PCKBuildPlan extends RefCounted")
+	for property in ["valid", "export_sources", "raw_files", "removals", "skipped", "errors"]:
+		expect(ClassDB.class_has_method(&"PCKBuildPlan", ClassDB.class_get_property_getter(&"PCKBuildPlan", property)), "PCKBuildPlan.%s has a getter" % property)
+		expect_equal(ClassDB.class_get_property_setter(&"PCKBuildPlan", property), &"", "PCKBuildPlan.%s is read-only" % property)
+	var null_plan := PCKPackageExporter.plan_description(null)
+	expect(not null_plan.valid and null_plan.errors.size() == 1, "a null description gives a plan with one error")
 
 
 func _check_plan_refusals() -> void:
@@ -54,17 +65,18 @@ func _check_plan_refusals() -> void:
 	description.add_file("icon.svg.import", "res://icon.svg.import")
 	description.add_file("other.png.import", "res://other.png.import")
 	var plan := PCKPackageExporter.plan_description(description)
-	var errors := PackedStringArray(plan["errors"])
+	var errors := plan.errors
+	expect(not plan.valid, "a plan with errors is not valid")
 	expect_equal(errors.size(), 3, "a renamed res:// target and both .import files are refused")
 	expect(errors.size() > 0 and errors[0].contains("textures/icon.svg"), "the error names the renamed entry")
-	expect(PackedStringArray(plan["skipped"]).is_empty(), "no .import is skipped without its exported source")
+	expect(plan.skipped.is_empty(), "no .import is skipped without its exported source")
 
 	var ok := PCKPackage.new()
 	ok.add_file("icon.svg", "res://icon.svg")
 	ok.add_file("icon.svg.import", "res://icon.svg.import")
 	var ok_plan := PCKPackageExporter.plan_description(ok)
-	expect_equal(ok_plan["skipped"], PackedStringArray(["icon.svg.import"]), "the .import of an exported source is skipped")
-	expect(PackedStringArray(ok_plan["errors"]).is_empty(), "a source with its .import can be built")
+	expect_equal(ok_plan.skipped, PackedStringArray(["icon.svg.import"]), "the .import of an exported source is skipped")
+	expect(ok_plan.errors.is_empty(), "a source with its .import can be built")
 
 
 func _check_encryption_filters() -> void:

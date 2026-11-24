@@ -29,6 +29,7 @@ public partial class Issue86FeaturePckPackageExporterCheck : FeatureCheckCs
     {
         CheckBindings();
 #if TOOLS
+        CheckBuildPlanClass();
         CheckPlanOfSavedDescription();
         CheckPlanRefusals();
         CheckEncryptionFilters();
@@ -52,8 +53,6 @@ public partial class Issue86FeaturePckPackageExporterCheck : FeatureCheckCs
     }
 
 #if TOOLS
-    private static string[] Strings(Variant value) => value.AsStringArray();
-
     private void CheckPlanOfSavedDescription()
     {
         var description = GD.Load<PckPackage>(Description);
@@ -64,14 +63,25 @@ public partial class Issue86FeaturePckPackageExporterCheck : FeatureCheckCs
         }
         Expect(description.IsDescription(), "a .tres is a description");
         var plan = PckPackageExporter.PlanDescription(description);
-        foreach (string key in new[] { "export_sources", "raw_files", "removals", "skipped", "errors" })
+        Expect(plan != null, "PlanDescription() returns a PckBuildPlan");
+        Expect(plan.Valid, "the description can be built (Valid)");
+        Expect(plan.ExportSources.SequenceEqual(new[] { "res://icon.svg" }), "res:// sources go through the export pipeline");
+        Expect(plan.RawFiles.SequenceEqual(new[] { "dlc/readme.txt", "dlc/settings.cfg" }), "data and user:// files are copied as they are");
+        Expect(plan.Removals.SequenceEqual(new[] { "old/unused.png" }), "removals stay removals");
+        Expect(plan.Errors.Length == 0, "the description can be built");
+    }
+
+    private void CheckBuildPlanClass()
+    {
+        Expect(ClassDB.ClassExists("PCKBuildPlan"), "PCKBuildPlan exists in the editor build");
+        ExpectEqual(ClassDB.GetParentClass("PCKBuildPlan").ToString(), "RefCounted", "PCKBuildPlan extends RefCounted");
+        foreach (string property in new[] { "valid", "export_sources", "raw_files", "removals", "skipped", "errors" })
         {
-            Expect(plan.ContainsKey(key), $"the plan has '{key}'");
+            Expect(ClassDB.ClassHasMethod("PCKBuildPlan", ClassDB.ClassGetPropertyGetter("PCKBuildPlan", property)), $"PCKBuildPlan.{property} has a getter");
+            ExpectEqual(ClassDB.ClassGetPropertySetter("PCKBuildPlan", property).ToString(), "", $"PCKBuildPlan.{property} is read-only");
         }
-        Expect(Strings(plan["export_sources"]).SequenceEqual(new[] { "res://icon.svg" }), "res:// sources go through the export pipeline");
-        Expect(Strings(plan["raw_files"]).SequenceEqual(new[] { "dlc/readme.txt", "dlc/settings.cfg" }), "data and user:// files are copied as they are");
-        Expect(Strings(plan["removals"]).SequenceEqual(new[] { "old/unused.png" }), "removals stay removals");
-        Expect(Strings(plan["errors"]).Length == 0, "the description can be built");
+        PckBuildPlan nullPlan = PckPackageExporter.PlanDescription(null);
+        Expect(!nullPlan.Valid && nullPlan.Errors.Length == 1, "a null description gives a plan with one error");
     }
 
     private void CheckPlanRefusals()
@@ -81,17 +91,18 @@ public partial class Issue86FeaturePckPackageExporterCheck : FeatureCheckCs
         description.AddFile("icon.svg.import", "res://icon.svg.import");
         description.AddFile("other.png.import", "res://other.png.import");
         var plan = PckPackageExporter.PlanDescription(description);
-        string[] errors = Strings(plan["errors"]);
+        string[] errors = plan.Errors;
+        Expect(!plan.Valid, "a plan with errors is not valid");
         ExpectEqual(errors.Length, 3, "a renamed res:// target and both .import files are refused");
         Expect(errors.Length > 0 && errors[0].Contains("textures/icon.svg"), "the error names the renamed entry");
-        Expect(Strings(plan["skipped"]).Length == 0, "no .import is skipped without its exported source");
+        Expect(plan.Skipped.Length == 0, "no .import is skipped without its exported source");
 
         var ok = new PckPackage();
         ok.AddFile("icon.svg", "res://icon.svg");
         ok.AddFile("icon.svg.import", "res://icon.svg.import");
         var okPlan = PckPackageExporter.PlanDescription(ok);
-        Expect(Strings(okPlan["skipped"]).SequenceEqual(new[] { "icon.svg.import" }), "the .import of an exported source is skipped");
-        Expect(Strings(okPlan["errors"]).Length == 0, "a source with its .import can be built");
+        Expect(okPlan.Skipped.SequenceEqual(new[] { "icon.svg.import" }), "the .import of an exported source is skipped");
+        Expect(okPlan.Errors.Length == 0, "a source with its .import can be built");
     }
 
     private void CheckEncryptionFilters()
