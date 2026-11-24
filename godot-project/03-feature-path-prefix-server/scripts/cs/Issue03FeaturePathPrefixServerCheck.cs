@@ -38,6 +38,8 @@ public partial class Issue03FeaturePathPrefixServerCheck : FeatureCheckCs
         CheckResolve();
         CheckResolveSafe();
         CheckPerformance();
+        // Last: mounting a pack switches the res:// directory access of this run.
+        CheckEnginePathRedispatch();
         return Task.CompletedTask;
     }
 
@@ -201,5 +203,72 @@ public partial class Issue03FeaturePathPrefixServerCheck : FeatureCheckCs
         double resolveMs = (Time.GetTicksUsec() - start) / 1000.0;
         GD.Print($"PERF cs: 100000 x Resolve() = {resolveMs:F1} ms");
         Expect(resolveMs < 10000.0, "100000 Resolve() calls take less than 10 s");
+    }
+
+    // 87: prefixes that resolve into res:// or user:// use the engine access, including the PCK.
+    private void CheckEnginePathRedispatch()
+    {
+        Expect(PathPrefixServer.RegisterPrefixFolder("pp_cspack://", "res://pp87_cs_pack") == Error.Ok, "RegisterPrefixFolder(pp_cspack://, res://pp87_cs_pack)");
+        Expect(PathPrefixServer.RegisterPrefixFolder("pp_cschain://", "pp_cspack://sub") == Error.Ok, "RegisterPrefixFolder(pp_cschain://, pp_cspack://sub)");
+        Expect(PathPrefixServer.RegisterPrefixFolder("pp_csuser://", "user://pp87_cs_user") == Error.Ok, "RegisterPrefixFolder(pp_csuser://, user://pp87_cs_user)");
+        ExpectEqual(PathPrefixServer.ResolveEnginePath("pp_cspack://data.txt"), "res://pp87_cs_pack/data.txt", "ResolveEnginePath(pp_cspack://data.txt)");
+        ExpectEqual(PathPrefixServer.ResolveEnginePath("pp_cspack://x/../data.txt"), "res://pp87_cs_pack/data.txt", "ResolveEnginePath() resolves ..");
+        ExpectEqual(PathPrefixServer.ResolveEnginePath("pp_cschain://b.txt"), "res://pp87_cs_pack/sub/b.txt", "ResolveEnginePath() follows pp_cschain:// -> pp_cspack:// -> res://");
+        ExpectEqual(PathPrefixServer.ResolveEnginePath("pp_csuser://a.txt"), "user://pp87_cs_user/a.txt", "ResolveEnginePath(pp_csuser://a.txt)");
+        ExpectEqual(PathPrefixServer.ResolveEnginePath("temp://a.txt"), "temp://a.txt", "a prefix that ends in an OS path stays unchanged");
+        ExpectEqual(PathPrefixServer.ResolveEnginePath("res://a.txt"), "res://a.txt", "engine paths stay unchanged");
+
+        // user:// alias: files and folders go through the user:// access.
+        Expect(DirAccess.MakeDirRecursiveAbsolute("pp_csuser://saves") == Error.Ok, "MakeDirRecursiveAbsolute(pp_csuser://saves)");
+        using (FileAccess file = FileAccess.Open("pp_csuser://saves/a.txt", FileAccess.ModeFlags.Write))
+        {
+            Expect(file != null, "FileAccess.Open(pp_csuser://saves/a.txt, Write)");
+            if (file != null)
+            {
+                ExpectEqual(file.GetPath(), "user://pp87_cs_user/saves/a.txt", "GetPath() is the user:// path");
+                file.StoreString("saved");
+            }
+        }
+        ExpectEqual(FileAccess.GetFileAsString("user://pp87_cs_user/saves/a.txt"), "saved", "the file is in user://pp87_cs_user");
+        using (DirAccess dir = DirAccess.Open("pp_csuser://saves"))
+        {
+            Expect(dir != null && dir.GetCurrentDir().StartsWith("user://") && dir.FileExists("a.txt"), "DirAccess.Open(pp_csuser://saves) is a user:// access");
+        }
+        Expect(DirAccess.RemoveAbsolute("pp_csuser://saves/a.txt") == Error.Ok && DirAccess.RemoveAbsolute("pp_csuser://saves") == Error.Ok, "RemoveAbsolute() through pp_csuser://");
+        Expect(!DirAccess.DirExistsAbsolute("pp_csuser://saves"), "DirExistsAbsolute(pp_csuser://saves) is false after removal");
+
+        // res:// alias: the files exist only in a pack, as in an exported game.
+        const string pack = "user://pp87_cs.pck";
+        var packer = new PckPacker();
+        packer.PckStart(pack);
+        packer.AddFileFromBuffer("pp87_cs_pack/data.txt", "Packed".ToUtf8Buffer());
+        packer.AddFileFromBuffer("pp87_cs_pack/sub/b.txt", "Nested".ToUtf8Buffer());
+        packer.AddFileFromBuffer("pp87_cs_pack/res.tres", "[gd_resource type=\"Resource\" format=3]\n\n[resource]\nresource_name = \"packed\"\n".ToUtf8Buffer());
+        Expect(packer.Flush() == Error.Ok, "PckPacker writes user://pp87_cs.pck");
+        Expect(!FileAccess.FileExists(ProjectSettings.GlobalizePath("res://pp87_cs_pack/data.txt")), "the file is not on disk");
+        Expect(ProjectSettings.LoadResourcePack(ProjectSettings.GlobalizePath(pack)), "LoadResourcePack()");
+        Expect(FileAccess.FileExists("pp_cspack://data.txt"), "FileAccess.FileExists(pp_cspack://data.txt) finds the packed file");
+        Expect(!FileAccess.FileExists("pp_cspack://missing.txt"), "FileAccess.FileExists(pp_cspack://missing.txt) is false");
+        ExpectEqual(FileAccess.GetFileAsString("pp_cspack://data.txt"), "Packed", "FileAccess reads pp_cspack://data.txt from the pack");
+        ExpectEqual(FileAccess.GetFileAsString("pp_cschain://b.txt"), "Nested", "FileAccess reads pp_cschain://b.txt from the pack");
+        using (FileAccess packed = FileAccess.Open("pp_cspack://data.txt", FileAccess.ModeFlags.Read))
+        {
+            Expect(packed != null && packed.GetPath() == "res://pp87_cs_pack/data.txt", "GetPath() of a packed file is the res:// path");
+        }
+        Expect(DirAccess.DirExistsAbsolute("pp_cspack://sub"), "DirAccess.DirExistsAbsolute(pp_cspack://sub) finds the packed folder");
+        using (DirAccess packDir = DirAccess.Open("pp_cspack://"))
+        {
+            Expect(packDir != null && packDir.FileExists("data.txt"), "DirAccess.Open(pp_cspack://) lists the packed files");
+        }
+        Expect(ResourceLoader.Exists("pp_cspack://res.tres"), "ResourceLoader.Exists(pp_cspack://res.tres)");
+        Resource byAlias = ResourceLoader.Load("pp_cspack://res.tres");
+        Expect(byAlias != null && byAlias.ResourceName == "packed", "ResourceLoader.Load(pp_cspack://res.tres) from the pack");
+        Expect(byAlias != null && byAlias.ResourcePath == "res://pp87_cs_pack/res.tres", "ResourcePath is the res:// path");
+        Expect(byAlias != null && byAlias == ResourceLoader.Load("res://pp87_cs_pack/res.tres"), "the alias and the res:// path share the cache");
+
+        foreach (string prefix in new[] { "pp_cspack://", "pp_cschain://", "pp_csuser://" })
+        {
+            PathPrefixServer.UnregisterPrefix(prefix);
+        }
     }
 }
