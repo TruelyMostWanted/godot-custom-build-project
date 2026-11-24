@@ -55,7 +55,7 @@ func _run_checks() -> void:
 
 
 func _check_defaults() -> void:
-	expect_equal(server.get_default_value(&"foveation_level"), ProjectSettings.get_setting("xr/openxr/foveation_level", 0), "default foveation level is the project setting")
+	expect_equal(server.get_default_value(&"foveation_level"), int(ProjectSettings.get_setting("xr/openxr/foveation_level", 0)), "default foveation level is the project setting (upstream default is the String \"0\")")
 	expect_equal(server.get_default_value(&"foveation_dynamic"), ProjectSettings.get_setting("xr/openxr/foveation_dynamic", false), "default dynamic foveation is the project setting")
 	expect(is_equal_approx(server.get_render_target_size_multiplier(), 1.0), "default render scale 1")
 	expect(is_equal_approx(server.get_display_refresh_rate(), 0.0), "default refresh rate 0 (runtime default)")
