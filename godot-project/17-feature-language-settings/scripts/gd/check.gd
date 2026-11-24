@@ -14,6 +14,7 @@ func _get_check_name() -> String:
 
 
 func _run_checks() -> void:
+	await _check_typed_signals()
 	expect(Engine.has_singleton("LanguageSettingsServer"), "LanguageSettingsServer is a registered singleton")
 	expect(Engine.get_singleton("LanguageSettingsServer") is SettingsServer, "LanguageSettingsServer is a SettingsServer")
 	expect_equal(SettingsServerManager.get_server(&"language"), Engine.get_singleton("LanguageSettingsServer"), "the domain is registered as \"language\"")
@@ -195,3 +196,45 @@ func _run_probe(extra_args: Array) -> Dictionary:
 					return parsed
 	expect(false, "restart: the probe printed its result")
 	return {}
+
+
+## Issue #173: the typed signal fires once per applied change, not for pending changes in manual mode.
+func _check_typed_signals() -> void:
+	if not Engine.has_singleton("LanguageSettingsServer"):
+		return
+	var s: SettingsServer = Engine.get_singleton("LanguageSettingsServer")
+	expect(s.has_signal(&"pseudolocalization_enabled_changed"), "LanguageSettingsServer has the typed signal pseudolocalization_enabled_changed")
+	var arg_info: Dictionary = {}
+	for info: Dictionary in s.get_signal_list():
+		if info.name == "pseudolocalization_enabled_changed":
+			arg_info = info.args[0]
+	expect_equal(arg_info.get("type"), TYPE_BOOL, "pseudolocalization_enabled_changed has a typed argument")
+	var file_path := s.get_file_path()
+	var had_file := FileAccess.file_exists(file_path)
+	var previous_mode := s.apply_mode
+	s.apply_mode = SettingsServer.APPLY_MODE_IMMEDIATE
+	s.reset_value(&"pseudolocalization_enabled")
+	var new_value: Variant = true if s.get_applied_value(&"pseudolocalization_enabled") != true else false
+	var received: Array = []
+	var on_changed := func(v: Variant) -> void: received.append(v)
+	s.connect(&"pseudolocalization_enabled_changed", on_changed)
+
+	s.apply_mode = SettingsServer.APPLY_MODE_MANUAL
+	s.set_value(&"pseudolocalization_enabled", new_value)
+	expect_equal(received.size(), 0, "pseudolocalization_enabled_changed does not fire for a pending change in manual mode")
+	s.apply()
+	expect_equal(received, [new_value], "pseudolocalization_enabled_changed fires once on apply() with the applied value")
+	if not received.is_empty():
+		expect_equal(typeof(received[0]), TYPE_BOOL, "pseudolocalization_enabled_changed passes a typed value")
+	s.apply()
+	expect_equal(received.size(), 1, "pseudolocalization_enabled_changed does not fire when nothing changed")
+	s.reset_value(&"pseudolocalization_enabled")
+	expect_equal(received.size(), 1, "pseudolocalization_enabled_changed waits for apply() after a reset in manual mode")
+	s.apply()
+	expect_equal(received.size(), 2, "pseudolocalization_enabled_changed fires again when the default is applied")
+
+	s.disconnect(&"pseudolocalization_enabled_changed", on_changed)
+	s.apply_mode = previous_mode
+	await get_tree().process_frame
+	if not had_file:
+		DirAccess.remove_absolute(file_path)

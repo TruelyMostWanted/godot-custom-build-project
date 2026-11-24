@@ -19,6 +19,8 @@ public partial class Issue17FeatureLanguageSettingsCheck : FeatureCheckCs
 
     protected override async Task RunChecks()
     {
+        await CheckTypedSignals();
+
         var server = LanguageSettingsServer.Singleton;
         Expect(Engine.HasSingleton("LanguageSettingsServer"), "LanguageSettingsServer is a registered singleton");
         Expect(server is LanguageSettingsServerInstance, "LanguageSettingsServer.Singleton is the instance type");
@@ -234,5 +236,50 @@ public partial class Issue17FeatureLanguageSettingsCheck : FeatureCheckCs
         }
         Expect(false, "restart: the probe printed its result");
         return new Godot.Collections.Dictionary();
+    }
+
+    /// <summary>Issue #173: the typed signal fires once per applied change, not for pending changes in manual mode.</summary>
+    private async Task CheckTypedSignals()
+    {
+        if (!Engine.HasSingleton("LanguageSettingsServer"))
+        {
+            return;
+        }
+        var s = (SettingsServer)Engine.GetSingleton("LanguageSettingsServer");
+        Expect(s.HasSignal("pseudolocalization_enabled_changed"), "LanguageSettingsServer has the typed signal pseudolocalization_enabled_changed");
+        string filePath = s.GetFilePath();
+        bool hadFile = FileAccess.FileExists(filePath);
+        var previousMode = s.ApplyMode;
+        s.ApplyMode = SettingsServer.ApplyModeEnum.Immediate;
+        s.ResetValue("pseudolocalization_enabled");
+        bool newValue = s.GetAppliedValue("pseudolocalization_enabled").AsBool() != true ? true : false;
+        var received = new System.Collections.Generic.List<Variant>();
+        var onChanged = Callable.From((Variant v) => received.Add(v));
+        s.Connect("pseudolocalization_enabled_changed", onChanged);
+
+        s.ApplyMode = SettingsServer.ApplyModeEnum.Manual;
+        s.SetValue("pseudolocalization_enabled", newValue);
+        ExpectEqual(received.Count, 0, "pseudolocalization_enabled_changed does not fire for a pending change in manual mode");
+        s.Apply();
+        ExpectEqual(received.Count, 1, "pseudolocalization_enabled_changed fires once on Apply()");
+        if (received.Count > 0)
+        {
+            ExpectEqual(received[0].VariantType, Variant.Type.Bool, "pseudolocalization_enabled_changed passes a typed value");
+            ExpectEqual(received[0].AsBool(), newValue, "pseudolocalization_enabled_changed passes the applied value");
+        }
+        s.Apply();
+        ExpectEqual(received.Count, 1, "pseudolocalization_enabled_changed does not fire when nothing changed");
+        s.ResetValue("pseudolocalization_enabled");
+        ExpectEqual(received.Count, 1, "pseudolocalization_enabled_changed waits for Apply() after a reset in manual mode");
+        s.Apply();
+        ExpectEqual(received.Count, 2, "pseudolocalization_enabled_changed fires again when the default is applied");
+
+        s.Disconnect("pseudolocalization_enabled_changed", onChanged);
+        s.ApplyMode = previousMode;
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        if (!hadFile)
+        {
+            DirAccess.RemoveAbsolute(filePath);
+        }
     }
 }
