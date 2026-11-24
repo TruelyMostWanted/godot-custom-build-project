@@ -113,11 +113,20 @@ public partial class Issue36FeatureTomlModuleCheck : FeatureCheckCs
         // String API.
         Expect(text.Contains("mode = \"Angry\""), "enums are written as names");
         CheckSettings(Toml.Deserialize(text), "Deserialize()");
-        string numbersText = Toml.Serialize(MakeSettings(), new Dictionary { { "enums_as_names", false } });
-        Expect(numbersText.Contains("mode = 5"), "option enums_as_names = false writes numbers");
+        string numbersText = Toml.Serialize(MakeSettings(), new SerializerOptions { EnumsAsNames = false });
+        Expect(numbersText.Contains("mode = 5"), "option EnumsAsNames = false writes numbers");
         CheckSettings(Toml.Deserialize(numbersText), "Deserialize() with enum numbers");
         string untyped = text.Replace("\"$type\" = \"Issue36GdTomlSettings\"\n", "");
         CheckSettings(Toml.Deserialize(untyped, "Issue36GdTomlSettings"), "Deserialize() with type hint");
+        var noMarkerOptions = new SerializerOptions { IncludeTypeMarker = false };
+        string noMarker = Toml.Serialize(MakeSettings(), noMarkerOptions);
+        Expect(!noMarker.Contains("\"$type\""), "option IncludeTypeMarker = false leaves out $type");
+        CheckSettings(Toml.Deserialize(noMarker, "Issue36GdTomlSettings", noMarkerOptions), "Deserialize() of text without $type, with type hint");
+        CheckSettings(Toml.Deserialize(Toml.Serialize(MakeSettings(), new SerializerOptions { SortKeys = true })), "option SortKeys round trip");
+        // The module implements Format.Toml of ResourceTextSerializer.
+        Expect(ResourceTextSerializer.IsFormatAvailable(ResourceTextSerializer.Format.Toml), "IsFormatAvailable(Format.Toml)");
+        ExpectEqual(ResourceTextSerializer.Serialize(MakeSettings(), ResourceTextSerializer.Format.Toml), text, "Serialize(Format.Toml) is Toml.Serialize()");
+        ExpectEqual(ResourceTextSerializer.GetFormatFromExtension("toml"), ResourceTextSerializer.Format.Toml, "GetFormatFromExtension(\"toml\")");
 
         // Parse.
         const string source = "# Hand-written\n"
