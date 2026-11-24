@@ -96,7 +96,8 @@ public partial class Issue78FeaturePerformanceRecorderCheck : FeatureCheckCs
 
         string[] names = PerformanceRecorder.GetColumnNames();
         long rows = PerformanceRecorder.GetRecordedFrameCount();
-        Expect(rows >= Frames, $"at least {Frames} rows recorded ({rows})");
+        // The frame in which Stop() is called is not recorded any more.
+        Expect(rows >= Frames - 1, $"at least {Frames - 1} rows recorded ({rows})");
         Expect(names.Contains("frame_time") && names.Contains("time/fps") && names.Contains("check_counter_cs"), "columns contain builtins, monitors and metrics");
 
         double[] frames = PerformanceRecorder.GetColumn("frame");

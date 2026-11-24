@@ -79,7 +79,8 @@ func _check_recording() -> void:
 
 	var names := PerformanceRecorder.get_column_names()
 	var rows := PerformanceRecorder.get_recorded_frame_count()
-	expect(rows >= FRAMES, "at least %d rows recorded (%d)" % [FRAMES, rows])
+	# The frame in which stop() is called is not recorded any more.
+	expect(rows >= FRAMES - 1, "at least %d rows recorded (%d)" % [FRAMES - 1, rows])
 	expect(names.has("frame_time") and names.has("time/fps") and names.has("check_counter"), "columns contain builtins, monitors and metrics")
 
 	# Per-frame values.
