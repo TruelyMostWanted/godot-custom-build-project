@@ -6,7 +6,7 @@ namespace TruelyInteractive.Issue53FeatureLoaderIndexScripts;
 
 /// <summary>Loader by extension for 53-feature-loader-index-scripts: overrides _GetRecognizedExtensions() only, so the engine indexes it.
 /// It loads an empty Resource named after its tag; TypeName is what get_resource_type() reports.
-/// Extensions may change at runtime; the check then calls ResourceLoader.RefreshFormatIndex().</summary>
+/// Extensions may change at runtime; the check then calls ResourceLoader.RebuildExtensionIndex().</summary>
 public partial class Issue53ExtLoader : ResourceFormatLoader
 {
     public string Tag { get; set; } = "";

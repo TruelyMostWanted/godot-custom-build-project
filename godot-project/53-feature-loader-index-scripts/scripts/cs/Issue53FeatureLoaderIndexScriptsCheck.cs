@@ -10,7 +10,7 @@ namespace TruelyInteractive.Issue53FeatureLoaderIndexScripts;
 /// <summary>C# checks of 53-feature-loader-index-scripts. Check the same things as scripts/gd/check.gd.</summary>
 // Script loaders that override only _GetRecognizedExtensions() are now found through the extension index,
 // and the binary loader too. The choice of the loader must stay as it was (registration order, first match wins).
-// A loader that changes its list calls ResourceLoader.RefreshFormatIndex().
+// A loader that changes its list calls ResourceLoader.RebuildExtensionIndex().
 // Assumption: a loader reports its identity through ResourceName (load) and through the type name it returns (GetResourceType).
 // Assumption: res://icon.svg is an imported asset of this project (icon.svg.import), so it stands for the .import path.
 public partial class Issue53FeatureLoaderIndexScriptsCheck : FeatureCheckCs
@@ -156,12 +156,12 @@ public partial class Issue53FeatureLoaderIndexScriptsCheck : FeatureCheckCs
         ResourceLoader.AddResourceFormatLoader(l);
         ExpectEqual(Winner(Old), "L", "the loader is found for its first extension");
         l.Extensions = ["t53new"];
-        ExpectEqual(Winner(New), "<none>", "a changed list is not seen before RefreshFormatIndex() (documented)");
+        ExpectEqual(Winner(New), "<none>", "a changed list is not seen before RebuildExtensionIndex() (documented)");
         ExpectEqual(Winner(Old), "<none>", "the old extension is no longer recognized: recognize_path() reads the current list");
-        ResourceLoader.RefreshFormatIndex();
-        ExpectEqual(Winner(New), "L", "after RefreshFormatIndex() the new extension is found");
-        ExpectEqual(Type(New), "TypeL", "after RefreshFormatIndex() GetResourceType() asks the loader for the new extension");
-        ExpectEqual(Winner(Old), "<none>", "after RefreshFormatIndex() the old extension stays unrecognized");
+        ResourceLoader.RebuildExtensionIndex();
+        ExpectEqual(Winner(New), "L", "after RebuildExtensionIndex() the new extension is found");
+        ExpectEqual(Type(New), "TypeL", "after RebuildExtensionIndex() GetResourceType() asks the loader for the new extension");
+        ExpectEqual(Winner(Old), "<none>", "after RebuildExtensionIndex() the old extension stays unrecognized");
         l.Extensions = ["t53old", "t53new"];
         ResourceLoader.RemoveResourceFormatLoader(l);
         ResourceLoader.AddResourceFormatLoader(l);
