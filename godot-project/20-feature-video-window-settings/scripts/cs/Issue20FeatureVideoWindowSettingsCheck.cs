@@ -20,6 +20,8 @@ public partial class Issue20FeatureVideoWindowSettingsCheck : FeatureCheckCs
 
     protected override async Task RunChecks()
     {
+        await CheckTypedSignals();
+
         var server = VideoWindowSettingsServer.Singleton;
         Expect(Engine.HasSingleton("VideoWindowSettingsServer"), "VideoWindowSettingsServer is a registered singleton");
         Expect(server is VideoWindowSettingsServerInstance, "VideoWindowSettingsServer.Singleton is the instance type");
@@ -219,5 +221,50 @@ public partial class Issue20FeatureVideoWindowSettingsCheck : FeatureCheckCs
         }
         Expect(false, "restart: the probe printed its result");
         return new Godot.Collections.Dictionary();
+    }
+
+    /// <summary>Issue #173: the typed signal fires once per applied change, not for pending changes in manual mode.</summary>
+    private async Task CheckTypedSignals()
+    {
+        if (!Engine.HasSingleton("VideoWindowSettingsServer"))
+        {
+            return;
+        }
+        var s = (SettingsServer)Engine.GetSingleton("VideoWindowSettingsServer");
+        Expect(s.HasSignal("vsync_mode_changed"), "VideoWindowSettingsServer has the typed signal vsync_mode_changed");
+        string filePath = s.GetFilePath();
+        bool hadFile = FileAccess.FileExists(filePath);
+        var previousMode = s.ApplyMode;
+        s.ApplyMode = SettingsServer.ApplyModeEnum.Immediate;
+        s.ResetValue("vsync_mode");
+        long newValue = s.GetAppliedValue("vsync_mode").AsInt64() != (long)DisplayServer.VSyncMode.Disabled ? (long)DisplayServer.VSyncMode.Disabled : (long)DisplayServer.VSyncMode.Enabled;
+        var received = new System.Collections.Generic.List<Variant>();
+        var onChanged = Callable.From((Variant v) => received.Add(v));
+        s.Connect("vsync_mode_changed", onChanged);
+
+        s.ApplyMode = SettingsServer.ApplyModeEnum.Manual;
+        s.SetValue("vsync_mode", newValue);
+        ExpectEqual(received.Count, 0, "vsync_mode_changed does not fire for a pending change in manual mode");
+        s.Apply();
+        ExpectEqual(received.Count, 1, "vsync_mode_changed fires once on Apply()");
+        if (received.Count > 0)
+        {
+            ExpectEqual(received[0].VariantType, Variant.Type.Int, "vsync_mode_changed passes a typed value");
+            ExpectEqual(received[0].AsInt64(), newValue, "vsync_mode_changed passes the applied value");
+        }
+        s.Apply();
+        ExpectEqual(received.Count, 1, "vsync_mode_changed does not fire when nothing changed");
+        s.ResetValue("vsync_mode");
+        ExpectEqual(received.Count, 1, "vsync_mode_changed waits for Apply() after a reset in manual mode");
+        s.Apply();
+        ExpectEqual(received.Count, 2, "vsync_mode_changed fires again when the default is applied");
+
+        s.Disconnect("vsync_mode_changed", onChanged);
+        s.ApplyMode = previousMode;
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        if (!hadFile)
+        {
+            DirAccess.RemoveAbsolute(filePath);
+        }
     }
 }

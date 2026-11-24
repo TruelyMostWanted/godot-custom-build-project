@@ -22,6 +22,8 @@ public partial class Issue26FeatureEngineSettingsCheck : FeatureCheckCs
 
     protected override async Task RunChecks()
     {
+        await CheckTypedSignals();
+
         var server = EngineSettingsServer.Singleton;
         Expect(Engine.HasSingleton("EngineSettingsServer"), "EngineSettingsServer is a registered singleton");
         Expect(server is EngineSettingsServerInstance, "EngineSettingsServer.Singleton is the instance type");
@@ -246,5 +248,50 @@ public partial class Issue26FeatureEngineSettingsCheck : FeatureCheckCs
         }
         Expect(false, "restart: the probe printed its result");
         return new Godot.Collections.Dictionary();
+    }
+
+    /// <summary>Issue #173: the typed signal fires once per applied change, not for pending changes in manual mode.</summary>
+    private async Task CheckTypedSignals()
+    {
+        if (!Engine.HasSingleton("EngineSettingsServer"))
+        {
+            return;
+        }
+        var s = (SettingsServer)Engine.GetSingleton("EngineSettingsServer");
+        Expect(s.HasSignal("max_fps_changed"), "EngineSettingsServer has the typed signal max_fps_changed");
+        string filePath = s.GetFilePath();
+        bool hadFile = FileAccess.FileExists(filePath);
+        var previousMode = s.ApplyMode;
+        s.ApplyMode = SettingsServer.ApplyModeEnum.Immediate;
+        s.ResetValue("max_fps");
+        long newValue = s.GetAppliedValue("max_fps").AsInt64() != 30L ? 30L : 45L;
+        var received = new System.Collections.Generic.List<Variant>();
+        var onChanged = Callable.From((Variant v) => received.Add(v));
+        s.Connect("max_fps_changed", onChanged);
+
+        s.ApplyMode = SettingsServer.ApplyModeEnum.Manual;
+        s.SetValue("max_fps", newValue);
+        ExpectEqual(received.Count, 0, "max_fps_changed does not fire for a pending change in manual mode");
+        s.Apply();
+        ExpectEqual(received.Count, 1, "max_fps_changed fires once on Apply()");
+        if (received.Count > 0)
+        {
+            ExpectEqual(received[0].VariantType, Variant.Type.Int, "max_fps_changed passes a typed value");
+            ExpectEqual(received[0].AsInt64(), newValue, "max_fps_changed passes the applied value");
+        }
+        s.Apply();
+        ExpectEqual(received.Count, 1, "max_fps_changed does not fire when nothing changed");
+        s.ResetValue("max_fps");
+        ExpectEqual(received.Count, 1, "max_fps_changed waits for Apply() after a reset in manual mode");
+        s.Apply();
+        ExpectEqual(received.Count, 2, "max_fps_changed fires again when the default is applied");
+
+        s.Disconnect("max_fps_changed", onChanged);
+        s.ApplyMode = previousMode;
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        if (!hadFile)
+        {
+            DirAccess.RemoveAbsolute(filePath);
+        }
     }
 }

@@ -19,6 +19,8 @@ public partial class Issue19FeatureInputSettingsCheck : FeatureCheckCs
 
     protected override async Task RunChecks()
     {
+        await CheckTypedSignals();
+
         var server = InputSettingsServer.Singleton;
         Expect(Engine.HasSingleton("InputSettingsServer"), "InputSettingsServer is a registered singleton");
         Expect(server is InputSettingsServerInstance, "InputSettingsServer.Singleton is the instance type");
@@ -248,5 +250,50 @@ public partial class Issue19FeatureInputSettingsCheck : FeatureCheckCs
         }
         Expect(false, "restart: the probe printed its result");
         return new Godot.Collections.Dictionary();
+    }
+
+    /// <summary>Issue #173: the typed signal fires once per applied change, not for pending changes in manual mode.</summary>
+    private async Task CheckTypedSignals()
+    {
+        if (!Engine.HasSingleton("InputSettingsServer"))
+        {
+            return;
+        }
+        var s = (SettingsServer)Engine.GetSingleton("InputSettingsServer");
+        Expect(s.HasSignal("mouse_sensitivity_changed"), "InputSettingsServer has the typed signal mouse_sensitivity_changed");
+        string filePath = s.GetFilePath();
+        bool hadFile = FileAccess.FileExists(filePath);
+        var previousMode = s.ApplyMode;
+        s.ApplyMode = SettingsServer.ApplyModeEnum.Immediate;
+        s.ResetValue("mouse_sensitivity");
+        double newValue = s.GetAppliedValue("mouse_sensitivity").AsDouble() != 2.0 ? 2.0 : 3.0;
+        var received = new System.Collections.Generic.List<Variant>();
+        var onChanged = Callable.From((Variant v) => received.Add(v));
+        s.Connect("mouse_sensitivity_changed", onChanged);
+
+        s.ApplyMode = SettingsServer.ApplyModeEnum.Manual;
+        s.SetValue("mouse_sensitivity", newValue);
+        ExpectEqual(received.Count, 0, "mouse_sensitivity_changed does not fire for a pending change in manual mode");
+        s.Apply();
+        ExpectEqual(received.Count, 1, "mouse_sensitivity_changed fires once on Apply()");
+        if (received.Count > 0)
+        {
+            ExpectEqual(received[0].VariantType, Variant.Type.Float, "mouse_sensitivity_changed passes a typed value");
+            ExpectEqual((float)received[0].AsDouble(), (float)newValue, "mouse_sensitivity_changed passes the applied value");
+        }
+        s.Apply();
+        ExpectEqual(received.Count, 1, "mouse_sensitivity_changed does not fire when nothing changed");
+        s.ResetValue("mouse_sensitivity");
+        ExpectEqual(received.Count, 1, "mouse_sensitivity_changed waits for Apply() after a reset in manual mode");
+        s.Apply();
+        ExpectEqual(received.Count, 2, "mouse_sensitivity_changed fires again when the default is applied");
+
+        s.Disconnect("mouse_sensitivity_changed", onChanged);
+        s.ApplyMode = previousMode;
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        if (!hadFile)
+        {
+            DirAccess.RemoveAbsolute(filePath);
+        }
     }
 }

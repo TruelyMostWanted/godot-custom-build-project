@@ -16,6 +16,7 @@ func _get_check_name() -> String:
 
 
 func _run_checks() -> void:
+	await _check_typed_signals()
 	expect(Engine.has_singleton("EngineSettingsServer"), "EngineSettingsServer is a registered singleton")
 	expect(Engine.get_singleton("EngineSettingsServer") is SettingsServer, "EngineSettingsServer is a SettingsServer")
 	expect_equal(SettingsServerManager.get_server(&"engine"), Engine.get_singleton("EngineSettingsServer"), "the domain is registered as \"engine\"")
@@ -218,3 +219,45 @@ func _run_probe(extra_args: Array) -> Dictionary:
 					return parsed
 	expect(false, "restart: the probe printed its result")
 	return {}
+
+
+## Issue #173: the typed signal fires once per applied change, not for pending changes in manual mode.
+func _check_typed_signals() -> void:
+	if not Engine.has_singleton("EngineSettingsServer"):
+		return
+	var s: SettingsServer = Engine.get_singleton("EngineSettingsServer")
+	expect(s.has_signal(&"max_fps_changed"), "EngineSettingsServer has the typed signal max_fps_changed")
+	var arg_info: Dictionary = {}
+	for info: Dictionary in s.get_signal_list():
+		if info.name == "max_fps_changed":
+			arg_info = info.args[0]
+	expect_equal(arg_info.get("type"), TYPE_INT, "max_fps_changed has a typed argument")
+	var file_path := s.get_file_path()
+	var had_file := FileAccess.file_exists(file_path)
+	var previous_mode := s.apply_mode
+	s.apply_mode = SettingsServer.APPLY_MODE_IMMEDIATE
+	s.reset_value(&"max_fps")
+	var new_value: Variant = 30 if s.get_applied_value(&"max_fps") != 30 else 45
+	var received: Array = []
+	var on_changed := func(v: Variant) -> void: received.append(v)
+	s.connect(&"max_fps_changed", on_changed)
+
+	s.apply_mode = SettingsServer.APPLY_MODE_MANUAL
+	s.set_value(&"max_fps", new_value)
+	expect_equal(received.size(), 0, "max_fps_changed does not fire for a pending change in manual mode")
+	s.apply()
+	expect_equal(received, [new_value], "max_fps_changed fires once on apply() with the applied value")
+	if not received.is_empty():
+		expect_equal(typeof(received[0]), TYPE_INT, "max_fps_changed passes a typed value")
+	s.apply()
+	expect_equal(received.size(), 1, "max_fps_changed does not fire when nothing changed")
+	s.reset_value(&"max_fps")
+	expect_equal(received.size(), 1, "max_fps_changed waits for apply() after a reset in manual mode")
+	s.apply()
+	expect_equal(received.size(), 2, "max_fps_changed fires again when the default is applied")
+
+	s.disconnect(&"max_fps_changed", on_changed)
+	s.apply_mode = previous_mode
+	await get_tree().process_frame
+	if not had_file:
+		DirAccess.remove_absolute(file_path)

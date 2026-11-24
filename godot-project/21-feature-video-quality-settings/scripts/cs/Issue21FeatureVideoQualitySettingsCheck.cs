@@ -24,6 +24,8 @@ public partial class Issue21FeatureVideoQualitySettingsCheck : FeatureCheckCs
 
     protected override async Task RunChecks()
     {
+        await CheckTypedSignals();
+
         var server = VideoQualitySettingsServer.Singleton;
         Expect(Engine.HasSingleton("VideoQualitySettingsServer"), "VideoQualitySettingsServer is a registered singleton");
         Expect(server is VideoQualitySettingsServerInstance, "VideoQualitySettingsServer.Singleton is the instance type");
@@ -230,5 +232,50 @@ public partial class Issue21FeatureVideoQualitySettingsCheck : FeatureCheckCs
         Expect(VideoQualitySettingsServer.IsUsingTaa(), "use_taa is loaded (also where the renderer ignores it)");
         VideoQualitySettingsServer.Singleton.Apply();
         ExpectEqual(GetTree().Root.Msaa3D, Viewport.Msaa.Msaa2X, "the loaded value reaches the root after Apply()");
+    }
+
+    /// <summary>Issue #173: the typed signal fires once per applied change, not for pending changes in manual mode.</summary>
+    private async Task CheckTypedSignals()
+    {
+        if (!Engine.HasSingleton("VideoQualitySettingsServer"))
+        {
+            return;
+        }
+        var s = (SettingsServer)Engine.GetSingleton("VideoQualitySettingsServer");
+        Expect(s.HasSignal("scaling_3d_scale_changed"), "VideoQualitySettingsServer has the typed signal scaling_3d_scale_changed");
+        string filePath = s.GetFilePath();
+        bool hadFile = FileAccess.FileExists(filePath);
+        var previousMode = s.ApplyMode;
+        s.ApplyMode = SettingsServer.ApplyModeEnum.Immediate;
+        s.ResetValue("scaling_3d_scale");
+        double newValue = s.GetAppliedValue("scaling_3d_scale").AsDouble() != 0.5 ? 0.5 : 0.75;
+        var received = new System.Collections.Generic.List<Variant>();
+        var onChanged = Callable.From((Variant v) => received.Add(v));
+        s.Connect("scaling_3d_scale_changed", onChanged);
+
+        s.ApplyMode = SettingsServer.ApplyModeEnum.Manual;
+        s.SetValue("scaling_3d_scale", newValue);
+        ExpectEqual(received.Count, 0, "scaling_3d_scale_changed does not fire for a pending change in manual mode");
+        s.Apply();
+        ExpectEqual(received.Count, 1, "scaling_3d_scale_changed fires once on Apply()");
+        if (received.Count > 0)
+        {
+            ExpectEqual(received[0].VariantType, Variant.Type.Float, "scaling_3d_scale_changed passes a typed value");
+            ExpectEqual((float)received[0].AsDouble(), (float)newValue, "scaling_3d_scale_changed passes the applied value");
+        }
+        s.Apply();
+        ExpectEqual(received.Count, 1, "scaling_3d_scale_changed does not fire when nothing changed");
+        s.ResetValue("scaling_3d_scale");
+        ExpectEqual(received.Count, 1, "scaling_3d_scale_changed waits for Apply() after a reset in manual mode");
+        s.Apply();
+        ExpectEqual(received.Count, 2, "scaling_3d_scale_changed fires again when the default is applied");
+
+        s.Disconnect("scaling_3d_scale_changed", onChanged);
+        s.ApplyMode = previousMode;
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        if (!hadFile)
+        {
+            DirAccess.RemoveAbsolute(filePath);
+        }
     }
 }

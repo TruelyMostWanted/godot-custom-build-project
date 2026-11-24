@@ -1,10 +1,10 @@
 extends FeatureCheck
 ## GDScript checks of 28-feature-camera-settings. Check the same things as scripts/cs/Issue28FeatureCameraSettingsCheck.cs.
 ##
-## The camera values go to the Camera3D nodes in the group "camera_settings" and to added cameras, at once.
+## The camera values go to the Camera3D nodes in the group "camera_3d_settings" and to added cameras, at once.
 ## Cameras outside the group keep their authored values. The motion values are game-side (never pushed).
 
-const CAMERA_FILE := "user://settings/camera.ini"
+const CAMERA_FILE := "user://settings/camera_3d.ini"
 const NAMES := ["enabled", "field_of_view", "keep_aspect", "near", "far", "shake_intensity", "head_bob_intensity", "motion_blur_intensity"]
 const GAME_SIDE := ["shake_intensity", "head_bob_intensity", "motion_blur_intensity"]
 
@@ -16,15 +16,16 @@ func _get_check_name() -> String:
 
 
 func _run_checks() -> void:
-	expect(Engine.has_singleton("CameraSettingsServer"), "CameraSettingsServer is a registered singleton")
-	server = Engine.get_singleton("CameraSettingsServer")
-	expect(server is SettingsServer, "CameraSettingsServer is a SettingsServer")
-	expect_equal(SettingsServerManager.get_server(&"camera"), server, "the domain is registered as \"camera\"")
+	await _check_typed_signals()
+	expect(Engine.has_singleton("Camera3DSettingsServer"), "Camera3DSettingsServer is a registered singleton")
+	server = Engine.get_singleton("Camera3DSettingsServer")
+	expect(server is SettingsServer, "Camera3DSettingsServer is a SettingsServer")
+	expect_equal(SettingsServerManager.get_server(&"camera_3d"), server, "the domain is registered as \"camera_3d\"")
 	expect(server.is_started(), "the domain was started before the main scene")
 	expect_equal(server.get_apply_phase(), SettingsServer.APPLY_PHASE_SCENE, "applied after the SceneTree exists")
 	expect_equal(server.get_file_path(), CAMERA_FILE, "file path")
-	expect(server.get_settings() is CameraSettings, "the settings resource is a CameraSettings")
-	expect_equal(server.get_camera_group(), &"camera_settings", "get_camera_group()")
+	expect(server.get_settings() is Camera3DSettings, "the settings resource is a Camera3DSettings")
+	expect_equal(server.get_camera_group(), &"camera_3d_settings", "get_camera_group()")
 	var names: PackedStringArray = server.get_setting_names()
 	expect_equal(names.size(), NAMES.size(), "8 values")
 	for setting in NAMES:
@@ -60,10 +61,10 @@ func _is_authored(camera: Camera3D) -> bool:
 
 
 func _check_defaults() -> void:
-	expect(is_equal_approx(server.get_default_value(&"field_of_view"), ProjectSettings.get_setting("settings/camera/field_of_view")), "default FOV is the project setting")
-	expect_equal(server.get_default_value(&"keep_aspect"), ProjectSettings.get_setting("settings/camera/keep_aspect"), "default keep_aspect is the project setting")
-	expect(is_equal_approx(server.get_default_value(&"near"), ProjectSettings.get_setting("settings/camera/near")), "default near is the project setting")
-	expect(is_equal_approx(server.get_default_value(&"far"), ProjectSettings.get_setting("settings/camera/far")), "default far is the project setting")
+	expect(is_equal_approx(server.get_default_value(&"field_of_view"), ProjectSettings.get_setting("settings/camera_3d/field_of_view")), "default FOV is the project setting")
+	expect_equal(server.get_default_value(&"keep_aspect"), ProjectSettings.get_setting("settings/camera_3d/keep_aspect"), "default keep_aspect is the project setting")
+	expect(is_equal_approx(server.get_default_value(&"near"), ProjectSettings.get_setting("settings/camera_3d/near")), "default near is the project setting")
+	expect(is_equal_approx(server.get_default_value(&"far"), ProjectSettings.get_setting("settings/camera_3d/far")), "default far is the project setting")
 	expect(server.is_enabled(), "enabled by default")
 	expect(is_equal_approx(server.get_shake_intensity(), 1.0), "default shake intensity 1")
 
@@ -185,3 +186,45 @@ func _check_storage_and_scene_change() -> void:
 	expect_equal(loaded.keep_aspect, Camera3D.KEEP_WIDTH, "the camera of a new scene gets keep_aspect")
 	instance.queue_free()
 	await get_tree().process_frame
+
+
+## Issue #173: the typed signal fires once per applied change, not for pending changes in manual mode.
+func _check_typed_signals() -> void:
+	if not Engine.has_singleton("Camera3DSettingsServer"):
+		return
+	var s: SettingsServer = Engine.get_singleton("Camera3DSettingsServer")
+	expect(s.has_signal(&"field_of_view_changed"), "Camera3DSettingsServer has the typed signal field_of_view_changed")
+	var arg_info: Dictionary = {}
+	for info: Dictionary in s.get_signal_list():
+		if info.name == "field_of_view_changed":
+			arg_info = info.args[0]
+	expect_equal(arg_info.get("type"), TYPE_FLOAT, "field_of_view_changed has a typed argument")
+	var file_path := s.get_file_path()
+	var had_file := FileAccess.file_exists(file_path)
+	var previous_mode := s.apply_mode
+	s.apply_mode = SettingsServer.APPLY_MODE_IMMEDIATE
+	s.reset_value(&"field_of_view")
+	var new_value: Variant = 90.0 if s.get_applied_value(&"field_of_view") != 90.0 else 60.0
+	var received: Array = []
+	var on_changed := func(v: Variant) -> void: received.append(v)
+	s.connect(&"field_of_view_changed", on_changed)
+
+	s.apply_mode = SettingsServer.APPLY_MODE_MANUAL
+	s.set_value(&"field_of_view", new_value)
+	expect_equal(received.size(), 0, "field_of_view_changed does not fire for a pending change in manual mode")
+	s.apply()
+	expect_equal(received, [new_value], "field_of_view_changed fires once on apply() with the applied value")
+	if not received.is_empty():
+		expect_equal(typeof(received[0]), TYPE_FLOAT, "field_of_view_changed passes a typed value")
+	s.apply()
+	expect_equal(received.size(), 1, "field_of_view_changed does not fire when nothing changed")
+	s.reset_value(&"field_of_view")
+	expect_equal(received.size(), 1, "field_of_view_changed waits for apply() after a reset in manual mode")
+	s.apply()
+	expect_equal(received.size(), 2, "field_of_view_changed fires again when the default is applied")
+
+	s.disconnect(&"field_of_view_changed", on_changed)
+	s.apply_mode = previous_mode
+	await get_tree().process_frame
+	if not had_file:
+		DirAccess.remove_absolute(file_path)
