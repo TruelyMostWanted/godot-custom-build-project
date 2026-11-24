@@ -70,10 +70,10 @@ func _check_api() -> void:
 
 
 func _register_formats() -> void:
-	expect_equal(ResourceLoader.register_extension(EXT, _load_text), OK, "register the text format loader")
-	expect_equal(ResourceSaver.register_extension(EXT, _save_text), OK, "register the text format saver")
-	expect_equal(ResourceLoader.register_extension(EXT_BROKEN, _load_broken), OK, "register the broken format loader")
-	expect_equal(ResourceLoader.register_extension(EXT_IMAGE, _load_text, &"Image"), OK, "register a format that claims to load Images")
+	expect_equal(ResourceLoader.register_extension_loader(EXT, _load_text), OK, "register the text format loader")
+	expect_equal(ResourceSaver.register_extension_saver(EXT, _save_text), OK, "register the text format saver")
+	expect_equal(ResourceLoader.register_extension_loader(EXT_BROKEN, _load_broken), OK, "register the broken format loader")
+	expect_equal(ResourceLoader.register_extension_loader(EXT_IMAGE, _load_text, &"Image"), OK, "register a format that claims to load Images")
 
 
 func _check_missing_file() -> void:
@@ -146,9 +146,9 @@ func _check_threaded_load() -> void:
 
 
 func _cleanup() -> void:
-	ResourceLoader.unregister_extension(EXT)
-	ResourceSaver.unregister_extension(EXT)
-	ResourceLoader.unregister_extension(EXT_BROKEN)
-	ResourceLoader.unregister_extension(EXT_IMAGE)
+	ResourceLoader.unregister_extension_loader(EXT)
+	ResourceSaver.unregister_extension_saver(EXT)
+	ResourceLoader.unregister_extension_loader(EXT_BROKEN)
+	ResourceLoader.unregister_extension_loader(EXT_IMAGE)
 	for file in DirAccess.get_files_at(ROOT):
 		DirAccess.remove_absolute(ROOT + file)
