@@ -79,6 +79,12 @@ func _check_api() -> void:
 	for method in ["get_cached_paths_for_type", "get_cached_paths_with_extension", "get_cached_paths_in_directory"]:
 		expect(ClassDB.class_has_method("ResourceLoader", method), "ResourceLoader has %s()" % method)
 	expect(typeof(ResourceLoader.get_cached_paths_for_type(&"Curve")) == TYPE_PACKED_STRING_ARRAY, "get_cached_paths_for_type() returns a PackedStringArray")
+	var arg_names: Array = []
+	for info in ClassDB.class_get_method_list("ResourceLoader", true):
+		if info["name"] == "get_cached_paths_for_type":
+			for arg in info["args"]:
+				arg_names.append(arg["name"])
+	expect_equal(arg_names, ["type", "exact_type"], "get_cached_paths_for_type() parameters are type and exact_type")
 
 
 func _check_type() -> void:
