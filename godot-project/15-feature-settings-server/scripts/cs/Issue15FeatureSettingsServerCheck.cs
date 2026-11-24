@@ -16,6 +16,8 @@ public partial class Issue15FeatureSettingsServerCheck : FeatureCheckCs
     private const string Dir = "user://15-feature-settings-server-cs";
     private const string ProbeScene = "res://15-feature-settings-server/scenes/restart_probe.tscn";
     private const string PlayerFile = "user://settings/check15_cs.ini";
+    private const string ListScript = "res://15-feature-settings-server/scripts/gd/check_list_domain.gd";
+    private const string EntryScript = "res://15-feature-settings-server/scripts/gd/check_list_entry.gd";
 
     protected override string CheckName => "15-feature-settings-server";
 
@@ -36,6 +38,7 @@ public partial class Issue15FeatureSettingsServerCheck : FeatureCheckCs
             return;
         }
         Expect(server.IsStarted(), "the C# domain was started before the main scene");
+        ExpectEqual(server.GetApplyPhase(), SettingsServer.ApplyPhase.PreDisplay, "#71: the C# domain asks for ApplyPhase.PreDisplay and was still started in ApplyPhase.Scene");
         ExpectEqual(server.GetFilePath(), PlayerFile, "default file path");
         ExpectEqual(string.Join(",", server.GetSettingNames()), "Volume,Quality", "setting names come from the C# resource");
 
@@ -44,6 +47,9 @@ public partial class Issue15FeatureSettingsServerCheck : FeatureCheckCs
         CheckFormats();
         CheckBrokenFile();
         await CheckConfirmation();
+        CheckApplyDuringConfirmation();
+        CheckRestartValues();
+        CheckListDefaultsAndValidation();
         await CheckRestart(server);
 
         foreach (string file in DirAccess.GetFilesAt(Dir))
@@ -149,6 +155,77 @@ public partial class Issue15FeatureSettingsServerCheck : FeatureCheckCs
         domain.ReadFromEngine();
         Expect(finished, "ReadFromEngine() emits ReadFromEngineFinished");
         domain.Free();
+    }
+
+    private void CheckApplyDuringConfirmation()
+    {
+        var domain = NewDomain(Dir.PathJoin("confirm71.ini"));
+        domain.SetSettingFlags("Quality", SettingsServer.SettingFlags.Confirm);
+        var finished = new System.Collections.Generic.List<bool>();
+        domain.ConfirmationFinished += kept => finished.Add(kept);
+        domain.SetValue("Quality", 2);
+        domain.Apply();
+        Expect(domain.IsConfirmationPending(), "#71: a flagged value starts a confirmation");
+        domain.SetValue("Volume", 0.3);
+        ExpectEqual(domain.Apply(), Error.Ok, "#71: Apply() during a pending confirmation");
+        Expect(!domain.IsConfirmationPending(), "#71: Apply() kept the pending confirmation first");
+        ExpectEqual(string.Join(",", finished), "True", "#71: ConfirmationFinished(true) for the kept confirmation");
+        ExpectEqual(domain.GetAppliedValue("Quality").AsInt32(), 2, "#71: the kept value stays applied");
+
+        domain.SetValue("Quality", 0);
+        domain.ApplyWithConfirmation(5.0);
+        domain.SetValue("Quality", 1);
+        ExpectEqual(domain.ApplyWithConfirmation(5.0), Error.Ok, "#71: ApplyWithConfirmation() during a pending one (no Error.Busy)");
+        domain.CancelConfirmation();
+        ExpectEqual(domain.GetAppliedValue("Quality").AsInt32(), 0, "#71: a cancel only reverts the values of the new confirmation");
+        Expect(Mathf.IsEqualApprox(domain.GetAppliedValue("Volume").AsDouble(), 0.3), "#71: values applied before stay");
+        domain.Free();
+    }
+
+    private void CheckRestartValues()
+    {
+        var domain = NewDomain(Dir.PathJoin("restart71.ini"));
+        domain.SetSettingFlags("Quality", SettingsServer.SettingFlags.RestartRequired);
+        var lists = new System.Collections.Generic.List<string>();
+        domain.RestartRequired += names => lists.Add(string.Join(",", names));
+        domain.SetValue("Quality", 2);
+        domain.Apply();
+        ExpectEqual(string.Join(",", domain.GetRestartRequiredNames()), "Quality", "#71: a changed restart value is listed");
+        domain.SetValue("Quality", 1);
+        domain.Apply();
+        ExpectEqual(domain.GetRestartRequiredNames().Length, 0, "#71: the value set back to the start value is no longer listed");
+        ExpectEqual(string.Join("|", lists), "Quality|", "#71: RestartRequired carries the whole list, empty when cleared");
+        domain.Free();
+    }
+
+    private static Resource NewEntry(string entryName, int level)
+    {
+        var entry = GD.Load<GDScript>(EntryScript).New().As<Resource>();
+        entry.Set("entry_name", entryName);
+        entry.Set("level", level);
+        return entry;
+    }
+
+    private void CheckListDefaultsAndValidation()
+    {
+        // The list domain and its entries are GDScript classes; C# uses them through ListSettingsServer.
+        var list = GD.Load<GDScript>(ListScript).New().As<ListSettingsServer>();
+        string path = Dir.PathJoin("list_defaults.ini");
+        list.FilePath = path;
+        Godot.Collections.Array defaultEntries = list.GetDefaultSettings().Get("entries").AsGodotArray();
+        defaultEntries.Add(NewEntry("a", 1));
+        list.ResetToDefaults();
+        ExpectEqual(list.GetEntryCount(), 1, "#71: the list has the default entry");
+        ExpectEqual(list.Save(), Error.Ok, "#71: Save() of an unchanged list");
+        Expect(!FileAccess.GetFileAsString(path).Contains("entries"), "#71: entries equal to the defaults are not written");
+
+        list.SetEntryValue(0, "level", 50);
+        ExpectEqual(list.GetEntryValue(0, "level").AsInt32(), 10, "#71: SetEntryValue() clamps to the range hint of the entry");
+        list.SetEntryValue(0, "level", -3);
+        ExpectEqual(list.GetEntryValue(0, "level").AsInt32(), 0, "#71: SetEntryValue() clamps the lower end");
+        list.Save();
+        Expect(FileAccess.GetFileAsString(path).Contains("entries"), "#71: a changed entry writes the list");
+        list.Free();
     }
 
     private async Task CheckRestart(Issue15CheckDomainCs server)
