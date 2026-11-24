@@ -22,6 +22,14 @@ $projectDir = Split-Path -Parent $PSScriptRoot
 
 if (-not (Test-Path $Godot)) { throw "Godot executable not found: $Godot" }
 
+# On Windows, the editor executable is a GUI program: PowerShell neither waits for it nor sets $LASTEXITCODE.
+# Use the console wrapper next to it (godot.<...>.console.exe), which waits and passes the exit code through.
+if ($Godot -match '\.exe$' -and $Godot -notmatch '\.console\.exe$') {
+    $console = $Godot -replace '\.exe$', '.console.exe'
+    if (-not (Test-Path $console)) { throw "Console executable not found next to the editor: $console" }
+    $Godot = $console
+}
+
 if (-not $NoBuild) {
     Write-Host '==> dotnet build' -ForegroundColor Cyan
     Push-Location $projectDir
@@ -35,6 +43,7 @@ if (-not $NoBuild) {
 # the editor imports the project once, so that script classes (FeatureCheck) are known
 Write-Host '==> import' -ForegroundColor Cyan
 & $Godot --headless --path $projectDir --import | Out-Null
+if ($LASTEXITCODE -ne 0) { throw "Import failed with exit code $LASTEXITCODE" }
 
 $folders = Get-ChildItem -Path $projectDir -Directory | Where-Object { $_.Name -match '^[0-9]{2,}-' }
 if ($Feature) { $folders = $folders | Where-Object { $_.Name -eq $Feature } }
@@ -50,7 +59,8 @@ foreach ($folder in $folders) {
         }
         Write-Host "==> $scene" -ForegroundColor Cyan
         & $Godot --headless --path $projectDir $scene
-        $result = if ($LASTEXITCODE -eq 0) { 'PASSED' } else { 'FAILED' }
+        $exitCode = $LASTEXITCODE
+        $result = if ($exitCode -eq 0) { 'PASSED' } else { "FAILED ($exitCode)" }
         $results += [pscustomobject]@{ Feature = $folder.Name; Language = $language; Result = $result }
     }
 }

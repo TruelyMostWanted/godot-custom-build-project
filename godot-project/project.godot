@@ -15,6 +15,23 @@ config/description="Feature checks of the custom engine truelymostwanted-godot-e
 config/features=PackedStringArray("4.8", "C#", "Forward Plus")
 config/icon="res://icon.svg"
 
+[audio]
+
+buses/default_bus_layout="res://16-feature-audio-settings/resources/bus_layout.tres"
+
 [dotnet]
 
 project/assembly_name="GodotCustomBuildProject"
+
+[filesystem]
+
+streaming_assets/enabled=true
+streaming_assets/source_folder="res://88-feature-streaming-assets-server/resources/streaming_assets"
+
+[internationalization]
+
+locale/translations=PackedStringArray("res://17-feature-language-settings/resources/hello_de.translation", "res://17-feature-language-settings/resources/hello_fr.translation")
+
+[settings]
+
+startup/custom_servers=PackedStringArray("res://15-feature-settings-server/scripts/gd/check_domain.gd", "res://15-feature-settings-server/scripts/cs/Issue15CheckDomainCs.cs")
