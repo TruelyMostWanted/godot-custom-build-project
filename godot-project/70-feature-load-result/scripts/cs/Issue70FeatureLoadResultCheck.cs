@@ -85,10 +85,10 @@ public partial class Issue70FeatureLoadResultCheck : FeatureCheckCs
 
     private void RegisterFormats()
     {
-        ExpectEqual(ResourceLoader.RegisterExtension(Ext, Callable.From<string, Variant>(LoadText)), Error.Ok, "register the text format loader");
-        ExpectEqual(ResourceSaver.RegisterExtension(Ext, Callable.From<Resource, string, int>(SaveText)), Error.Ok, "register the text format saver");
-        ExpectEqual(ResourceLoader.RegisterExtension(ExtBroken, Callable.From<string, Variant>(LoadBroken)), Error.Ok, "register the broken format loader");
-        ExpectEqual(ResourceLoader.RegisterExtension(ExtImage, Callable.From<string, Variant>(LoadText), "Image"), Error.Ok, "register a format that claims to load Images");
+        ExpectEqual(ResourceLoader.RegisterExtensionLoader(Ext, Callable.From<string, Variant>(LoadText)), Error.Ok, "register the text format loader");
+        ExpectEqual(ResourceSaver.RegisterExtensionSaver(Ext, Callable.From<Resource, string, int>(SaveText)), Error.Ok, "register the text format saver");
+        ExpectEqual(ResourceLoader.RegisterExtensionLoader(ExtBroken, Callable.From<string, Variant>(LoadBroken)), Error.Ok, "register the broken format loader");
+        ExpectEqual(ResourceLoader.RegisterExtensionLoader(ExtImage, Callable.From<string, Variant>(LoadText), "Image"), Error.Ok, "register a format that claims to load Images");
     }
 
     private void CheckMissingFile()
@@ -191,10 +191,10 @@ public partial class Issue70FeatureLoadResultCheck : FeatureCheckCs
 
     private void Cleanup()
     {
-        ResourceLoader.UnregisterExtension(Ext);
-        ResourceSaver.UnregisterExtension(Ext);
-        ResourceLoader.UnregisterExtension(ExtBroken);
-        ResourceLoader.UnregisterExtension(ExtImage);
+        ResourceLoader.UnregisterExtensionLoader(Ext);
+        ResourceSaver.UnregisterExtensionSaver(Ext);
+        ResourceLoader.UnregisterExtensionLoader(ExtBroken);
+        ResourceLoader.UnregisterExtensionLoader(ExtImage);
         foreach (string file in DirAccess.GetFilesAt(Root))
         {
             DirAccess.RemoveAbsolute(Root + file);
