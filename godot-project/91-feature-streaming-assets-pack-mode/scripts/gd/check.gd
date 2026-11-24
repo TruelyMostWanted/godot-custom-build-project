@@ -64,8 +64,8 @@ func _check_description_and_plan() -> void:
 	if description == null:
 		return
 	var expected := PackedStringArray([
-		"91-feature-streaming-assets-pack-mode/resources/streaming_sample/data/levels.json",
-		"91-feature-streaming-assets-pack-mode/resources/streaming_sample/icon.svg",
+		"res://91-feature-streaming-assets-pack-mode/resources/streaming_sample/data/levels.json",
+		"res://91-feature-streaming-assets-pack-mode/resources/streaming_sample/icon.svg",
 	])
 	var paths := description.get_file_paths()
 	paths.sort()

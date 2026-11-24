@@ -87,8 +87,8 @@ public partial class Issue91FeatureStreamingAssetsPackModeCheck : FeatureCheckCs
         }
         string[] expected =
         [
-            "91-feature-streaming-assets-pack-mode/resources/streaming_sample/data/levels.json",
-            "91-feature-streaming-assets-pack-mode/resources/streaming_sample/icon.svg",
+            "res://91-feature-streaming-assets-pack-mode/resources/streaming_sample/data/levels.json",
+            "res://91-feature-streaming-assets-pack-mode/resources/streaming_sample/icon.svg",
         ];
         Expect(description.GetFilePaths().OrderBy(p => p, System.StringComparer.Ordinal).SequenceEqual(expected), "one entry per file, at its res:// path; .import files are left out");
         PckBuildPlan plan = PckPackageExporter.PlanDescription(description);
