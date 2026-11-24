@@ -22,7 +22,7 @@ func _run_checks() -> void:
 	expect_equal(SettingsServerManager.get_server(&"input_map"), server, "the domain is registered as \"input_map\"")
 	expect(InputMapSettingsServer.is_started(), "the domain was started before the main scene")
 	expect_equal(InputMapSettingsServer.get_file_path(), INPUT_MAP_FILE, "file path")
-	expect(InputMapSettingsServer.get_default_settings() is InputMapSettings, "the settings resource is an InputMapSettings")
+	expect(InputMapSettingsServer.get_default_settings() is InputActions, "the settings resource is an InputActions")
 
 	InputMapSettingsServer.reset_all()
 	_check_text_form()
@@ -51,34 +51,36 @@ static func pressed_key(keycode: Key) -> InputEventKey:
 func _check_text_form() -> void:
 	for text in ["Key:Ctrl+S", "PhysicalKey:W", "KeyLabel:Shift+A", "Key:CmdOrCtrl+Z", "MouseButton:Left", "MouseButton:Ctrl+WheelUp",
 			"JoypadButton:A", "JoypadButton:LeftShoulder", "JoypadMotion:LeftX+", "JoypadMotion:TriggerRight+"]:
-		var event := InputMapAction.text_to_event(text)
+		var event := InputAction.text_to_event(text)
 		expect(event != null, "text_to_event(\"%s\") gives an event" % text)
 		if event:
-			expect_equal(InputMapAction.event_to_text(event), text, "round trip of \"%s\"" % text)
-	expect(InputMapAction.text_to_event("Key:Hyper+S") == null, "an unknown modifier is not valid")
-	expect(InputMapAction.text_to_event("Joypad:A") == null, "an unknown type is not valid")
-	expect_equal(InputMapAction.event_to_text(pressed_key(KEY_W)), "PhysicalKey:W", "a pressed key is stored by its physical keycode")
-	expect_equal(InputMapAction.event_to_text(InputEventScreenTouch.new()), "", "a touch can't be bound")
-	expect_equal(InputMapAction.get_event_device(InputEventScreenTouch.new()), InputMapAction.INPUT_DEVICE_MAX, "a touch has no device")
-	expect_equal(InputMapAction.get_event_device(InputEventJoypadMotion.new()), InputMapAction.INPUT_DEVICE_GAMEPAD, "a joypad axis is a gamepad event")
-	expect_equal(InputMapAction.event_to_label(InputMapAction.text_to_event("Key:Ctrl+S")), "Ctrl+S", "label of Ctrl+S")
-	expect_equal(InputMapAction.event_to_label(InputMapAction.text_to_event("MouseButton:Right")), "Right Mouse Button", "label of a mouse button")
-	expect_equal(InputMapSettingsServer.get_event_label(InputMapAction.text_to_event("JoypadMotion:LeftX+")), "Left Stick Right", "label of a stick direction")
+			expect_equal(InputAction.event_to_text(event), text, "round trip of \"%s\"" % text)
+	expect(InputAction.text_to_event("Key:Hyper+S") == null, "an unknown modifier is not valid")
+	expect(InputAction.text_to_event("Joypad:A") == null, "an unknown type is not valid")
+	expect_equal(InputAction.event_to_text(pressed_key(KEY_W)), "PhysicalKey:W", "a pressed key is stored by its physical keycode")
+	expect_equal(InputAction.event_to_text(InputEventScreenTouch.new()), "", "a touch can't be bound")
+	expect_equal(InputAction.get_event_device(InputEventScreenTouch.new()), InputAction.INPUT_DEVICE_MAX, "a touch has no device")
+	expect_equal(InputAction.get_event_device(InputEventJoypadMotion.new()), InputAction.INPUT_DEVICE_GAMEPAD, "a joypad axis is a gamepad event")
+	expect_equal(InputMapSettingsServer.get_event_label(InputAction.text_to_event("Key:Ctrl+S")), "Ctrl+S", "label of Ctrl+S")
+	expect_equal(InputMapSettingsServer.get_event_label(InputAction.text_to_event("MouseButton:Right")), "Right Mouse Button", "label of a mouse button")
+	expect_equal(InputMapSettingsServer.get_event_label(InputAction.text_to_event("JoypadMotion:LeftX+")), "Left Stick Right", "label of a stick direction")
 
-	var row := InputMapAction.new()
-	row.set_input_event(InputMapAction.text_to_event("JoypadButton:B"))
-	expect_equal(row.device, InputMapAction.INPUT_DEVICE_GAMEPAD, "set_input_event() sets the device")
-	expect_equal(row.event, "JoypadButton:B", "set_input_event() sets the text")
-	expect(row.get_input_event() is InputEventJoypadButton, "get_input_event() parses the text")
+	var entry := InputAction.new()
+	entry.bindings = "JoypadButton:B; Key:Space"
+	expect_equal(entry.get_event_count(), 2, "bindings gives one event per entry")
+	expect_equal(entry.get_device_events(InputAction.INPUT_DEVICE_GAMEPAD).size(), 1, "the gamepad event is found by device")
+	expect(entry.events[0] is InputEventJoypadButton, "the first event is parsed from the text")
+	expect_equal(entry.bindings, "JoypadButton:B; Key:Space", "bindings round trip")
 
 
 func _check_defaults() -> void:
 	var actions := InputMapSettingsServer.get_action_names()
 	expect(actions.has("kb18_jump") and actions.has("kb18_fire"), "the project actions are managed")
 	expect(not actions.has("ui_accept"), "built-in ui_* actions are left out by default")
-	expect_equal(InputMapAction.event_to_text(InputMapSettingsServer.get_event(JUMP, InputMapAction.INPUT_DEVICE_KEYBOARD, 0)), "Key:Space", "jump: keyboard slot 0 is Space")
-	expect_equal(InputMapAction.event_to_text(InputMapSettingsServer.get_event(JUMP, InputMapAction.INPUT_DEVICE_GAMEPAD, 0)), "JoypadButton:A", "jump: gamepad slot 0 is A")
-	expect_equal(InputMapAction.event_to_text(InputMapSettingsServer.get_event(FIRE, InputMapAction.INPUT_DEVICE_GAMEPAD, 0)), "JoypadMotion:TriggerRight+", "fire: gamepad slot 0 is the right trigger")
+	expect_equal(InputMapSettingsServer.save_mode, InputMapSettingsServer.SAVE_MODE_CUSTOM_ONLY, "save_mode is CUSTOM_ONLY by default")
+	expect_equal(InputAction.event_to_text(InputMapSettingsServer.get_event(JUMP, InputAction.INPUT_DEVICE_KEYBOARD, 0)), "Key:Space", "jump: keyboard slot 0 is Space")
+	expect_equal(InputAction.event_to_text(InputMapSettingsServer.get_event(JUMP, InputAction.INPUT_DEVICE_GAMEPAD, 0)), "JoypadButton:A", "jump: gamepad slot 0 is A")
+	expect_equal(InputAction.event_to_text(InputMapSettingsServer.get_event(FIRE, InputAction.INPUT_DEVICE_GAMEPAD, 0)), "JoypadMotion:TriggerRight+", "fire: gamepad slot 0 is the right trigger")
 	expect(is_equal_approx(InputMapSettingsServer.get_action_deadzone(JUMP), 0.5), "jump: deadzone 0.5 from the project")
 	expect_equal(InputMapSettingsServer.get_events(JUMP).size(), 2, "jump has two events")
 
@@ -89,11 +91,19 @@ func _check_rebind() -> void:
 	expect(InputMap.event_is_action(pressed_key(KEY_W), JUMP), "the new key works at once")
 	expect(InputMap.event_is_action(pressed_key(KEY_UP), JUMP), "the second slot works")
 	expect(not InputMap.event_is_action(pressed_key(KEY_SPACE), JUMP), "the old key no longer works")
-	expect_equal(InputMapSettingsServer.get_slot_count(JUMP, InputMapAction.INPUT_DEVICE_KEYBOARD), 2, "two keyboard slots")
+	expect_equal(InputMapSettingsServer.get_slot_count(JUMP, InputAction.INPUT_DEVICE_KEYBOARD), 2, "two keyboard slots")
 
-	InputMapSettingsServer.clear_event(JUMP, InputMapAction.INPUT_DEVICE_KEYBOARD, 1)
+	InputMapSettingsServer.clear_event(JUMP, InputAction.INPUT_DEVICE_KEYBOARD, 1)
 	expect(not InputMap.event_is_action(pressed_key(KEY_UP), JUMP), "a cleared slot no longer works")
-	expect(InputMapSettingsServer.get_event(JUMP, InputMapAction.INPUT_DEVICE_KEYBOARD, 1) == null, "a cleared slot has no event")
+	expect(InputMapSettingsServer.get_event(JUMP, InputAction.INPUT_DEVICE_KEYBOARD, 1) == null, "a cleared slot has no event")
+
+	# Clearing a slot removes the event: the later slots of the device move up.
+	InputMapSettingsServer.rebind(JUMP, pressed_key(KEY_UP), 1)
+	InputMapSettingsServer.clear_event(JUMP, InputAction.INPUT_DEVICE_KEYBOARD, 0)
+	expect_equal(InputMapSettingsServer.get_slot_count(JUMP, InputAction.INPUT_DEVICE_KEYBOARD), 1, "clearing slot 0 leaves one keyboard slot")
+	expect_equal(InputAction.event_to_text(InputMapSettingsServer.get_event(JUMP, InputAction.INPUT_DEVICE_KEYBOARD, 0)), "PhysicalKey:Up", "slot 1 moved up to slot 0")
+	expect(InputMap.event_is_action(pressed_key(KEY_UP), JUMP), "the moved key still works")
+	expect(not InputMap.event_is_action(pressed_key(KEY_W), JUMP), "the cleared key no longer works")
 
 	InputMapSettingsServer.set_action_deadzone(JUMP, 0.7)
 	expect(is_equal_approx(InputMap.action_get_deadzone(JUMP), 0.7), "the deadzone reaches InputMap")
@@ -128,8 +138,8 @@ func _check_formats() -> void:
 		var path := "user://kb18_bindings.%s" % extension
 		InputMapSettingsServer.set_file_path(path)
 		InputMapSettingsServer.rebind(JUMP, pressed_key(KEY_W))
-		InputMapSettingsServer.rebind(JUMP, InputMapAction.text_to_event("JoypadMotion:LeftY-"))
-		InputMapSettingsServer.rebind(FIRE, InputMapAction.text_to_event("MouseButton:Ctrl+Right"))
+		InputMapSettingsServer.rebind(JUMP, InputAction.text_to_event("JoypadMotion:LeftY-"))
+		InputMapSettingsServer.rebind(FIRE, InputAction.text_to_event("MouseButton:Ctrl+Right"))
 		expect_equal(InputMapSettingsServer.save(), OK, "%s: save()" % extension)
 		var text := FileAccess.get_file_as_string(path)
 		expect(text.contains("PhysicalKey:W") and text.contains("JoypadMotion:LeftY-") and text.contains("MouseButton:Ctrl+Right"), "%s: the file holds the event texts" % extension)
@@ -159,9 +169,9 @@ func _check_restart() -> void:
 		return
 	InputMapSettingsServer.rebind(JUMP, pressed_key(KEY_W))
 	# A row of an action that a later game version no longer has.
-	var gone := InputMapAction.new()
+	var gone := InputAction.new()
 	gone.action = "kb18_removed"
-	gone.event = "Key:G"
+	gone.bindings = "Key:G"
 	InputMapSettingsServer.add_entry(gone)
 	expect_equal(InputMapSettingsServer.save(), OK, "save() writes the player file")
 	var text := FileAccess.get_file_as_string(INPUT_MAP_FILE)
