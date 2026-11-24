@@ -1,0 +1,9 @@
+[gd_resource type="AudioBusListSettings" load_steps=2 format=3]
+
+[sub_resource type="AudioBusSettings" id="AudioBusSettings_music"]
+bus_name = "Music"
+volume_db = -18.0
+mute = true
+
+[resource]
+buses = Array[AudioBusSettings]([SubResource("AudioBusSettings_music")])

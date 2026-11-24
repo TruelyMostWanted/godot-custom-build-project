@@ -7,8 +7,9 @@ extends FeatureCheck
 
 const DIR := "user://16-feature-audio-settings"
 const PROBE_SCENE := "res://16-feature-audio-settings/scenes/restart_probe.tscn"
-const BUSES_FILE := "user://settings/audio_buses.ini"
-const DEVICES_FILE := "user://settings/audio.ini"
+const NIGHT_PRESET := "res://16-feature-audio-settings/resources/night_mode_preset.tres"
+const BUSES_FILE := "user://settings/audio_bus.ini"
+const DEVICES_FILE := "user://settings/audio_device.ini"
 
 
 func _get_check_name() -> String:
@@ -22,8 +23,13 @@ func _run_checks() -> void:
 	expect(Engine.has_singleton("AudioDeviceSettingsServer"), "AudioDeviceSettingsServer is a registered singleton")
 	expect(Engine.get_singleton("AudioBusSettingsServer") is ListSettingsServer, "AudioBusSettingsServer is a ListSettingsServer")
 	expect(Engine.get_singleton("AudioDeviceSettingsServer") is SettingsServer, "AudioDeviceSettingsServer is a SettingsServer")
-	expect_equal(SettingsServerManager.get_server(&"audio_buses"), Engine.get_singleton("AudioBusSettingsServer"), "the bus domain is registered as \"audio_buses\"")
-	expect_equal(SettingsServerManager.get_server(&"audio"), Engine.get_singleton("AudioDeviceSettingsServer"), "the device domain is registered as \"audio\"")
+	expect_equal(SettingsServerManager.get_server(&"audio_bus"), Engine.get_singleton("AudioBusSettingsServer"), "#185: the bus domain is registered as \"audio_bus\"")
+	expect_equal(SettingsServerManager.get_server(&"audio_device"), Engine.get_singleton("AudioDeviceSettingsServer"), "#185: the device domain is registered as \"audio_device\"")
+	expect(SettingsServerManager.get_server(&"audio_buses") == null and SettingsServerManager.get_server(&"audio") == null, "#185: the old domain names are gone")
+	expect(ProjectSettings.has_setting("settings/audio_bus/player_buses"), "#185: project setting settings/audio_bus/player_buses")
+	expect(ProjectSettings.get_setting("settings/audio_bus/store_volume") == true and ProjectSettings.get_setting("settings/audio_bus/store_mute") == true and ProjectSettings.get_setting("settings/audio_bus/store_solo") == false, "#185: store_volume and store_mute on, store_solo off")
+	expect(not ProjectSettings.has_setting("settings/audio/create_missing_buses"), "#185: create_missing_buses is gone")
+	expect(not "create_missing_buses" in AudioBusSettingsServer.get_property_list().map(func(p): return p.name), "#185: the property create_missing_buses is gone")
 	expect(AudioBusSettingsServer.is_started(), "the bus domain was started before the main scene")
 	expect(AudioDeviceSettingsServer.is_started(), "the device domain was started before the main scene")
 	expect_equal(AudioBusSettingsServer.get_file_path(), BUSES_FILE, "bus file path")
@@ -33,7 +39,9 @@ func _run_checks() -> void:
 	_check_manual_mode()
 	_check_csv()
 	_check_missing_bus()
+	_check_stored_values()
 	_check_layout_change()
+	_check_presets()
 	_check_devices()
 	await _check_restart()
 
@@ -67,7 +75,10 @@ func _check_buses() -> void:
 	AudioBusSettingsServer.set_bus_mute(&"Music", true)
 	expect(AudioServer.is_bus_mute(AudioServer.get_bus_index(&"Music")), "set_bus_mute() reaches AudioServer")
 	AudioBusSettingsServer.set_bus_solo(&"Sfx", true)
-	expect(AudioServer.is_bus_solo(AudioServer.get_bus_index(&"Sfx")), "set_bus_solo() reaches AudioServer")
+	expect(not AudioServer.is_bus_solo(AudioServer.get_bus_index(&"Sfx")), "#185: set_bus_solo() does nothing while solo is not stored (a warning is printed)")
+	AudioBusSettingsServer.store_solo = true
+	AudioBusSettingsServer.set_bus_solo(&"Sfx", true)
+	expect(AudioServer.is_bus_solo(AudioServer.get_bus_index(&"Sfx")), "set_bus_solo() reaches AudioServer with store_solo")
 	AudioBusSettingsServer.set_bus_volume_db(&"Music", 100.0)
 	expect(is_equal_approx(AudioBusSettingsServer.get_bus_volume_db(&"Music"), 24.0), "volume is clamped to 24 dB")
 
@@ -75,6 +86,7 @@ func _check_buses() -> void:
 	expect(is_equal_approx(_bus_volume_db(&"Music"), -6.0), "reset_to_defaults() gives back the layout volume")
 	expect(not AudioServer.is_bus_mute(AudioServer.get_bus_index(&"Music")), "reset_to_defaults() unmutes")
 	expect(not AudioServer.is_bus_solo(AudioServer.get_bus_index(&"Sfx")), "reset_to_defaults() clears solo")
+	AudioBusSettingsServer.store_solo = false
 
 
 func _check_manual_mode() -> void:
@@ -93,7 +105,7 @@ func _check_manual_mode() -> void:
 
 func _check_csv() -> void:
 	ProjectSettings.set_setting("settings/general/default_format", ResourceTextSerializer.FORMAT_CSV)
-	expect_equal(AudioBusSettingsServer.get_file_path(), "user://settings/audio_buses.csv", "the bus list can be stored as CSV")
+	expect_equal(AudioBusSettingsServer.get_file_path(), "user://settings/audio_bus.csv", "the bus list can be stored as CSV")
 	expect_equal(AudioDeviceSettingsServer.get_file_path(), DEVICES_FILE, "the devices stay INI (a warning is printed once)")
 	ProjectSettings.set_setting("settings/general/default_format", ResourceTextSerializer.FORMAT_INI)
 
@@ -108,6 +120,8 @@ func _check_csv() -> void:
 			if line.contains(bus):
 				rows[bus] += 1
 	expect_equal(rows, {"Master": 1, "Music": 1, "Sfx": 1}, "CSV: one row per bus")
+	var header := FileAccess.get_file_as_string(path).split("\n")[0]
+	expect(header.contains("volume_db") and header.contains("mute") and not header.contains("solo"), "#185: CSV columns are the stored values only: " + header)
 
 	AudioBusSettingsServer.set_bus_volume_db(&"Music", -3.0)
 	AudioBusSettingsServer.set_bus_mute(&"Sfx", false)
@@ -131,18 +145,9 @@ func _check_missing_bus() -> void:
 	var index := AudioBusSettingsServer.find_entry("Voice")
 	expect(index >= 0, "the entry of a missing bus is kept")
 
-	AudioBusSettingsServer.create_missing_buses = true
-	AudioBusSettingsServer.set_entry_value(index, &"volume_db", -10.0)
+	expect_equal(AudioServer.get_bus_count(), 3, "#185: no bus is created; the layout builds the buses")
+	AudioBusSettingsServer.remove_entry(index)
 	AudioBusSettingsServer.apply()
-	var bus := AudioServer.get_bus_index(&"Voice")
-	expect(bus >= 0, "create_missing_buses adds the bus")
-	expect(bus >= 0 and is_equal_approx(AudioServer.get_bus_volume_db(bus), -10.0), "the created bus gets the stored volume")
-
-	AudioBusSettingsServer.create_missing_buses = false
-	AudioBusSettingsServer.remove_entry(AudioBusSettingsServer.find_entry("Voice"))
-	AudioBusSettingsServer.apply()
-	if bus >= 0:
-		AudioServer.remove_bus(bus)
 	AudioBusSettingsServer.apply_mode = SettingsServer.APPLY_MODE_IMMEDIATE
 
 
@@ -151,6 +156,7 @@ func _check_layout_change() -> void:
 	var game_layout := AudioServer.generate_bus_layout()
 	AudioBusSettingsServer.set_bus_volume_db(&"Music", -21.0)
 	AudioBusSettingsServer.set_bus_mute(&"Music", true)
+	AudioBusSettingsServer.store_solo = true
 	AudioBusSettingsServer.set_bus_solo(&"Sfx", true)
 	AudioServer.set_bus_layout(game_layout)
 	expect(is_equal_approx(_bus_volume_db(&"Music"), -21.0), "#122: set_bus_layout() keeps the stored volume")
@@ -158,13 +164,20 @@ func _check_layout_change() -> void:
 	expect(AudioServer.is_bus_solo(AudioServer.get_bus_index(&"Sfx")), "#122: set_bus_layout() keeps the stored solo")
 	expect(not AudioBusSettingsServer.is_dirty(), "#122: the re-apply changes no setting")
 
-	# A layout with only Master: with create_missing_buses, the stored buses are added again, once each.
-	AudioBusSettingsServer.create_missing_buses = true
-	AudioServer.set_bus_layout(AudioBusLayout.new())
-	var bus := AudioServer.get_bus_index(&"Music")
-	expect(bus >= 0 and is_equal_approx(AudioServer.get_bus_volume_db(bus), -21.0), "#122: create_missing_buses adds a stored bus after set_bus_layout()")
-	expect_equal(AudioServer.get_bus_count(), 3, "#122: each stored bus is created once")
-	AudioBusSettingsServer.create_missing_buses = false
+	# #185: player buses. Sfx is not a player bus any more: a new layout keeps its own Sfx mix.
+	AudioBusSettingsServer.player_buses = PackedStringArray(["Music"])
+	var sfx := AudioServer.get_bus_index(&"Sfx")
+	AudioServer.set_bus_volume_db(sfx, -9.0)
+	AudioServer.set_bus_solo(sfx, false)
+	var quiet_layout := AudioServer.generate_bus_layout()
+	AudioServer.set_bus_layout(quiet_layout)
+	expect(is_equal_approx(_bus_volume_db(&"Music"), -21.0), "#185: the player bus gets the player value after set_bus_layout()")
+	expect(is_equal_approx(_bus_volume_db(&"Sfx"), -9.0), "#185: a bus that is not a player bus keeps the value of the new layout")
+	expect(not AudioServer.is_bus_solo(AudioServer.get_bus_index(&"Sfx")), "#185: the solo of a non-player bus is not pushed again")
+	AudioBusSettingsServer.set_bus_volume_db(&"Sfx", -1.0)
+	expect(is_equal_approx(_bus_volume_db(&"Sfx"), -9.0), "#185: set_bus_volume_db() on a non-player bus does nothing (a warning is printed)")
+	AudioBusSettingsServer.player_buses = PackedStringArray()
+	AudioServer.set_bus_layout(game_layout)
 
 	# In manual mode, the applied values come back, not the pending ones.
 	AudioBusSettingsServer.apply_mode = SettingsServer.APPLY_MODE_MANUAL
@@ -175,6 +188,56 @@ func _check_layout_change() -> void:
 	AudioBusSettingsServer.apply_mode = SettingsServer.APPLY_MODE_IMMEDIATE
 	AudioBusSettingsServer.reset_to_defaults()
 	expect(is_equal_approx(_bus_volume_db(&"Music"), -6.0), "#122: reset_to_defaults() after the layout change")
+	expect(not AudioServer.is_bus_solo(AudioServer.get_bus_index(&"Sfx")), "#122: reset_to_defaults() clears the stored solo")
+	AudioBusSettingsServer.store_solo = false
+
+
+# Issue #185: only the stored values are written; a file with values that are no longer stored is read without them,
+# stored values missing in the file come from the layout.
+func _check_stored_values() -> void:
+	var path := DIR.path_join("stored_values.ini")
+	AudioBusSettingsServer.file_path = path
+	AudioBusSettingsServer.set_bus_volume_db(&"Music", -14.0)
+	AudioBusSettingsServer.set_bus_mute(&"Music", true)
+	expect_equal(AudioBusSettingsServer.save(), OK, "#185: save() with the default store_* settings")
+	var text := FileAccess.get_file_as_string(path)
+	expect(text.contains("volume_db") and text.contains("mute") and not text.contains("solo"), "#185: the file holds volume and mute, no solo")
+
+	var csv_path := DIR.path_join("hand_edited.csv")
+	var file := FileAccess.open(csv_path, FileAccess.WRITE)
+	file.store_string("bus_name,volume_db,solo\nMusic,-17,true\n")
+	file.close()
+	AudioBusSettingsServer.file_path = csv_path
+	expect_equal(AudioBusSettingsServer.load(), OK, "#185: a file with an unstored value loads")
+	expect(is_equal_approx(AudioBusSettingsServer.get_bus_volume_db(&"Music"), -17.0), "#185: the stored volume is read")
+	expect(not AudioBusSettingsServer.is_bus_solo(&"Music"), "#185: the solo of the file is ignored")
+	expect(not AudioBusSettingsServer.is_bus_mute(&"Music"), "#185: the mute missing in the file comes from the layout")
+	expect_equal(AudioBusSettingsServer.get_bus_names(), PackedStringArray(["Master", "Music", "Sfx"]), "#185: buses missing in the file come from the layout")
+	AudioBusSettingsServer.apply()
+	AudioBusSettingsServer.file_path = ""
+	AudioBusSettingsServer.reset_to_defaults()
+
+
+# Issue #185: an AudioBusListSettings in res:// is a preset; buses it does not list stay unchanged.
+func _check_presets() -> void:
+	var preset: AudioBusListSettings = load(NIGHT_PRESET)
+	expect(preset != null and preset.buses.size() == 1, "#185: the preset resource loads")
+	if preset == null:
+		return
+	AudioBusSettingsServer.set_bus_volume_db(&"Sfx", -5.0)
+	expect(AudioBusSettingsServer.is_custom(), "#185: no preset applied: Custom")
+	expect_equal(AudioBusSettingsServer.apply_preset(preset), OK, "#185: apply_preset()")
+	expect(is_equal_approx(_bus_volume_db(&"Music"), -18.0), "#185: the preset volume reaches AudioServer")
+	expect(AudioServer.is_bus_mute(AudioServer.get_bus_index(&"Music")), "#185: the preset mute reaches AudioServer")
+	expect(is_equal_approx(_bus_volume_db(&"Sfx"), -5.0), "#185: a bus that the preset does not list keeps its value")
+	expect_equal(AudioBusSettingsServer.get_current_preset(), preset, "#185: get_current_preset()")
+	expect(not AudioBusSettingsServer.is_custom(), "#185: not Custom right after apply_preset()")
+	AudioBusSettingsServer.set_bus_volume_db(&"Music", -3.0)
+	expect(AudioBusSettingsServer.is_custom(), "#185: a single change makes it Custom")
+	expect(not AudioBusSettingsServer.matches_preset(preset), "#185: matches_preset() is false after the change")
+	AudioBusSettingsServer.set_bus_volume_db(&"Music", -18.0)
+	expect(AudioBusSettingsServer.matches_preset(preset), "#185: matches_preset() is true again")
+	AudioBusSettingsServer.reset_to_defaults()
 
 
 func _check_devices() -> void:
