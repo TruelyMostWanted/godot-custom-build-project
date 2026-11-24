@@ -77,7 +77,7 @@ public partial class Issue68FeatureXmlAndUnifiedSerializerCheck : FeatureCheckCs
             Expect(System.Array.IndexOf(formats, (int)f) >= 0, $"GetAvailableFormats() lists {f}");
         }
         Expect((System.Array.IndexOf(formats, (int)ResourceTextSerializer.Format.Toml) >= 0) == ClassDB.ClassExists("TOML"), "GetAvailableFormats() lists Format.Toml exactly when the TOML module is built");
-        Expect(ResourceTextSerializer.IsFormatAvailable(ResourceTextSerializer.Format.Xml) && !ResourceTextSerializer.IsFormatAvailable(ResourceTextSerializer.Format.Yaml), "IsFormatAvailable()");
+        Expect(ResourceTextSerializer.IsFormatAvailable(ResourceTextSerializer.Format.Xml) && ResourceTextSerializer.IsFormatAvailable(ResourceTextSerializer.Format.Yaml) /* YAML module since #155 */, "IsFormatAvailable()");
         ExpectEqual(ResourceTextSerializer.GetFormatFromExtension(".JSON"), ResourceTextSerializer.Format.Json, "GetFormatFromExtension() ignores case and dot");
         Expect(!ClassDB.ClassHasMethod("ResourceTextSerializer", "resource_to_json") && !ClassDB.ClassHasMethod("ResourceTextSerializer", "resource_to_xml"), "per-format methods are replaced by Serialize()/Deserialize()");
         if (ClassDB.ClassExists("TOML"))

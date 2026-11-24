@@ -70,8 +70,9 @@ func _check_buses() -> void:
 	expect(is_equal_approx(_bus_volume_db(&"Music"), -12.0), "set_bus_volume_db() reaches AudioServer at once")
 	expect(is_equal_approx(AudioBusSettingsServer.get_bus_volume_db(&"Music"), -12.0), "get_bus_volume_db()")
 	AudioBusSettingsServer.set_bus_volume_linear(&"Sfx", 0.5)
-	expect(absf(AudioBusSettingsServer.get_bus_volume_linear(&"Sfx") - 0.5) < 0.001, "linear volume (50 %)")
-	expect(absf(_bus_volume_db(&"Sfx") - linear_to_db(0.5)) < 0.01, "linear volume is stored in dB")
+	# The dB value is snapped to 0.1 dB, so 50 % comes back as 0.501.
+	expect(absf(AudioBusSettingsServer.get_bus_volume_linear(&"Sfx") - 0.5) < 0.01, "linear volume (50 %)")
+	expect(is_equal_approx(_bus_volume_db(&"Sfx"), -6.0), "linear volume is stored in dB, snapped to 0.1 dB (#189)")
 	AudioBusSettingsServer.set_bus_mute(&"Music", true)
 	expect(AudioServer.is_bus_mute(AudioServer.get_bus_index(&"Music")), "set_bus_mute() reaches AudioServer")
 	AudioBusSettingsServer.set_bus_solo(&"Sfx", true)

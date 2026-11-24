@@ -157,7 +157,7 @@ public partial class Issue05FeatureResourceTextFormatsCheck : FeatureCheckCs
         Expect(json.Contains("Cleo"), "Serialize(Format.Json) returns text");
         CheckSettings(ResourceTextSerializer.Deserialize(json, ResourceTextSerializer.Format.Json), "Deserialize(Format.Json)");
         CheckSettings(ResourceTextSerializer.Deserialize(ResourceTextSerializer.Serialize(MakeSettings(), ResourceTextSerializer.Format.Ini), ResourceTextSerializer.Format.Ini), "Deserialize(Format.Ini)");
-        Expect(ResourceTextSerializer.IsFormatAvailable(ResourceTextSerializer.Format.Json) && !ResourceTextSerializer.IsFormatAvailable(ResourceTextSerializer.Format.Yaml), "IsFormatAvailable(): JSON yes, YAML no");
+        Expect(ResourceTextSerializer.IsFormatAvailable(ResourceTextSerializer.Format.Json) && ResourceTextSerializer.IsFormatAvailable(ResourceTextSerializer.Format.Yaml), "IsFormatAvailable(): JSON yes, YAML yes (module since #155)");
         Expect(System.Array.IndexOf(ResourceTextSerializer.GetAvailableFormats(), (int)ResourceTextSerializer.Format.Csv) >= 0, "GetAvailableFormats() lists Format.Csv");
         ExpectEqual(ResourceTextSerializer.GetFormatFromExtension(".INI"), ResourceTextSerializer.Format.Ini, "GetFormatFromExtension(\".INI\")");
         ExpectEqual(ResourceTextSerializer.GetFormatExtension(ResourceTextSerializer.Format.Csv), "csv", "GetFormatExtension(Format.Csv)");
