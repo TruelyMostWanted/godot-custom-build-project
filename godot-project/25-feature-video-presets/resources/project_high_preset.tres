@@ -1,0 +1,7 @@
+[gd_resource type="VideoPreset" format=3]
+
+[resource]
+preset_name = "High"
+video_shadow = {
+"directional_shadow_atlas_size": 2048
+}

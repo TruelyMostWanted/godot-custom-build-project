@@ -1,0 +1,10 @@
+[gd_resource type="VideoPreset" format=3]
+
+[resource]
+preset_name = "Potato"
+video_quality = {
+"scaling_3d_scale": 0.5
+}
+video_texture = {
+"anisotropic_filtering_level": 0
+}
