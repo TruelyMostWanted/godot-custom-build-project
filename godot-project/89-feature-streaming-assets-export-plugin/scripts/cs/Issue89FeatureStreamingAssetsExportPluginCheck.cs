@@ -67,7 +67,7 @@ public partial class Issue89FeatureStreamingAssetsExportPluginCheck : FeatureChe
     {
         ExpectEqual(StreamingAssetsExportPlugin.ExpandTemplate("{exe_name}_Data/StreamingAssets", "MyGame"), "MyGame_Data/StreamingAssets", "default target expands {exe_name}");
         ExpectEqual(StreamingAssetsExportPlugin.ExpandTemplate("{exe_name}/{exe_name}.data", "a"), "a/a.data", "every {exe_name} is replaced");
-        ExpectEqual(StreamingAssetsExportPlugin.ExpandTemplate("{app_name}/x", "MyGame"), "{app_name}/x", "unknown placeholders stay");
+        ExpectEqual(StreamingAssetsExportPlugin.ExpandTemplate("{unknown}/x", "MyGame"), "{unknown}/x", "unknown placeholders stay");
     }
 
     private void CheckTargetFolder()

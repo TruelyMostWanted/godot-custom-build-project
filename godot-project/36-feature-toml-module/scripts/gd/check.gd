@@ -92,11 +92,25 @@ func _check_string_api() -> void:
 	var text := TOML.serialize(_make_settings())
 	expect(text.contains("mode = \"Angry\""), "enums are written as names")
 	_check_settings(TOML.deserialize(text), "deserialize()")
-	var numbers := TOML.serialize(_make_settings(), { "enums_as_names": false })
+	var options := SerializerOptions.new()
+	options.enums_as_names = false
+	var numbers := TOML.serialize(_make_settings(), options)
 	expect(numbers.contains("mode = 5"), "option enums_as_names = false writes numbers")
 	_check_settings(TOML.deserialize(numbers), "deserialize() with enum numbers")
 	var untyped := text.replace("\"$type\" = \"Issue36GdTomlSettings\"\n", "")
-	_check_settings(TOML.deserialize(untyped, "Issue36GdTomlSettings"), "deserialize() with type hint")
+	_check_settings(TOML.deserialize(untyped, &"Issue36GdTomlSettings"), "deserialize() with type hint")
+	options = SerializerOptions.new()
+	options.include_type_marker = false
+	var no_marker := TOML.serialize(_make_settings(), options)
+	expect(not no_marker.contains("\"$type\""), "option include_type_marker = false leaves out $type")
+	_check_settings(TOML.deserialize(no_marker, &"Issue36GdTomlSettings", options), "deserialize() of text without $type, with type hint")
+	options = SerializerOptions.new()
+	options.sort_keys = true
+	_check_settings(TOML.deserialize(TOML.serialize(_make_settings(), options)), "option sort_keys round trip")
+	# The module implements FORMAT_TOML of ResourceTextSerializer.
+	expect(ResourceTextSerializer.is_format_available(ResourceTextSerializer.FORMAT_TOML), "is_format_available(FORMAT_TOML)")
+	expect_equal(ResourceTextSerializer.serialize(_make_settings(), ResourceTextSerializer.FORMAT_TOML), text, "serialize(FORMAT_TOML) is TOML.serialize()")
+	expect_equal(ResourceTextSerializer.get_format_from_extension("toml"), ResourceTextSerializer.FORMAT_TOML, "get_format_from_extension(\"toml\")")
 
 
 func _check_parse() -> void:

@@ -16,6 +16,7 @@ func _run_checks() -> void:
 		_check_settings_file(ext)
 	_check_csv()
 	_check_string_api()
+	_check_serializer_options()
 	_check_plain_json()
 	_cleanup()
 
@@ -69,8 +70,8 @@ func _check_settings_file(ext: String) -> void:
 func _check_csv() -> void:
 	var list := Issue05GdBusList.new()
 	list.entries = [_make_bus("Music", -12.0, Issue05GdAudioBus.Mode.SURROUND), _make_bus("Voice, \"main\"", 2.0, Issue05GdAudioBus.Mode.MONO)]
-	expect(ResourceTextSerializer.can_save_as_csv(list), "a list of flat records can be saved as CSV")
-	expect(not ResourceTextSerializer.can_save_as_csv(_make_settings()), "nested settings cannot be saved as CSV")
+	expect(ResourceTextSerializer.can_serialize(list, ResourceTextSerializer.FORMAT_CSV), "a list of flat records can be saved as CSV")
+	expect(not ResourceTextSerializer.can_serialize(_make_settings(), ResourceTextSerializer.FORMAT_CSV), "nested settings cannot be saved as CSV")
 	var path := ROOT + "buses.csv"
 	expect_equal(ResourceSaver.save(list, path), OK, "save list as .csv")
 	# A CSV file has no type marker: it is loaded with a type hint.
@@ -81,10 +82,96 @@ func _check_csv() -> void:
 
 
 func _check_string_api() -> void:
-	var json := ResourceTextSerializer.serialize(_make_settings(), &"json")
-	expect(json.contains("Cleo"), "serialize(&\"json\") returns text")
-	_check_settings(ResourceTextSerializer.deserialize(json, &"json"), "deserialize(&\"json\")")
-	_check_settings(ResourceTextSerializer.deserialize(ResourceTextSerializer.serialize(_make_settings(), &"ini"), &"ini"), "deserialize(&\"ini\")")
+	var json := ResourceTextSerializer.serialize(_make_settings(), ResourceTextSerializer.FORMAT_JSON)
+	expect(json.contains("Cleo"), "serialize(FORMAT_JSON) returns text")
+	_check_settings(ResourceTextSerializer.deserialize(json, ResourceTextSerializer.FORMAT_JSON), "deserialize(FORMAT_JSON)")
+	_check_settings(ResourceTextSerializer.deserialize(ResourceTextSerializer.serialize(_make_settings(), ResourceTextSerializer.FORMAT_INI), ResourceTextSerializer.FORMAT_INI), "deserialize(FORMAT_INI)")
+	expect(ResourceTextSerializer.is_format_available(ResourceTextSerializer.FORMAT_JSON) and not ResourceTextSerializer.is_format_available(ResourceTextSerializer.FORMAT_YAML), "is_format_available(): JSON yes, YAML no")
+	expect(ResourceTextSerializer.get_available_formats().has(ResourceTextSerializer.FORMAT_CSV), "get_available_formats() lists FORMAT_CSV")
+	expect_equal(ResourceTextSerializer.get_format_from_extension(".INI"), ResourceTextSerializer.FORMAT_INI, "get_format_from_extension(\".INI\")")
+	expect_equal(ResourceTextSerializer.get_format_extension(ResourceTextSerializer.FORMAT_CSV), "csv", "get_format_extension(FORMAT_CSV)")
+	expect_equal(ResourceTextSerializer.TEXT_LAYOUT_VERSION, 1, "TEXT_LAYOUT_VERSION is 1")
+	expect(not ClassDB.class_has_method("ResourceTextSerializer", "get_formats") and not ClassDB.class_has_method("ResourceTextSerializer", "can_save_as_csv"), "old string API is gone")
+
+
+func _options() -> SerializerOptions:
+	return SerializerOptions.new()
+
+
+func _check_serializer_options() -> void:
+	var settings := _make_settings()
+	var json := ResourceTextSerializer.FORMAT_JSON
+	var defaults := _options()
+	expect(defaults.indent == "  " and defaults.enums_as_names and defaults.defaults == null and defaults.include_type_marker and not defaults.sort_keys and not defaults.full_precision_floats, "SerializerOptions.new(): common defaults")
+	expect(defaults.csv_delimiter == "," and defaults.csv_headers and not defaults.ini_plain_values and defaults.xml_declaration, "SerializerOptions.new(): format defaults")
+	expect_equal(ResourceTextSerializer.serialize(settings, json, defaults), ResourceTextSerializer.serialize(settings, json), "new() gives the same text as null (project settings)")
+
+	var options := _options()
+	options.indent = "\t"
+	expect(ResourceTextSerializer.serialize(settings, json, options).contains("\n\t\""), "indent")
+
+	options = _options()
+	options.enums_as_names = false
+	var numbers := ResourceTextSerializer.serialize(settings, json, options)
+	expect(numbers.contains("\"quality\": 2"), "enums_as_names = false writes numbers")
+	_check_settings(ResourceTextSerializer.deserialize(numbers, json), "enums_as_names = false")
+
+	options = _options()
+	options.defaults = _make_settings()
+	var changed := ResourceTextSerializer.serialize(settings, json, options)
+	expect(not changed.contains("master_volume") and changed.contains("$type"), "defaults: unchanged values are not written")
+
+	options = _options()
+	options.include_type_marker = false
+	var untyped := ResourceTextSerializer.serialize(settings, json, options)
+	expect(not untyped.contains("\"$type\""), "include_type_marker = false")
+	_check_settings(ResourceTextSerializer.deserialize(untyped, json, &"Issue05GdAudioSettings"), "include_type_marker = false with type hint")
+
+	options = _options()
+	options.sort_keys = true
+	var plain := ResourceTextSerializer.serialize(settings, json)
+	var sorted := ResourceTextSerializer.serialize(settings, json, options)
+	expect(plain.find("\"title\"") < plain.find("\"quality\"") and sorted.find("\"quality\"") < sorted.find("\"title\""), "sort_keys")
+	_check_settings(ResourceTextSerializer.deserialize(sorted, json), "sort_keys")
+
+	options = _options()
+	options.full_precision_floats = true
+	var bus := _make_bus("Pan", 0.0, Issue05GdAudioBus.Mode.STEREO)
+	bus.pan = Vector2(0.1, 0.5)
+	expect(ResourceTextSerializer.serialize(bus, json, options).contains("0.10000000149011612") and not ResourceTextSerializer.serialize(bus, json).contains("0.10000000149011612"), "full_precision_floats")
+
+	var list := Issue05GdBusList.new()
+	list.entries = [_make_bus("Music", -12.0, Issue05GdAudioBus.Mode.SURROUND)]
+	options = _options()
+	options.csv_delimiter = ";"
+	expect(ResourceTextSerializer.serialize(list, ResourceTextSerializer.FORMAT_CSV, options).contains("Music;"), "csv_delimiter")
+	options.csv_headers = false
+	var rows := ResourceTextSerializer.serialize(list, ResourceTextSerializer.FORMAT_CSV, options)
+	expect(rows.begins_with("Music;"), "csv_headers = false: no header row")
+	var back = ResourceTextSerializer.deserialize(rows, ResourceTextSerializer.FORMAT_CSV, &"Issue05GdBusList", options)
+	expect(back is Issue05GdBusList and back.entries.size() == 1 and _same_bus(back.entries[0], list.entries[0]), "csv_headers = false round trip")
+
+	options = _options()
+	options.ini_plain_values = true
+	var ini := ResourceTextSerializer.serialize(settings, ResourceTextSerializer.FORMAT_INI, options)
+	expect(ini.contains("cell=1, -2, 3"), "ini_plain_values")
+	_check_settings(ResourceTextSerializer.deserialize(ini, ResourceTextSerializer.FORMAT_INI), "ini_plain_values")
+
+	options = _options()
+	options.xml_declaration = false
+	var xml := ResourceTextSerializer.serialize(settings, ResourceTextSerializer.FORMAT_XML, options)
+	expect(xml.begins_with("<resource") and ResourceTextSerializer.serialize(settings, ResourceTextSerializer.FORMAT_XML).begins_with("<?xml"), "xml_declaration")
+	_check_settings(ResourceTextSerializer.deserialize(xml, ResourceTextSerializer.FORMAT_XML), "xml_declaration = false")
+
+	# A preset saved as .tres gives the same output.
+	options = _options()
+	options.indent = "\t"
+	options.sort_keys = true
+	options.enums_as_names = false
+	var preset_path := ROOT + "options.tres"
+	expect_equal(ResourceSaver.save(options, preset_path), OK, "save SerializerOptions as .tres")
+	var preset = ResourceLoader.load(preset_path, "", ResourceLoader.CACHE_MODE_IGNORE)
+	expect(preset is SerializerOptions and ResourceTextSerializer.serialize(settings, json, preset) == ResourceTextSerializer.serialize(settings, json, options), "SerializerOptions .tres gives the same output")
 
 
 func _check_plain_json() -> void:

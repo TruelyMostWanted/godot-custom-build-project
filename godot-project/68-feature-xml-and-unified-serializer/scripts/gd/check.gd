@@ -49,18 +49,19 @@ func _same_item(a: Issue68GdItem, b: Issue68GdItem) -> bool:
 
 
 func _check_api() -> void:
-	var formats := ResourceTextSerializer.get_formats()
-	for f in ["json", "ini", "csv", "xml"]:
-		expect(formats.has(f), "get_formats() lists %s" % f)
-	expect(formats.has("toml") == ClassDB.class_exists("TOML"), "get_formats() lists toml exactly when the TOML module is built")
-	expect(ResourceTextSerializer.has_format(&"xml") and ResourceTextSerializer.has_format(&".JSON") and not ResourceTextSerializer.has_format(&"yaml"), "has_format()")
+	var formats := ResourceTextSerializer.get_available_formats()
+	for f in [ResourceTextSerializer.FORMAT_JSON, ResourceTextSerializer.FORMAT_INI, ResourceTextSerializer.FORMAT_CSV, ResourceTextSerializer.FORMAT_XML]:
+		expect(formats.has(f), "get_available_formats() lists %s" % ResourceTextSerializer.get_format_extension(f))
+	expect(formats.has(ResourceTextSerializer.FORMAT_TOML) == ClassDB.class_exists("TOML"), "get_available_formats() lists FORMAT_TOML exactly when the TOML module is built")
+	expect(ResourceTextSerializer.is_format_available(ResourceTextSerializer.FORMAT_XML) and not ResourceTextSerializer.is_format_available(ResourceTextSerializer.FORMAT_YAML), "is_format_available()")
+	expect_equal(ResourceTextSerializer.get_format_from_extension(".JSON"), ResourceTextSerializer.FORMAT_JSON, "get_format_from_extension() ignores case and dot")
 	expect(not ClassDB.class_has_method("ResourceTextSerializer", "resource_to_json") and not ClassDB.class_has_method("ResourceTextSerializer", "resource_to_xml"), "per-format methods are replaced by serialize()/deserialize()")
 	if ClassDB.class_exists("TOML"):
 		expect(ClassDB.class_has_method("TOML", "serialize") and ClassDB.class_has_method("TOML", "deserialize"), "TOML.serialize()/deserialize() exist")
 
 
 func _check_xml_text() -> void:
-	var text := ResourceTextSerializer.serialize(_make_item("Sword", 1), &"xml")
+	var text := ResourceTextSerializer.serialize(_make_item("Sword", 1), ResourceTextSerializer.FORMAT_XML)
 	var expected := "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" \
 			+ "<resource type=\"Issue68GdItem\" format_version=\"1\">\n" \
 			+ "  <name>Sword</name>\n" \
@@ -71,8 +72,17 @@ func _check_xml_text() -> void:
 			+ "  <code kind=\"string\">007</code>\n" \
 			+ "</resource>\n"
 	expect_equal(text, expected, "XML text of a flat resource")
-	var one_line := ResourceTextSerializer.serialize(_make_item("Sword", 1), &"xml", { "indent": "", "enums_as_names": false })
+	var options := SerializerOptions.new()
+	options.indent = ""
+	options.enums_as_names = false
+	var one_line := ResourceTextSerializer.serialize(_make_item("Sword", 1), ResourceTextSerializer.FORMAT_XML, options)
 	expect(not one_line.contains("\n") and one_line.contains("<rarity>5</rarity>"), "XML options indent and enums_as_names")
+	options = SerializerOptions.new()
+	options.xml_declaration = false
+	options.include_type_marker = false
+	var bare := ResourceTextSerializer.serialize(_make_item("Sword", 1), ResourceTextSerializer.FORMAT_XML, options)
+	expect(bare.begins_with("<resource format_version=\"1\">"), "XML options xml_declaration and include_type_marker")
+	expect(ResourceTextSerializer.deserialize(bare, ResourceTextSerializer.FORMAT_XML, &"Issue68GdItem") is Issue68GdItem, "XML without type marker reads with a type hint")
 
 
 func _check_inventory(loaded: Resource, label: String) -> void:
@@ -92,11 +102,11 @@ func _check_inventory(loaded: Resource, label: String) -> void:
 
 
 func _check_xml_round_trip() -> void:
-	var text := ResourceTextSerializer.serialize(_make_inventory(), &"xml")
+	var text := ResourceTextSerializer.serialize(_make_inventory(), ResourceTextSerializer.FORMAT_XML)
 	expect(text.contains("<resource type=\"Issue68GdInventory\" format_version=\"1\">"), "XML root element with type marker")
 	expect(text.contains("<entry key=\"my key\">20</entry>") and text.contains("<none kind=\"null\"/>"), "XML entry key and null")
-	_check_inventory(ResourceTextSerializer.deserialize(text, &"xml"), "deserialize xml")
-	_check_inventory(ResourceTextSerializer.deserialize(text, &"xml", "Issue68GdInventory"), "deserialize xml with type hint")
+	_check_inventory(ResourceTextSerializer.deserialize(text, ResourceTextSerializer.FORMAT_XML), "deserialize xml")
+	_check_inventory(ResourceTextSerializer.deserialize(text, ResourceTextSerializer.FORMAT_XML, &"Issue68GdInventory"), "deserialize xml with type hint")
 
 
 func _check_xml_files() -> void:
@@ -115,18 +125,21 @@ func _check_xml_files() -> void:
 func _check_same_text_as_files() -> void:
 	var inv := _make_inventory()
 	for ext in ["json", "ini", "xml", "toml"]:
-		if not ResourceTextSerializer.has_format(StringName(ext)):
+		var format := ResourceTextSerializer.get_format_from_extension(ext)
+		if not ResourceTextSerializer.is_format_available(format):
 			continue
 		var path: String = ROOT + "same." + ext
 		expect_equal(ResourceSaver.save(inv, path), OK, "save as .%s" % ext)
-		expect_equal(ResourceTextSerializer.serialize(inv, StringName(ext)), FileAccess.get_file_as_string(path), "serialize(res, &\"%s\") gives the file text" % ext)
+		expect_equal(ResourceTextSerializer.serialize(inv, format), FileAccess.get_file_as_string(path), "serialize(res, FORMAT for .%s) gives the file text" % ext)
 
 	var list := Issue68GdItemList.new()
 	list.entries = [_make_item("Potion", 3), _make_item("Bread, \"fresh\"", 2)]
 	expect_equal(ResourceSaver.save(list, ROOT + "same.csv"), OK, "save as .csv")
-	expect_equal(ResourceTextSerializer.serialize(list, &"csv"), FileAccess.get_file_as_string(ROOT + "same.csv"), "serialize(res, &\"csv\") gives the file text")
-	var semicolons := ResourceTextSerializer.serialize(list, &"csv", { "delimiter": ";" })
-	var back = ResourceTextSerializer.deserialize(semicolons, &"csv", "Issue68GdItemList", { "delimiter": ";" })
+	expect_equal(ResourceTextSerializer.serialize(list, ResourceTextSerializer.FORMAT_CSV), FileAccess.get_file_as_string(ROOT + "same.csv"), "serialize(res, FORMAT_CSV) gives the file text")
+	var csv_options := SerializerOptions.new()
+	csv_options.csv_delimiter = ";"
+	var semicolons := ResourceTextSerializer.serialize(list, ResourceTextSerializer.FORMAT_CSV, csv_options)
+	var back = ResourceTextSerializer.deserialize(semicolons, ResourceTextSerializer.FORMAT_CSV, &"Issue68GdItemList", csv_options)
 	expect(back is Issue68GdItemList and back.entries.size() == 2 and _same_item(back.entries[1], list.entries[1]), "csv with type hint and delimiter option")
 
 

@@ -94,6 +94,7 @@ func _run_checks() -> void:
 	expect(server.open(secret, KEY_B) == null, "open() with a wrong key returns null")
 
 	_check_resource()
+	_check_extract()
 
 
 # #83: PckPackage is a Resource. `.pck` files load and save through ResourceLoader and ResourceSaver,
@@ -174,3 +175,85 @@ func _check_resource() -> void:
 	expect(opened != null and opened.has_file("res://pck83gd/old.txt"), "the built pack has the removal entry")
 	expect_equal(server.read_file(opened, "res://pck83gd/source.txt").get_string_from_utf8(), "Source", "encrypted file reads back")
 	expect_equal(server.verify(opened), OK, "verify() of the built pack")
+
+
+func _remove_dir(path: String) -> void:
+	var dir := DirAccess.open(path)
+	if dir == null:
+		return
+	for sub in dir.get_directories():
+		_remove_dir(path.path_join(sub))
+	for file in dir.get_files():
+		dir.remove(file)
+	DirAccess.remove_absolute(path)
+
+
+# #84: PckPackageServer.extract() writes the files of a pack into a folder.
+# The null-package check prints an engine error on purpose.
+func _check_extract() -> void:
+	var server := PckPackageServer
+	var pack := ROOT + "extract.pck"
+	var uid := ResourceUID.create_id()
+	var uid_text := ResourceUID.id_to_text(uid)
+	_write_pack(pack, {
+		"pck84gd/a.txt": "Alpha",
+		"pck84gd/sub/b.txt": "Beta",
+		"pck84gd/icon.png": "PNG",
+		"pck84gd/icon.png.import": "[remap]\n",
+		"pck84gd/orphan.png.import": "[remap]\n",
+		".godot/imported/pck84gd-icon.ctex": "CTEX",
+		"pck84gd/level.tscn.remap": "[remap]\n",
+		"pck84gd/tool.gd": "extends Node\n",
+		"pck84gd/tool.gd.uid": uid_text + "\n",
+	})
+	var out := ROOT + "extract"
+	_remove_dir(out)
+	var package := server.open(pack)
+	expect(package != null, "the pack to extract opens")
+
+	# Extract everything: engine files are left out, sidecars follow their source.
+	var progress: Array = []
+	var on_progress := func(path: String, done: int, total: int): progress.append([path, done, total])
+	server.extract_progress.connect(on_progress)
+	var result := server.extract(package, out)
+	server.extract_progress.disconnect(on_progress)
+	expect(result is PckExtractResult, "extract() returns a PckExtractResult")
+	expect(result.is_ok() and result.error == OK and result.errors.is_empty(), "extract() without errors")
+	expect_equal(result.written, PackedStringArray([out.path_join("pck84gd/a.txt"), out.path_join("pck84gd/sub/b.txt"), out.path_join("pck84gd/icon.png"), out.path_join("pck84gd/icon.png.import"), out.path_join("pck84gd/tool.gd"), out.path_join("pck84gd/tool.gd.uid")]), "written lists the extracted files in pack order")
+	expect_equal(result.skipped, PackedStringArray(["res://pck84gd/orphan.png.import", "res://.godot/imported/pck84gd-icon.ctex"]), "skipped: .import without source and .godot/")
+	expect_equal(result.not_editable, PackedStringArray(["res://pck84gd/level.tscn"]), "not_editable lists remapped resources by their original path")
+	expect(result.renamed.is_empty() and result.dropped_uids.is_empty(), "nothing renamed, no UID dropped")
+	expect_equal(FileAccess.get_file_as_string(out.path_join("pck84gd/sub/b.txt")), "Beta", "extracted file has the pack data")
+	expect(not DirAccess.dir_exists_absolute(out.path_join(".godot")), ".godot/ is not extracted")
+	expect_equal(progress.size(), 9, "extract_progress once per selected file")
+	expect(progress.size() == 9 and progress[8] == ["res://pck84gd/tool.gd.uid", 9, 9], "extract_progress reports path, done and total")
+	expect(ResourceUID.has_id(uid), "a free UID is registered at once")
+	expect_equal(ResourceUID.get_id_path(uid) if ResourceUID.has_id(uid) else "", out.path_join("pck84gd/tool.gd"), "the UID points to the extracted file")
+
+	# Conflict policies.
+	var f := FileAccess.open(out.path_join("pck84gd/a.txt"), FileAccess.WRITE)
+	f.store_string("Edited")
+	f.close()
+	var kept := server.extract(package, out, ["res://pck84gd/a.txt"])
+	expect(kept.written.is_empty() and kept.skipped == PackedStringArray(["res://pck84gd/a.txt"]), "EXTRACT_SKIP keeps existing files")
+	expect_equal(FileAccess.get_file_as_string(out.path_join("pck84gd/a.txt")), "Edited", "the existing file is unchanged")
+	var overwritten := server.extract(package, out, ["pck84gd/a.txt"], PckPackageServer.EXTRACT_OVERWRITE)
+	expect_equal(overwritten.written, PackedStringArray([out.path_join("pck84gd/a.txt")]), "EXTRACT_OVERWRITE writes the file")
+	expect_equal(FileAccess.get_file_as_string(out.path_join("pck84gd/a.txt")), "Alpha", "the existing file is overwritten")
+	var renamed := server.extract(package, out, ["pck84gd/icon.png"], PckPackageServer.EXTRACT_RENAME)
+	expect_equal(renamed.written, PackedStringArray([out.path_join("pck84gd/icon_2.png"), out.path_join("pck84gd/icon_2.png.import")]), "EXTRACT_RENAME renames the file and its .import")
+	expect_equal(renamed.renamed.get("res://pck84gd/icon.png", ""), out.path_join("pck84gd/icon_2.png"), "renamed maps the pack path to the new path")
+
+	# Filters: folders and patterns.
+	var by_folder := server.extract(package, out.path_join("folder"), ["res://pck84gd/sub/"])
+	expect_equal(by_folder.written, PackedStringArray([out.path_join("folder/pck84gd/sub/b.txt")]), "a folder filter extracts the files below it")
+	var by_pattern := server.extract(package, out.path_join("pattern"), ["*.txt"])
+	expect_equal(by_pattern.written.size(), 2, "a pattern filter extracts the matching files")
+
+	# The UID of tool.gd now belongs to the first copy: a second copy drops it.
+	var second := server.extract(package, out.path_join("second"), ["pck84gd/tool.gd"])
+	expect_equal(second.dropped_uids, PackedStringArray([uid_text]), "a colliding UID is dropped")
+	expect(FileAccess.file_exists(out.path_join("second/pck84gd/tool.gd")) and not FileAccess.file_exists(out.path_join("second/pck84gd/tool.gd.uid")), "the .uid file of a dropped UID is not written")
+
+	expect_equal(server.extract(null, out).error, ERR_INVALID_PARAMETER, "extract() of null returns ERR_INVALID_PARAMETER")
+	ResourceUID.remove_id(uid)
