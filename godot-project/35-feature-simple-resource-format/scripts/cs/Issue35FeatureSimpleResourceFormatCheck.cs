@@ -56,9 +56,9 @@ public partial class Issue35FeatureSimpleResourceFormatCheck : FeatureCheckCs
 
     private void CheckSaveAndLoad()
     {
-        ExpectEqual(ResourceLoader.RegisterExtension(Ext, Callable.From<string, Variant>(LoadQuiz), QuizType), Error.Ok, "register a load function with one call");
-        ExpectEqual(ResourceSaver.RegisterExtension(Ext, Callable.From<Resource, string, int>(SaveQuiz), QuizType), Error.Ok, "register a save function with one call");
-        Expect(ResourceLoader.IsExtensionRegistered(Ext) && ResourceSaver.IsExtensionRegistered("." + Ext.ToUpperInvariant()), "IsExtensionRegistered() ignores the dot and the case");
+        ExpectEqual(ResourceLoader.RegisterExtensionLoader(Ext, Callable.From<string, Variant>(LoadQuiz), QuizType), Error.Ok, "register a load function with one call");
+        ExpectEqual(ResourceSaver.RegisterExtensionSaver(Ext, Callable.From<Resource, string, int>(SaveQuiz), QuizType), Error.Ok, "register a save function with one call");
+        Expect(ResourceLoader.HasExtensionLoader(Ext) && ResourceSaver.HasExtensionSaver("." + Ext.ToUpperInvariant()), "HasExtensionLoader()/HasExtensionSaver() ignore the dot and the case");
 
         string path = Root + "questions." + Ext;
         ExpectEqual(ResourceSaver.Save(MakeQuiz(), path), Error.Ok, "ResourceSaver.Save() writes the file through the save function");
@@ -101,10 +101,10 @@ public partial class Issue35FeatureSimpleResourceFormatCheck : FeatureCheckCs
 
         ExpectEqual(ResourceSaver.Save(new Resource(), Root + "plain." + Ext), Error.FileUnrecognized, "resources of another type are not saved with the format");
 
-        ExpectEqual(ResourceLoader.RegisterExtension("csquizbad", Callable.From<string, Variant>(LoadQuiz), "Node"), Error.InvalidParameter, "a type that is not a Resource is rejected");
-        ExpectEqual(ResourceLoader.RegisterExtension("", Callable.From<string, Variant>(LoadQuiz)), Error.InvalidParameter, "an empty extension is rejected");
-        ExpectEqual(ResourceSaver.RegisterExtension("csquizbad", new Callable()), Error.InvalidParameter, "an invalid callable is rejected");
-        Expect(!ResourceLoader.IsExtensionRegistered("csquizbad") && !ResourceSaver.IsExtensionRegistered("csquizbad"), "rejected registrations leave nothing behind");
+        ExpectEqual(ResourceLoader.RegisterExtensionLoader("csquizbad", Callable.From<string, Variant>(LoadQuiz), "Node"), Error.InvalidParameter, "a type that is not a Resource is rejected");
+        ExpectEqual(ResourceLoader.RegisterExtensionLoader("", Callable.From<string, Variant>(LoadQuiz)), Error.InvalidParameter, "an empty extension is rejected");
+        ExpectEqual(ResourceSaver.RegisterExtensionSaver("csquizbad", new Callable()), Error.InvalidParameter, "an invalid callable is rejected");
+        Expect(!ResourceLoader.HasExtensionLoader("csquizbad") && !ResourceSaver.HasExtensionSaver("csquizbad"), "rejected registrations leave nothing behind");
     }
 
     private void CheckErrors()
@@ -114,23 +114,23 @@ public partial class Issue35FeatureSimpleResourceFormatCheck : FeatureCheckCs
         {
             file.StoreString("x");
         }
-        ExpectEqual(ResourceLoader.RegisterExtension("csquizerr", Callable.From<string, Variant>(LoadCorrupt)), Error.Ok, "register a load function that fails");
+        ExpectEqual(ResourceLoader.RegisterExtensionLoader("csquizerr", Callable.From<string, Variant>(LoadCorrupt)), Error.Ok, "register a load function that fails");
         Expect(ResourceLoader.Load(path, "", ResourceLoader.CacheMode.Ignore) == null, "an Error returned by the load function makes Load() fail (one error message expected)");
 
         // Registering again replaces the function.
-        ExpectEqual(ResourceLoader.RegisterExtension("csquizerr", Callable.From<string, Variant>(p => LoadQuiz(p))), Error.Ok, "register the extension again with a lambda");
+        ExpectEqual(ResourceLoader.RegisterExtensionLoader("csquizerr", Callable.From<string, Variant>(p => LoadQuiz(p))), Error.Ok, "register the extension again with a lambda");
         var loaded = ResourceLoader.Load(path, "", ResourceLoader.CacheMode.Ignore);
         Expect(loaded is Issue35CsQuizSet quiz && quiz.Questions.SequenceEqual(new[] { "x" }), "the second registration replaces the first");
-        ExpectEqual(ResourceLoader.UnregisterExtension("csquizerr"), Error.Ok, "unregister the replaced extension");
+        ExpectEqual(ResourceLoader.UnregisterExtensionLoader("csquizerr"), Error.Ok, "unregister the replaced extension");
     }
 
     private void CheckUnregister()
     {
         string path = Root + "questions." + Ext;
-        ExpectEqual(ResourceLoader.UnregisterExtension(Ext), Error.Ok, "ResourceLoader.UnregisterExtension() removes the format");
-        ExpectEqual(ResourceSaver.UnregisterExtension(Ext), Error.Ok, "ResourceSaver.UnregisterExtension() removes the format");
-        Expect(!ResourceLoader.IsExtensionRegistered(Ext) && !ResourceSaver.IsExtensionRegistered(Ext), "IsExtensionRegistered() is false afterwards");
-        ExpectEqual(ResourceLoader.UnregisterExtension(Ext), Error.DoesNotExist, "unregistering twice returns Error.DoesNotExist");
+        ExpectEqual(ResourceLoader.UnregisterExtensionLoader(Ext), Error.Ok, "ResourceLoader.UnregisterExtensionLoader() removes the format");
+        ExpectEqual(ResourceSaver.UnregisterExtensionSaver(Ext), Error.Ok, "ResourceSaver.UnregisterExtensionSaver() removes the format");
+        Expect(!ResourceLoader.HasExtensionLoader(Ext) && !ResourceSaver.HasExtensionSaver(Ext), "HasExtensionLoader()/HasExtensionSaver() are false afterwards");
+        ExpectEqual(ResourceLoader.UnregisterExtensionLoader(Ext), Error.DoesNotExist, "unregistering twice returns Error.DoesNotExist");
         Expect(ResourceLoader.Load(path, "", ResourceLoader.CacheMode.Ignore) == null, "loading fails after unregistering (one 'No loader found' error expected)");
         ExpectEqual(ResourceSaver.Save(MakeQuiz(), Root + "after." + Ext), Error.FileUnrecognized, "saving fails after unregistering");
     }
