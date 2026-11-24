@@ -71,13 +71,14 @@ public partial class Issue68FeatureXmlAndUnifiedSerializerCheck : FeatureCheckCs
 
     private void CheckApi()
     {
-        string[] formats = ResourceTextSerializer.GetFormats();
-        foreach (string f in new[] { "json", "ini", "csv", "xml" })
+        int[] formats = ResourceTextSerializer.GetAvailableFormats();
+        foreach (var f in new[] { ResourceTextSerializer.Format.Json, ResourceTextSerializer.Format.Ini, ResourceTextSerializer.Format.Csv, ResourceTextSerializer.Format.Xml })
         {
-            Expect(System.Array.IndexOf(formats, f) >= 0, $"GetFormats() lists {f}");
+            Expect(System.Array.IndexOf(formats, (int)f) >= 0, $"GetAvailableFormats() lists {f}");
         }
-        Expect((System.Array.IndexOf(formats, "toml") >= 0) == ClassDB.ClassExists("TOML"), "GetFormats() lists toml exactly when the TOML module is built");
-        Expect(ResourceTextSerializer.HasFormat("xml") && ResourceTextSerializer.HasFormat(".JSON") && !ResourceTextSerializer.HasFormat("yaml"), "HasFormat()");
+        Expect((System.Array.IndexOf(formats, (int)ResourceTextSerializer.Format.Toml) >= 0) == ClassDB.ClassExists("TOML"), "GetAvailableFormats() lists Format.Toml exactly when the TOML module is built");
+        Expect(ResourceTextSerializer.IsFormatAvailable(ResourceTextSerializer.Format.Xml) && !ResourceTextSerializer.IsFormatAvailable(ResourceTextSerializer.Format.Yaml), "IsFormatAvailable()");
+        ExpectEqual(ResourceTextSerializer.GetFormatFromExtension(".JSON"), ResourceTextSerializer.Format.Json, "GetFormatFromExtension() ignores case and dot");
         Expect(!ClassDB.ClassHasMethod("ResourceTextSerializer", "resource_to_json") && !ClassDB.ClassHasMethod("ResourceTextSerializer", "resource_to_xml"), "per-format methods are replaced by Serialize()/Deserialize()");
         if (ClassDB.ClassExists("TOML"))
         {
@@ -87,7 +88,7 @@ public partial class Issue68FeatureXmlAndUnifiedSerializerCheck : FeatureCheckCs
 
     private void CheckXmlText()
     {
-        string text = ResourceTextSerializer.Serialize(MakeItem("Sword", 1), "xml");
+        string text = ResourceTextSerializer.Serialize(MakeItem("Sword", 1), ResourceTextSerializer.Format.Xml);
         string expected = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
             + "<resource type=\"Issue68GdItem\" format_version=\"1\">\n"
             + "  <name>Sword</name>\n"
@@ -98,8 +99,11 @@ public partial class Issue68FeatureXmlAndUnifiedSerializerCheck : FeatureCheckCs
             + "  <code kind=\"string\">007</code>\n"
             + "</resource>\n";
         ExpectEqual(text, expected, "XML text of a flat resource");
-        string oneLine = ResourceTextSerializer.Serialize(MakeItem("Sword", 1), "xml", new Dictionary { { "indent", "" }, { "enums_as_names", false } });
+        string oneLine = ResourceTextSerializer.Serialize(MakeItem("Sword", 1), ResourceTextSerializer.Format.Xml, new SerializerOptions { Indent = "", EnumsAsNames = false });
         Expect(!oneLine.Contains('\n') && oneLine.Contains("<rarity>5</rarity>"), "XML options indent and enums_as_names");
+        string bare = ResourceTextSerializer.Serialize(MakeItem("Sword", 1), ResourceTextSerializer.Format.Xml, new SerializerOptions { XmlDeclaration = false, IncludeTypeMarker = false });
+        Expect(bare.StartsWith("<resource format_version=\"1\">"), "XML options XmlDeclaration and IncludeTypeMarker");
+        Expect(ResourceTextSerializer.Deserialize(bare, ResourceTextSerializer.Format.Xml, "Issue68GdItem") != null, "XML without type marker reads with a type hint");
     }
 
     private void CheckInventory(Resource loaded, string label)
@@ -130,11 +134,11 @@ public partial class Issue68FeatureXmlAndUnifiedSerializerCheck : FeatureCheckCs
 
     private void CheckXmlRoundTrip()
     {
-        string text = ResourceTextSerializer.Serialize(MakeInventory(), "xml");
+        string text = ResourceTextSerializer.Serialize(MakeInventory(), ResourceTextSerializer.Format.Xml);
         Expect(text.Contains("<resource type=\"Issue68GdInventory\" format_version=\"1\">"), "XML root element with type marker");
         Expect(text.Contains("<entry key=\"my key\">20</entry>") && text.Contains("<none kind=\"null\"/>"), "XML entry key and null");
-        CheckInventory(ResourceTextSerializer.Deserialize(text, "xml"), "deserialize xml");
-        CheckInventory(ResourceTextSerializer.Deserialize(text, "xml", "Issue68GdInventory"), "deserialize xml with type hint");
+        CheckInventory(ResourceTextSerializer.Deserialize(text, ResourceTextSerializer.Format.Xml), "deserialize xml");
+        CheckInventory(ResourceTextSerializer.Deserialize(text, ResourceTextSerializer.Format.Xml, "Issue68GdInventory"), "deserialize xml with type hint");
     }
 
     private void CheckXmlFiles()
@@ -156,13 +160,14 @@ public partial class Issue68FeatureXmlAndUnifiedSerializerCheck : FeatureCheckCs
         Resource inv = MakeInventory();
         foreach (string ext in new[] { "json", "ini", "xml", "toml" })
         {
-            if (!ResourceTextSerializer.HasFormat(ext))
+            var format = ResourceTextSerializer.GetFormatFromExtension(ext);
+            if (!ResourceTextSerializer.IsFormatAvailable(format))
             {
                 continue;
             }
             string path = Root + "same." + ext;
             ExpectEqual(ResourceSaver.Save(inv, path), Error.Ok, $"save as .{ext}");
-            ExpectEqual(ResourceTextSerializer.Serialize(inv, ext), FileAccess.GetFileAsString(path), $"Serialize(res, \"{ext}\") gives the file text");
+            ExpectEqual(ResourceTextSerializer.Serialize(inv, format), FileAccess.GetFileAsString(path), $"Serialize(res, {format}) gives the file text");
         }
 
         Resource list = New("item_list.gd");
@@ -170,9 +175,10 @@ public partial class Issue68FeatureXmlAndUnifiedSerializerCheck : FeatureCheckCs
         entries.Add(MakeItem("Potion", 3));
         entries.Add(MakeItem("Bread, \"fresh\"", 2));
         ExpectEqual(ResourceSaver.Save(list, Root + "same.csv"), Error.Ok, "save as .csv");
-        ExpectEqual(ResourceTextSerializer.Serialize(list, "csv"), FileAccess.GetFileAsString(Root + "same.csv"), "Serialize(res, \"csv\") gives the file text");
-        string semicolons = ResourceTextSerializer.Serialize(list, "csv", new Dictionary { { "delimiter", ";" } });
-        Resource back = ResourceTextSerializer.Deserialize(semicolons, "csv", "Issue68GdItemList", new Dictionary { { "delimiter", ";" } });
+        ExpectEqual(ResourceTextSerializer.Serialize(list, ResourceTextSerializer.Format.Csv), FileAccess.GetFileAsString(Root + "same.csv"), "Serialize(res, Format.Csv) gives the file text");
+        var csvOptions = new SerializerOptions { CsvDelimiter = ";" };
+        string semicolons = ResourceTextSerializer.Serialize(list, ResourceTextSerializer.Format.Csv, csvOptions);
+        Resource back = ResourceTextSerializer.Deserialize(semicolons, ResourceTextSerializer.Format.Csv, "Issue68GdItemList", csvOptions);
         Expect(IsScript(back, "item_list.gd") && ((Array)back.Get("entries")).Count == 2 && SameItem(((Array)back.Get("entries"))[1], entries[1]), "csv with type hint and delimiter option");
     }
 
