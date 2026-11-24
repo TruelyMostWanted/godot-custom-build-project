@@ -84,10 +84,10 @@ public partial class Issue74FeatureAudioMixerServerCheck : FeatureCheckCs
         layout.AddChannel(ambience);
         layout.AddChannel(MakeChannel("playlist"));
         var sfx = MakeChannel("sfx");
-        sfx.Polyphony = 2;
+        sfx.MaxPolyphony = 2;
         layout.AddChannel(sfx);
-        AudioMixerServer.LoadLayout(layout);
-        Expect(AudioMixerServer.GetChannelNames().SequenceEqual(["music", "ambience", "playlist", "sfx"]), "load_layout adds the channels in order");
+        AudioMixerServer.ApplyLayout(layout);
+        Expect(AudioMixerServer.GetChannelNames().SequenceEqual(["music", "ambience", "playlist", "sfx"]), "apply_layout adds the channels in order");
         Expect(AudioMixerServer.GetChannel("ambience") == ambience, "get_channel returns the definition");
 
         AudioMixerServer.ChannelStarted += OnChannelStarted;
@@ -109,26 +109,26 @@ public partial class Issue74FeatureAudioMixerServerCheck : FeatureCheckCs
         ExpectEqual(_queueFinished, 1, "queue_finished is emitted after the last entry");
         Expect(!AudioMixerServer.IsPlaying("playlist"), "the channel stops after the last entry");
 
-        // 2. next(), previous() and change_index() jump with a cross-fade.
+        // 2. play_next(), play_previous() and set_queue_index() jump with a cross-fade.
         for (int i = 0; i < 3; i++)
         {
             AudioMixerServer.Enqueue("music", MakeWav(30.0));
         }
         AudioMixerServer.Play("music");
-        ExpectEqual(AudioMixerServer.GetIndex("music"), 0, "play() starts at the first entry");
-        AudioMixerServer.Next("music");
-        ExpectEqual(AudioMixerServer.GetIndex("music"), 1, "next() moves to entry 1");
-        ExpectEqual(AudioMixerServer.GetVoiceCount("music"), 2, "next() cross-fades: two voices");
-        Expect(AudioMixerServer.IsFading("music"), "next() fades");
+        ExpectEqual(AudioMixerServer.GetQueueIndex("music"), 0, "play() starts at the first entry");
+        AudioMixerServer.PlayNext("music");
+        ExpectEqual(AudioMixerServer.GetQueueIndex("music"), 1, "play_next() moves to entry 1");
+        ExpectEqual(AudioMixerServer.GetVoiceCount("music"), 2, "play_next() cross-fades: two voices");
+        Expect(AudioMixerServer.IsFading("music"), "play_next() fades");
         await Wait(0.6);
         ExpectEqual(AudioMixerServer.GetVoiceCount("music"), 1, "the old voice is stopped after the cross-fade");
         Expect(Mathf.IsEqualApprox(AudioMixerServer.GetFadeGain("music"), 1.0f), "the new voice is at full volume");
-        AudioMixerServer.Previous("music");
-        ExpectEqual(AudioMixerServer.GetIndex("music"), 0, "previous() moves to entry 0");
-        AudioMixerServer.ChangeIndex("music", 2, 0.2f);
-        ExpectEqual(AudioMixerServer.GetIndex("music"), 2, "change_index() moves to entry 2");
+        AudioMixerServer.PlayPrevious("music");
+        ExpectEqual(AudioMixerServer.GetQueueIndex("music"), 0, "play_previous() moves to entry 0");
+        AudioMixerServer.SetQueueIndex("music", 2, 0.2f);
+        ExpectEqual(AudioMixerServer.GetQueueIndex("music"), 2, "set_queue_index() moves to entry 2");
         await Wait(0.5);
-        ExpectEqual(AudioMixerServer.GetVoiceCount("music"), 1, "one voice after change_index()");
+        ExpectEqual(AudioMixerServer.GetVoiceCount("music"), 1, "one voice after set_queue_index()");
 
         // 3. Equal-power cross-fade and fade-out.
         _fadesFinished = 0;
@@ -157,7 +157,7 @@ public partial class Issue74FeatureAudioMixerServerCheck : FeatureCheckCs
         {
             AudioMixerServer.PlayOneShot("sfx", MakeWav(5.0));
         }
-        ExpectEqual(AudioMixerServer.GetVoiceCount("sfx"), 2, "one-shots are limited by polyphony");
+        ExpectEqual(AudioMixerServer.GetVoiceCount("sfx"), 2, "one-shots are limited by max_polyphony");
         AudioMixerServer.Stop("sfx");
         ExpectEqual(AudioMixerServer.GetVoiceCount("sfx"), 0, "stop() stops the one-shots");
 
@@ -189,6 +189,6 @@ public partial class Issue74FeatureAudioMixerServerCheck : FeatureCheckCs
         AudioMixerServer.QueueFinished -= OnQueueFinished;
         AudioMixerServer.FadeFinished -= OnFadeFinished;
         AudioMixerServer.StopAll();
-        AudioMixerServer.LoadLayout(new AudioMixerLayout());
+        AudioMixerServer.ApplyLayout(new AudioMixerLayout());
     }
 }

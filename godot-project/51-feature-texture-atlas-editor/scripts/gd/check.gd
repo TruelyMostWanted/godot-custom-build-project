@@ -20,7 +20,7 @@ func _make_sheet(expected: Array[Rect2i]) -> Image:
 	return image
 
 
-func _same_regions(a: TextureAtlas, b: TextureAtlas) -> bool:
+func _same_regions(a: SpriteSheet, b: SpriteSheet) -> bool:
 	if a.get_region_names() != b.get_region_names():
 		return false
 	for region_name in a.get_region_names():
@@ -35,20 +35,20 @@ func _run_checks() -> void:
 	var image := _make_sheet(expected)
 
 	# Auto slice: 50 sprites of mixed sizes become 50 correct regions, in rows from left to right.
-	var found := TextureAtlas.detect_sprite_rects(image)
+	var found := SpriteSheet.detect_sprite_rects(image)
 	expect(found.size() == 50, "detect_sprite_rects finds 50 sprites (found %d)" % found.size())
 	var all_match := found.size() == 50
 	for i in mini(found.size(), 50):
 		all_match = all_match and found[i] == expected[i]
 	expect(all_match, "every detected rectangle matches its sprite, in row order")
-	expect(TextureAtlas.detect_sprite_rects(image, 0.99).size() == 50, "opaque sprites are found with a high alpha threshold too")
+	expect(SpriteSheet.detect_sprite_rects(image, 0.99).size() == 50, "opaque sprites are found with a high alpha threshold too")
 
 	# The same through a PNG file (as an editor user would paint it).
 	var png_path := USER_DIR + "sheet50.png"
 	expect(image.save_png(png_path) == OK, "the sheet is saved as PNG")
 	var loaded := Image.load_from_file(png_path)
 	var sheet := ImageTexture.create_from_image(loaded)
-	var atlas := TextureAtlas.new()
+	var atlas := SpriteSheet.new()
 	atlas.texture = sheet
 	var names := atlas.auto_slice("enemy_")
 	expect(names.size() == 50 and names[0] == "enemy_0" and names[49] == "enemy_49", "auto_slice adds 50 regions named enemy_0 ... enemy_49")
@@ -56,9 +56,9 @@ func _run_checks() -> void:
 	expect(atlas.auto_slice("enemy_").is_empty(), "auto_slice again adds nothing")
 
 	# Grid and generated names ("Add from Grid" in the editor).
-	var cells := TextureAtlas.make_grid_rects(Vector2i(240, 120), Vector2i(24, 24))
+	var cells := SpriteSheet.make_grid_rects(Vector2i(240, 120), Vector2i(24, 24))
 	expect(cells.size() == 50 and cells[11] == Rect2i(24, 24, 24, 24), "make_grid_rects returns 10x5 cells, row by row")
-	var grid_atlas := TextureAtlas.new()
+	var grid_atlas := SpriteSheet.new()
 	grid_atlas.texture = sheet
 	var grid_names := grid_atlas.add_regions(cells, "cell_")
 	expect(grid_names.size() == 50 and grid_atlas.get_region("cell_11") == Rect2i(24, 24, 24, 24), "add_regions adds the grid cells with generated names")
@@ -71,20 +71,20 @@ func _run_checks() -> void:
 	atlas.set_region_margin("boss", Rect2i(1, 2, 3, 4))
 	var tres_path := USER_DIR + "enemies.atlas.tres"
 	expect(ResourceSaver.save(atlas, tres_path) == OK, "the atlas is saved as .tres")
-	var reloaded: TextureAtlas = ResourceLoader.load(tres_path, "", ResourceLoader.CACHE_MODE_IGNORE)
+	var reloaded: SpriteSheet = ResourceLoader.load(tres_path, "", ResourceLoader.CACHE_MODE_IGNORE)
 	expect(reloaded != null and _same_regions(atlas, reloaded), ".tres keeps 50 regions, their order and the margin")
 	for extension in ["json", "csv", "ini"]:
 		var path: String = USER_DIR + "enemies." + extension
 		atlas.texture_path = png_path
 		expect(atlas.save_to_file(path) == OK, "export as " + extension)
 		# The editor imports into an atlas that has the sheet already; the same path keeps that texture.
-		var imported := TextureAtlas.new()
+		var imported := SpriteSheet.new()
 		imported.texture = sheet
 		imported.texture_path = png_path
 		expect(imported.load_from_file(path) == OK and _same_regions(atlas, imported), "import of the " + extension + " export gives the same regions")
 
 	# "Create SpriteFrames" from selected regions: a copy with only the selected ones.
-	var selected := TextureAtlas.new()
+	var selected := SpriteSheet.new()
 	selected.texture = sheet
 	for region_name in ["enemy_12", "enemy_10", "enemy_11"]:
 		selected.set_region(region_name, atlas.get_region(region_name))
@@ -99,7 +99,7 @@ func _run_checks() -> void:
 
 	# "Assign to Selected Nodes": a Sprite2D shows the region.
 	var sprite := Sprite2D.new()
-	sprite.texture = atlas.get_texture("enemy_17")
+	sprite.texture = atlas.get_region_texture("enemy_17")
 	add_child(sprite)
 	await get_tree().process_frame
 	expect(sprite.get_rect().size == Vector2(expected[17].size), "a Sprite2D with the region texture has the sprite size")

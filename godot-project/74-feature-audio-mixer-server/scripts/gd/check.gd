@@ -64,10 +64,10 @@ func _run_checks() -> void:
 	layout.add_channel(ambience)
 	layout.add_channel(_make_channel(&"playlist"))
 	var sfx := _make_channel(&"sfx")
-	sfx.polyphony = 2
+	sfx.max_polyphony = 2
 	layout.add_channel(sfx)
-	AudioMixerServer.load_layout(layout)
-	expect_equal(AudioMixerServer.get_channel_names(), PackedStringArray(["music", "ambience", "playlist", "sfx"]), "load_layout adds the channels in order")
+	AudioMixerServer.apply_layout(layout)
+	expect_equal(AudioMixerServer.get_channel_names(), PackedStringArray(["music", "ambience", "playlist", "sfx"]), "apply_layout adds the channels in order")
 	expect(AudioMixerServer.get_channel(&"ambience") == ambience, "get_channel returns the definition")
 
 	AudioMixerServer.channel_started.connect(_on_channel_started)
@@ -87,24 +87,24 @@ func _run_checks() -> void:
 	expect(_queue_finished == 1, "queue_finished is emitted after the last entry")
 	expect(not AudioMixerServer.is_playing(&"playlist"), "the channel stops after the last entry")
 
-	# 2. next(), previous() and change_index() jump with a cross-fade.
+	# 2. play_next(), play_previous() and set_queue_index() jump with a cross-fade.
 	for i in 3:
 		AudioMixerServer.enqueue(&"music", _make_wav(30.0))
 	AudioMixerServer.play(&"music")
-	expect(AudioMixerServer.get_index(&"music") == 0, "play() starts at the first entry")
-	AudioMixerServer.next(&"music")
-	expect(AudioMixerServer.get_index(&"music") == 1, "next() moves to entry 1")
-	expect(AudioMixerServer.get_voice_count(&"music") == 2, "next() cross-fades: two voices")
-	expect(AudioMixerServer.is_fading(&"music"), "next() fades")
+	expect(AudioMixerServer.get_queue_index(&"music") == 0, "play() starts at the first entry")
+	AudioMixerServer.play_next(&"music")
+	expect(AudioMixerServer.get_queue_index(&"music") == 1, "play_next() moves to entry 1")
+	expect(AudioMixerServer.get_voice_count(&"music") == 2, "play_next() cross-fades: two voices")
+	expect(AudioMixerServer.is_fading(&"music"), "play_next() fades")
 	await _wait(0.6)
 	expect(AudioMixerServer.get_voice_count(&"music") == 1, "the old voice is stopped after the cross-fade")
 	expect(is_equal_approx(AudioMixerServer.get_fade_gain(&"music"), 1.0), "the new voice is at full volume")
-	AudioMixerServer.previous(&"music")
-	expect(AudioMixerServer.get_index(&"music") == 0, "previous() moves to entry 0")
-	AudioMixerServer.change_index(&"music", 2, 0.2)
-	expect(AudioMixerServer.get_index(&"music") == 2, "change_index() moves to entry 2")
+	AudioMixerServer.play_previous(&"music")
+	expect(AudioMixerServer.get_queue_index(&"music") == 0, "play_previous() moves to entry 0")
+	AudioMixerServer.set_queue_index(&"music", 2, 0.2)
+	expect(AudioMixerServer.get_queue_index(&"music") == 2, "set_queue_index() moves to entry 2")
 	await _wait(0.5)
-	expect(AudioMixerServer.get_voice_count(&"music") == 1, "one voice after change_index()")
+	expect(AudioMixerServer.get_voice_count(&"music") == 1, "one voice after set_queue_index()")
 
 	# 3. Equal-power cross-fade and fade-out.
 	_fades_finished = 0
@@ -131,7 +131,7 @@ func _run_checks() -> void:
 	expect(is_equal_approx(AudioMixerServer.get_channel_volume_db(&"sfx"), -12.0), "the channel volume reaches -12 dB")
 	for i in 3:
 		AudioMixerServer.play_one_shot(&"sfx", _make_wav(5.0))
-	expect(AudioMixerServer.get_voice_count(&"sfx") == 2, "one-shots are limited by polyphony")
+	expect(AudioMixerServer.get_voice_count(&"sfx") == 2, "one-shots are limited by max_polyphony")
 	AudioMixerServer.stop(&"sfx")
 	expect(AudioMixerServer.get_voice_count(&"sfx") == 0, "stop() stops the one-shots")
 
@@ -167,4 +167,4 @@ func _run_checks() -> void:
 	AudioMixerServer.queue_finished.disconnect(_on_queue_finished)
 	AudioMixerServer.fade_finished.disconnect(_on_fade_finished)
 	AudioMixerServer.stop_all()
-	AudioMixerServer.load_layout(AudioMixerLayout.new())
+	AudioMixerServer.apply_layout(AudioMixerLayout.new())
