@@ -128,7 +128,7 @@ public partial class Issue89FeatureStreamingAssetsExportPluginCheck : FeatureChe
         ExpectEqual(StreamingAssetsExportPlugin.ResolvePlacement(windows, "C:/build/Game.pck", none), StreamingAssetsExportPlugin.Placement.External, "Windows .pck only: external");
         ExpectEqual(StreamingAssetsExportPlugin.ResolvePlacement(linux, "/build/Game.x86_64", embed), StreamingAssetsExportPlugin.Placement.External, "Linux executable: external");
         ExpectEqual(StreamingAssetsExportPlugin.ResolvePlacement(windows, "C:/build/Game.zip", embed), StreamingAssetsExportPlugin.Placement.Embed, ".zip export: fallback embed");
-        ExpectEqual(StreamingAssetsExportPlugin.ResolvePlacement(macos, "/build/Game.app", embed), StreamingAssetsExportPlugin.Placement.Embed, "macOS: fallback until #90");
+        ExpectEqual(StreamingAssetsExportPlugin.ResolvePlacement(macos, "/build/Game.app", embed), StreamingAssetsExportPlugin.Placement.Bundle, "macOS: bundle resources (#90)");
         ExpectEqual(StreamingAssetsExportPlugin.ResolvePlacement(android, "/build/Game.apk", embed), StreamingAssetsExportPlugin.Placement.Embed, "Android: fallback embed");
         ExpectEqual(StreamingAssetsExportPlugin.ResolvePlacement(web, "/build/index.html", embed), StreamingAssetsExportPlugin.Placement.Embed, "Web: fallback embed");
         ExpectEqual(StreamingAssetsExportPlugin.ResolvePlacement(web, "/build/index.html", none), StreamingAssetsExportPlugin.Placement.None, "Web: fallback none");
