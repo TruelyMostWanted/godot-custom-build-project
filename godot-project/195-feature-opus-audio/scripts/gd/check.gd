@@ -51,7 +51,7 @@ func _run_checks() -> void:
 	expect(AudioStreamOpus.load_from_buffer(PackedByteArray([1, 2, 3, 4])) == null, "load_from_buffer of garbage gives null")
 
 	# Playback.
-	var playback := (from_buffer if from_buffer != null else imported).instantiate_playback()
+	var playback: AudioStreamPlayback = (from_buffer if from_buffer != null else imported).instantiate_playback()
 	expect(playback != null, "instantiate_playback returns a playback")
 	expect(playback is AudioStreamPlaybackOpus, "the playback is an AudioStreamPlaybackOpus")
 	playback.start(0.0)
