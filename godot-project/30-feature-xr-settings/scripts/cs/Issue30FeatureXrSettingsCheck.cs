@@ -109,10 +109,10 @@ public partial class Issue30FeatureXrSettingsCheck : FeatureCheckCs
         // The real OpenXR interface exists but is not initialized (no xr/openxr/enabled, no headset).
         Expect(!XRSettingsServer.IsInterfaceReady(), "no initialized OpenXR interface in the test project");
         Expect(!XRSettingsServer.IsSessionRunning(), "no XR session");
-        XRSettingsServer.SetFoveationLevel(XRSettings.FoveationLevel.High);
+        XRSettingsServer.SetFoveationLevel(XRSettings.FoveationLevelEnum.High);
         XRSettingsServer.SetGpuLevel(XRSettings.PerformanceLevel.Boost);
-        ExpectEqual(XRSettingsServer.GetFoveationLevel(), XRSettings.FoveationLevel.High, "the value is stored without a headset");
-        ExpectEqual(server.GetAppliedValue("foveation_level").AsInt32(), (int)XRSettings.FoveationLevel.High, "the value counts as applied");
+        ExpectEqual(XRSettingsServer.GetFoveationLevel(), XRSettings.FoveationLevelEnum.High, "the value is stored without a headset");
+        ExpectEqual(server.GetAppliedValue("foveation_level").AsInt32(), (int)XRSettings.FoveationLevelEnum.High, "the value counts as applied");
         var deferred = XRSettingsServer.GetDeferredSettingNames();
         Expect(Array.IndexOf(deferred, "foveation_level") >= 0, "foveation_level waits for the headset");
         Expect(Array.IndexOf(deferred, "gpu_level") >= 0, "gpu_level waits for the headset");
@@ -129,7 +129,7 @@ public partial class Issue30FeatureXrSettingsCheck : FeatureCheckCs
         Expect(XRSettingsServer.GetInterface() == fake, "SetInterfaceOverride()");
 
         XRSettingsServer.SetRenderTargetSizeMultiplier(1.5f);
-        XRSettingsServer.SetFoveationLevel(XRSettings.FoveationLevel.Low);
+        XRSettingsServer.SetFoveationLevel(XRSettings.FoveationLevelEnum.Low);
         XRSettingsServer.SetFoveationDynamic(true);
         XRSettingsServer.SetDisplayRefreshRate(90.0f);
         XRSettingsServer.SetGpuLevel(XRSettings.PerformanceLevel.Boost);
@@ -152,7 +152,7 @@ public partial class Issue30FeatureXrSettingsCheck : FeatureCheckCs
         ExpectEqual(fake.Get("cpu_level").AsInt32(), -1, "the runtime default CPU level is never pushed");
         ExpectEqual(fake.Call("get_motion_range", 0).AsInt32(), 1, "left motion range pushed");
 
-        XRSettingsServer.SetFoveationLevel(XRSettings.FoveationLevel.High);
+        XRSettingsServer.SetFoveationLevel(XRSettings.FoveationLevelEnum.High);
         ExpectEqual(fake.Get("foveation_level").AsInt32(), 3, "changes during the session reach the interface at once");
 
         fake.Call("stop_session");
@@ -201,8 +201,8 @@ public partial class Issue30FeatureXrSettingsCheck : FeatureCheckCs
         Expect(server.IsValueSupported("vrs_strength"), "IsValueSupported(\"vrs_strength\")");
         Expect(!server.IsValueSupported("foveation_level"), "IsValueSupported(\"foveation_level\") is false");
 
-        XRSettingsServer.SetFoveationLevel(XRSettings.FoveationLevel.High);
-        ExpectEqual(XRSettingsServer.GetFoveationLevel(), XRSettings.FoveationLevel.High, "an unsupported value is stored");
+        XRSettingsServer.SetFoveationLevel(XRSettings.FoveationLevelEnum.High);
+        ExpectEqual(XRSettingsServer.GetFoveationLevel(), XRSettings.FoveationLevelEnum.High, "an unsupported value is stored");
         ExpectEqual(fake.Get("foveation_level").AsInt32(), 0, "an unsupported value is not pushed");
         Expect(Array.IndexOf(XRSettingsServer.GetDeferredSettingNames(), "foveation_level") < 0, "an unsupported value is not deferred");
         XRSettingsServer.SetVrsMinRadius(40.0f);
@@ -224,13 +224,13 @@ public partial class Issue30FeatureXrSettingsCheck : FeatureCheckCs
         server.Connect("hand_tracking_enabled_changed", onHands);
 
         server.ApplyMode = SettingsServer.ApplyModeEnum.Manual;
-        XRSettingsServer.SetFoveationLevel(XRSettings.FoveationLevel.Medium);
+        XRSettingsServer.SetFoveationLevel(XRSettings.FoveationLevelEnum.Medium);
         ExpectEqual(levels.Count, 0, "foveation_level_changed does not fire for a pending change in manual mode");
         server.Apply();
         ExpectEqual(levels.Count, 1, "foveation_level_changed fires once on Apply(), also without a headset");
         if (levels.Count > 0)
         {
-            ExpectEqual(levels[0].AsInt32(), (int)XRSettings.FoveationLevel.Medium, "foveation_level_changed passes the applied value");
+            ExpectEqual(levels[0].AsInt32(), (int)XRSettings.FoveationLevelEnum.Medium, "foveation_level_changed passes the applied value");
         }
         server.Apply();
         ExpectEqual(levels.Count, 1, "no signal when nothing changed");
@@ -251,7 +251,7 @@ public partial class Issue30FeatureXrSettingsCheck : FeatureCheckCs
     private void CheckStorage()
     {
         var server = XRSettingsServer.Singleton;
-        XRSettingsServer.SetFoveationLevel(XRSettings.FoveationLevel.Low);
+        XRSettingsServer.SetFoveationLevel(XRSettings.FoveationLevelEnum.Low);
         XRSettingsServer.SetRenderTargetSizeMultiplier(1.25f);
         XRSettingsServer.SetCpuLevel(XRSettings.PerformanceLevel.SustainedHigh);
         XRSettingsServer.SetRightHandMotionRange(XRSettings.HandMotionRange.ConformToController);
@@ -262,7 +262,7 @@ public partial class Issue30FeatureXrSettingsCheck : FeatureCheckCs
         server.ApplyMode = SettingsServer.ApplyModeEnum.Manual;
         server.ResetToDefaults();
         ExpectEqual(server.Load(), Error.Ok, "Load()");
-        ExpectEqual(XRSettingsServer.GetFoveationLevel(), XRSettings.FoveationLevel.Low, "foveation level loaded");
+        ExpectEqual(XRSettingsServer.GetFoveationLevel(), XRSettings.FoveationLevelEnum.Low, "foveation level loaded");
         Expect(Approx(XRSettingsServer.GetRenderTargetSizeMultiplier(), 1.25), "render scale loaded");
         ExpectEqual(XRSettingsServer.GetCpuLevel(), XRSettings.PerformanceLevel.SustainedHigh, "CPU level loaded");
         ExpectEqual(XRSettingsServer.GetRightHandMotionRange(), XRSettings.HandMotionRange.ConformToController, "right motion range loaded");
