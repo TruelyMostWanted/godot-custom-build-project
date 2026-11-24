@@ -39,7 +39,7 @@ public partial class Issue11FeatureSeedServerCheck : FeatureCheckCs
         SeedServer.Clear();
 
         // Seed from text: stable value.
-        Expect(SeedServer.TextToSeed(DailyText) == DailySeed, "text_to_seed gives the golden value");
+        Expect(SeedServer.GetSeedFromText(DailyText) == DailySeed, "GetSeedFromText gives the golden value");
         Expect(SeedServer.SetSeedFromText(DailyText) == DailySeed, "set_seed_from_text returns the seed");
         Expect(SeedServer.GlobalSeed == DailySeed, "set_seed_from_text sets global_seed");
 
@@ -106,8 +106,8 @@ public partial class Issue11FeatureSeedServerCheck : FeatureCheckCs
         SeedServer.GlobalSeed = 99;
         Expect(custom.Seed != before, "changing the global seed reseeds registered noise");
         Expect(SeedServer.GetNoiseNames().SequenceEqual(["caves", "terrain"]), "get_noise_names is sorted");
-        SeedServer.RemoveNoise("caves");
-        Expect(!SeedServer.HasNoise("caves"), "remove_noise removes a noise");
+        SeedServer.UnregisterNoise("caves");
+        Expect(!SeedServer.HasNoise("caves"), "UnregisterNoise removes a noise");
 
         // Global functions.
         SeedServer.SeedGlobalFunctions = true;
