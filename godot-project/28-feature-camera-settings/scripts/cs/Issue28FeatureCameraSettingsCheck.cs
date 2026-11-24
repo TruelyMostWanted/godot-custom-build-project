@@ -14,7 +14,7 @@ namespace TruelyInteractive.Issue28FeatureCameraSettings;
 /// </summary>
 public partial class Issue28FeatureCameraSettingsCheck : FeatureCheckCs
 {
-    private const string CameraFile = "user://settings/camera.ini";
+    private const string CameraFile = "user://settings/camera_3d.ini";
 
     private static readonly string[] Names =
     {

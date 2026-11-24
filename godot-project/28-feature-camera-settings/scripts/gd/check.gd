@@ -4,7 +4,7 @@ extends FeatureCheck
 ## The camera values go to the Camera3D nodes in the group "camera_3d_settings" and to added cameras, at once.
 ## Cameras outside the group keep their authored values. The motion values are game-side (never pushed).
 
-const CAMERA_FILE := "user://settings/camera.ini"
+const CAMERA_FILE := "user://settings/camera_3d.ini"
 const NAMES := ["enabled", "field_of_view", "keep_aspect", "near", "far", "shake_intensity", "head_bob_intensity", "motion_blur_intensity"]
 const GAME_SIDE := ["shake_intensity", "head_bob_intensity", "motion_blur_intensity"]
 
