@@ -22,6 +22,7 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
     {
         CheckInputAction();
         CheckInputActions();
+        CheckResourceFiles();
         CheckLayers();
         CheckSetInputAction();
         CheckParseCost();
@@ -55,11 +56,11 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
         ExpectEqual(action.Action.ToString(), "l172_demo", "action name");
         Expect(Approx((float)action.Deadzone, 0.4f), "deadzone");
 
-        action.Bindings = "Key:Ctrl+S; JoypadButton:A";
-        ExpectEqual(action.GetEventCount(), 2, "bindings text gives two events");
+        action.Events = InputMapSettingsServer.TextToEvents("Key:Ctrl+S; JoypadButton:A");
+        ExpectEqual(action.GetEventCount(), 2, "the text form gives two events");
         Expect(action.Events[0] is InputEventKey, "the first event is a key");
         Expect(action.Events[1] is InputEventJoypadButton, "the second event is a joypad button");
-        ExpectEqual(action.Bindings, "Key:Ctrl+S; JoypadButton:A", "bindings round trip");
+        ExpectEqual(InputMapSettingsServer.EventsToText(action.Events), "Key:Ctrl+S; JoypadButton:A", "bindings round trip");
         ExpectEqual(action.GetDeviceEvents(InputAction.InputDevice.Keyboard).Count, 1, "one keyboard event");
         ExpectEqual(action.GetDeviceEvents(InputAction.InputDevice.Gamepad).Count, 1, "one gamepad event");
         ExpectEqual(action.GetDeviceEvents(InputAction.InputDevice.Mouse).Count, 0, "no mouse event");
@@ -73,16 +74,16 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
         Expect(action.RemoveEvent(mouse), "RemoveEvent() finds the event");
         Expect(!action.RemoveEvent(mouse), "RemoveEvent() of a missing event is false");
         action.Events = new Godot.Collections.Array<InputEvent> { PressedKey(Key.W) };
-        ExpectEqual(action.Bindings, "PhysicalKey:W", "setting events updates the bindings text");
+        ExpectEqual(InputMapSettingsServer.EventsToText(action.Events), "PhysicalKey:W", "setting events updates the bindings text");
         action.ClearEvents();
         ExpectEqual(action.GetEventCount(), 0, "ClearEvents()");
-        ExpectEqual(action.Bindings, "", "no events, no bindings text");
+        ExpectEqual(InputMapSettingsServer.EventsToText(action.Events), "", "no events, no bindings text");
 
         // Touch has no text form: kept in events, left out of bindings.
         action.AddEvent(new InputEventScreenTouch());
         action.AddEvent(InputAction.TextToEvent("Key:Space"));
         ExpectEqual(action.GetEventCount(), 2, "touch and key are both events");
-        ExpectEqual(action.Bindings, "Key:Space", "touch is not part of the bindings text");
+        ExpectEqual(InputMapSettingsServer.EventsToText(action.Events), "Key:Space", "touch is not part of the bindings text");
 
         string[] texts = ["Key:Ctrl+S", "PhysicalKey:W", "MouseButton:Ctrl+WheelUp", "JoypadButton:LeftShoulder", "JoypadMotion:LeftX+"];
         foreach (string text in texts)
@@ -111,8 +112,8 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
     {
         var list = new InputActions();
         ExpectEqual(list.GetActionCount(), 0, "a new InputActions is empty");
-        var jump = new InputAction { Action = "l172_jump", Bindings = "Key:Space" };
-        var fire = new InputAction { Action = "l172_fire", Bindings = "MouseButton:Left" };
+        var jump = new InputAction { Action = "l172_jump", Events = InputMapSettingsServer.TextToEvents("Key:Space") };
+        var fire = new InputAction { Action = "l172_fire", Events = InputMapSettingsServer.TextToEvents("MouseButton:Left") };
         list.AddAction(jump);
         list.AddAction(fire);
         ExpectEqual(list.GetActionCount(), 2, "two actions");
@@ -122,7 +123,7 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
         Expect(list.GetAction("l172_none") == null, "GetAction() of a missing name is null");
         ExpectEqual(Names(list), "l172_jump,l172_fire", "names in insertion order");
 
-        var jump2 = new InputAction { Action = "l172_jump", Bindings = "Key:W" };
+        var jump2 = new InputAction { Action = "l172_jump", Events = InputMapSettingsServer.TextToEvents("Key:W") };
         list.AddAction(jump2);
         ExpectEqual(list.GetActionCount(), 2, "adding a name again replaces the action");
         Expect(list.GetAction("l172_jump") == jump2, "the new action replaced the old one");
@@ -142,11 +143,61 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
         Expect(list.GetAction("l172_jump") == jump2, "set Actions: the later one is kept");
     }
 
+    private void CheckResourceFiles()
+    {
+        // Events is a stored property: .tres and .res keep the events as sub-resources.
+        bool stored = false;
+        foreach (Godot.Collections.Dictionary property in new InputAction().GetPropertyList())
+        {
+            string name = property["name"].AsString();
+            long usage = property["usage"].AsInt64();
+            if (name == "events")
+            {
+                stored = (usage & (long)PropertyUsageFlags.Storage) != 0 && (usage & (long)PropertyUsageFlags.Editor) != 0;
+            }
+            Expect(name != "bindings", "InputAction has no bindings property");
+        }
+        Expect(stored, "events is stored and shown in the Inspector");
+
+        var list = new InputActions();
+        var jump = new InputAction { Action = "l172_file_jump", Deadzone = 0.5f };
+        jump.Events = InputMapSettingsServer.TextToEvents("Key:Space; PhysicalKey:Ctrl+W; MouseButton:Right; JoypadButton:A@1; JoypadMotion:LeftY-");
+        jump.AddEvent(new InputEventScreenTouch { Index = 2 });
+        list.AddAction(jump);
+        list.AddAction(new InputAction { Action = "l172_file_empty" });
+        foreach (string path in new[] { "user://l172_actions_cs.tres", "user://l172_actions_cs.res" })
+        {
+            ExpectEqual(ResourceSaver.Save(list, path), Error.Ok, $"save {path}");
+            var loaded = ResourceLoader.Load(path, "", ResourceLoader.CacheMode.Ignore) as InputActions;
+            Expect(loaded != null && loaded != list, $"load {path}");
+            if (loaded == null)
+            {
+                continue;
+            }
+            ExpectEqual(string.Join(",", loaded.GetActionNames()), "l172_file_jump,l172_file_empty", $"{path}: action names");
+            InputAction read = loaded.GetAction("l172_file_jump");
+            Expect(Approx((float)read.Deadzone, 0.5f), $"{path}: deadzone");
+            ExpectEqual(read.GetEventCount(), 6, $"{path}: all events, touch too");
+            ExpectEqual(InputMapSettingsServer.EventsToText(read.Events), InputMapSettingsServer.EventsToText(jump.Events), $"{path}: the same events");
+            Expect(read.Events[5] is InputEventScreenTouch touch && touch.Index == 2, $"{path}: the touch event");
+            ExpectEqual(loaded.GetAction("l172_file_empty").GetEventCount(), 0, $"{path}: an action without events");
+        }
+        string text = FileAccess.GetFileAsString("user://l172_actions_cs.tres");
+        Expect(text.Contains("events = Array[InputEvent]([SubResource("), ".tres: events as sub-resources");
+        Expect(text.Contains("deadzone = 0.5"), ".tres: the deadzone that is not the default");
+        Expect(!text.Contains("bindings"), ".tres: no text form");
+
+        // The text form of InputMapSettingsServer: one pad with @<device>, events without text left out.
+        ExpectEqual(InputMapSettingsServer.EventsToText(jump.Events), "Key:Space; PhysicalKey:Ctrl+W; MouseButton:Right; JoypadButton:A@1; JoypadMotion:LeftY-", "EventsToText()");
+        ExpectEqual(InputMapSettingsServer.TextToEvents("Key:Space; NotAType:X").Count, 1, "TextToEvents() skips invalid items");
+        ExpectEqual(InputMapSettingsServer.TextToEvents("JoypadButton:A@1")[0].Device, 1, "TextToEvents(): the pad");
+    }
+
     private void CheckLayers()
     {
         Expect(InputMap.IsBuiltinInputAction("ui_accept"), "ui_accept is built-in");
         Expect(!InputMap.IsCustomInputAction("ui_accept"), "ui_accept is not custom");
-        Expect(InputMap.IsBuiltinInputAction("ui_text_backspace_word.macos"), "a feature variant of a built-in action is built-in");
+        Expect(!InputMap.IsCustomInputAction("ui_text_backspace_word.macos"), "a platform variant of a built-in action is never custom");
         Expect(InputMap.IsCustomInputAction(Attack), "a project action is custom");
         Expect(!InputMap.IsBuiltinInputAction(Attack), "a project action is not built-in");
         Expect(!InputMap.IsCustomInputAction("l172_not_there"), "a missing action is not custom");
@@ -160,6 +211,8 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
         Expect(custom.HasAction(Attack), "the custom layer has the project action");
         Expect(!custom.HasAction("ui_accept"), "the custom layer has no built-in action");
         ExpectEqual(builtin.GetActionCount() + custom.GetActionCount(), InputMap.GetActions().Count, "the layers together are all actions");
+        ExpectEqual(InputMap.GetInputActions(InputMap.InputActionLayer.Builtin).GetInstanceId(), builtin.GetInstanceId(), "the built-in layer is the same object every time");
+        ExpectEqual(InputMap.GetInputActions(InputMap.InputActionLayer.Custom).GetInstanceId(), custom.GetInstanceId(), "the custom layer is the same object every time");
         foreach (StringName name in builtin.GetActionNames())
         {
             if (!InputMap.IsBuiltinInputAction(name))
@@ -172,15 +225,27 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
         InputAction attack = InputMap.GetInputAction(Attack);
         ExpectEqual(attack.Action.ToString(), "l172_attack", "GetInputAction() name");
         Expect(Approx((float)attack.Deadzone, 0.3f), "GetInputAction() deadzone from the project");
-        ExpectEqual(attack.Bindings, "Key:F", "GetInputAction() events as text");
-        attack.AddEvent(InputAction.TextToEvent("Key:H"));
-        ExpectEqual(InputMap.GetInputAction(Attack).GetEventCount(), 1, "the returned action is a copy");
+        ExpectEqual(InputMapSettingsServer.EventsToText(attack.Events), "Key:F", "GetInputAction() events as text");
+        ExpectEqual(attack.GetInstanceId(), custom.GetAction(Attack).GetInstanceId(), "GetInputAction() is the action of the custom layer");
+        InputEvent keyH = InputAction.TextToEvent("Key:H");
+        attack.AddEvent(keyH);
+        Expect(IsAction(PressedKey(Key.H), Attack), "an event added to the returned action works");
+        attack.RemoveEvent(keyH);
+        Expect(!IsAction(PressedKey(Key.H), Attack), "an event removed from the returned action no longer works");
+        ExpectEqual(InputMap.GetInputAction(Attack).GetEventCount(), 1, "one event again");
+
+        // Direct edits of a layer reach the InputMap.
+        custom.AddAction(new InputAction { Action = "l172_direct", Events = InputMapSettingsServer.TextToEvents("Key:F9") });
+        Expect(InputMap.HasAction("l172_direct"), "an action added to the custom layer is in the InputMap");
+        Expect(IsAction(PressedKey(Key.F9), "l172_direct"), "its key works");
+        Expect(custom.RemoveAction("l172_direct"), "remove it from the layer");
+        Expect(!InputMap.HasAction("l172_direct"), "an action removed from the layer is gone from the InputMap");
     }
 
     private void CheckSetInputAction()
     {
         InputAction original = InputMap.GetInputAction(Attack);
-        var changed = new InputAction { Action = Attack, Deadzone = 0.6f, Bindings = "Key:G" };
+        var changed = new InputAction { Action = Attack, Deadzone = 0.6f, Events = InputMapSettingsServer.TextToEvents("Key:G") };
         InputMap.SetInputAction(changed);
         Expect(IsAction(PressedKey(Key.G), Attack), "SetInputAction(): the new key works");
         Expect(!IsAction(PressedKey(Key.F), Attack), "SetInputAction(): the old key no longer works");
@@ -193,7 +258,7 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
         var extra = new InputActions();
         for (int n = 0; n < 2; n++)
         {
-            extra.AddAction(new InputAction { Action = $"l172_extra_{n}", Bindings = $"Key:F{n + 5}" });
+            extra.AddAction(new InputAction { Action = $"l172_extra_{n}", Events = InputMapSettingsServer.TextToEvents($"Key:F{n + 5}") });
         }
         InputMap.SetInputActions(extra);
         Expect(InputMap.HasAction("l172_extra_0") && InputMap.HasAction("l172_extra_1"), "SetInputActions() adds new actions");
@@ -264,7 +329,7 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
         Expect(!IsAction(PressedKey(Key.F), Attack), "the old key no longer works");
         ExpectEqual(InputMapSettingsServer.Rebind(Attack, PressedKey(Key.Y), 1), Error.Ok, "Rebind() slot 1");
         ExpectEqual(InputMapSettingsServer.GetSlotCount(Attack, InputAction.InputDevice.Keyboard), 2, "two keyboard slots");
-        Expect(InputMapSettingsServer.GetInputAction(Attack).Bindings.Contains("PhysicalKey:Y"), "GetInputAction() shows both keys");
+        Expect(InputMapSettingsServer.EventsToText(InputMapSettingsServer.GetInputAction(Attack).Events).Contains("PhysicalKey:Y"), "GetInputAction() shows both keys");
 
         InputMapSettingsServer.ClearEvent(Attack, InputAction.InputDevice.Keyboard, 0);
         ExpectEqual(InputMapSettingsServer.GetSlotCount(Attack, InputAction.InputDevice.Keyboard), 1, "ClearEvent() removes the slot");
@@ -275,7 +340,7 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
         InputMapSettingsServer.ResetAction(Attack);
         Expect(IsAction(PressedKey(Key.F), Attack), "ResetAction(): F works again");
         Expect(!IsAction(PressedKey(Key.Y), Attack), "ResetAction(): Y no longer works");
-        ExpectEqual(InputMapSettingsServer.GetInputAction(Attack).Bindings, "Key:F", "ResetAction(): the project bindings");
+        ExpectEqual(InputMapSettingsServer.EventsToText(InputMapSettingsServer.GetInputAction(Attack).Events), "Key:F", "ResetAction(): the project bindings");
 
         InputMapSettingsServer.Rebind(Attack, PressedKey(Key.X));
         InputMapSettingsServer.ResetAll();
@@ -283,7 +348,8 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
         Expect(!IsAction(PressedKey(Key.X), Attack), "ResetAll(): X no longer works");
 
         // SAVE_MODE_ALL manages the built-in actions too.
-        InputAction savedAccept = InputMap.GetInputAction("ui_accept");
+        // A copy: the server changes the action of the InputMap itself.
+        var savedAccept = (InputAction)InputMap.GetInputAction("ui_accept").Duplicate();
         server.Set("save_mode", 1);
         ExpectEqual(InputMapSettingsServer.Rebind("ui_accept", PressedKey(Key.Q)), Error.Ok, "SAVE_MODE_ALL: a built-in action can be rebound");
         Expect(InputMapSettingsServer.HasAction("ui_accept"), "SAVE_MODE_ALL: ui_accept is managed now");
