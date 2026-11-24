@@ -155,8 +155,8 @@ public partial class Issue191FeatureInputActionRebinderCheck : FeatureCheckCs
         ctrlH.CtrlPressed = true;
         Expect(rebinder.Update(ctrlH), "Ctrl+H is used");
         Expect(!rebinder.IsActive(), "the session ends with the binding");
-        ExpectEqual(Last(), "completed:r191_jump:0:PhysicalKey:Ctrl+H", "Completed with Ctrl+H");
-        ExpectEqual(EventsText(Jump), "PhysicalKey:Ctrl+H; JoypadButton:Paddle1", "slot 0 has Ctrl+H");
+        ExpectEqual(Last(), "completed:r191_jump:0:Keyboard:Ctrl+H", "Completed with Ctrl+H");
+        ExpectEqual(EventsText(Jump), "Keyboard:Ctrl+H; Gamepad:Paddle1", "slot 0 has Ctrl+H");
         Expect(IsAction(ctrlH, Jump), "Ctrl+H works at once");
 
         ExpectEqual(rebinder.Begin(Jump, 1), Error.Ok, "Begin() a new slot");
@@ -164,8 +164,8 @@ public partial class Issue191FeatureInputActionRebinderCheck : FeatureCheckCs
         shift.ShiftPressed = true;
         Expect(rebinder.Update(shift), "Shift pressed is used");
         Expect(rebinder.Update(PressedKey(Key.Shift, false)), "Shift released alone is used");
-        ExpectEqual(Last(), "completed:r191_jump:1:PhysicalKey:Shift", "a modifier released alone is bound");
-        ExpectEqual(EventsText(Jump), "PhysicalKey:Ctrl+H; JoypadButton:Paddle1; PhysicalKey:Shift", "slot 1 is added at the end");
+        ExpectEqual(Last(), "completed:r191_jump:1:Keyboard:Shift", "a modifier released alone is bound");
+        ExpectEqual(EventsText(Jump), "Keyboard:Ctrl+H; Gamepad:Paddle1; Keyboard:Shift", "slot 1 is added at the end");
 
         rebinder.DeviceFilter = InputActionRebinder.DeviceFilterEnum.Gamepad;
         rebinder.GamepadDevice = 1;
@@ -174,7 +174,7 @@ public partial class Issue191FeatureInputActionRebinderCheck : FeatureCheckCs
         Expect(!rebinder.Update(JoyMotion(JoyAxis.RightX, 0.3f, 1)), "a weak stick move is ignored");
         Expect(!rebinder.Update(JoyMotion(JoyAxis.RightX, 0.9f, 0)), "another pad is ignored");
         Expect(rebinder.Update(JoyMotion(JoyAxis.RightX, 0.9f, 1)), "a strong move of the pad is used");
-        ExpectEqual(Last(), "completed:r191_jump:0:JoypadMotion:RightX+", "the direction is part of the binding");
+        ExpectEqual(Last(), "completed:r191_jump:0:GamepadAxis:RightStickRight", "the direction is part of the binding");
         Expect(IsAction(JoyMotion(JoyAxis.RightX, 1.0f, 3), Jump), "the binding works for every pad");
 
         ExpectEqual(rebinder.Begin("r191_no_such_action", 0), Error.DoesNotExist, "Begin() of an unknown action");
@@ -188,10 +188,10 @@ public partial class Issue191FeatureInputActionRebinderCheck : FeatureCheckCs
         Expect(rebinder.Update(PressedKey(Key.G)), "Reject: the conflicting key is used");
         ExpectEqual(Last(), "conflict:r191_fire:0:r191_jump:0", "Reject: Conflict names both slots");
         Expect(rebinder.IsActive(), "Reject: the session waits for another key");
-        ExpectEqual(InputAction.EventToText(rebinder.GetConflictEvent()), "PhysicalKey:G", "GetConflictEvent()");
-        ExpectEqual(EventsText(Fire), "MouseButton:Left", "Reject: fire is unchanged");
+        ExpectEqual(InputAction.EventToText(rebinder.GetConflictEvent()), "Keyboard:G", "GetConflictEvent()");
+        ExpectEqual(EventsText(Fire), "Mouse:Left", "Reject: fire is unchanged");
         Expect(rebinder.Update(PressedKey(Key.K)), "Reject: another key");
-        ExpectEqual(Last(), "completed:r191_fire:0:PhysicalKey:K", "Reject: the free key is bound");
+        ExpectEqual(Last(), "completed:r191_fire:0:Keyboard:K", "Reject: the free key is bound");
     }
 
     private void CheckSwapOrder()
@@ -202,15 +202,15 @@ public partial class Issue191FeatureInputActionRebinderCheck : FeatureCheckCs
         _log.Clear();
         Expect(rebinder.Update(PressedKey(Key.G)), "Swap: the key is used");
         InputMapSettingsServer.ActionEventsChanged -= OnActionEventsChanged;
-        ExpectEqual(EventsText(Fire), "PhysicalKey:G", "Swap: fire has G");
-        ExpectEqual(EventsText(Jump), "MouseButton:Left; JoypadButton:Paddle1", "Swap: jump has the old event of fire");
+        ExpectEqual(EventsText(Fire), "Keyboard:G", "Swap: fire has G");
+        ExpectEqual(EventsText(Jump), "Mouse:Left; Gamepad:Paddle1", "Swap: jump has the old event of fire");
         Expect(IsAction(MouseButtonEvent(MouseButton.Left), Jump), "Swap: the left button jumps");
         Expect(!IsAction(PressedKey(Key.G), Jump), "Swap: G no longer jumps");
         ExpectEqual(_log.Count, 3, "Swap: two server signals and Completed");
         if (_log.Count == 3)
         {
             Expect(_log.Contains("changed:r191_fire") && _log.Contains("changed:r191_jump"), "Swap: the server announces both actions");
-            ExpectEqual(_log[2], "completed:r191_fire:0:PhysicalKey:G", "Swap: Completed comes after the server signals");
+            ExpectEqual(_log[2], "completed:r191_fire:0:Keyboard:G", "Swap: Completed comes after the server signals");
         }
     }
 
@@ -219,8 +219,8 @@ public partial class Issue191FeatureInputActionRebinderCheck : FeatureCheckCs
         var rebinder = MakeRebinder(InputActionRebinder.DeviceFilterEnum.Any, InputActionRebinder.ConflictModeEnum.Allow);
         rebinder.Begin(Fire, 5);
         Expect(rebinder.Update(PressedKey(Key.G)), "Allow: the key is used");
-        ExpectEqual(Last(), "completed:r191_fire:1:PhysicalKey:G", "Allow: added behind the last event");
-        ExpectEqual(EventsText(Fire), "MouseButton:Left; PhysicalKey:G", "Allow: fire has G");
+        ExpectEqual(Last(), "completed:r191_fire:1:Keyboard:G", "Allow: added behind the last event");
+        ExpectEqual(EventsText(Fire), "Mouse:Left; Keyboard:G", "Allow: fire has G");
         Expect(IsAction(PressedKey(Key.G), Jump) && IsAction(PressedKey(Key.G), Fire), "Allow: G works for both");
     }
 
@@ -234,22 +234,22 @@ public partial class Issue191FeatureInputActionRebinderCheck : FeatureCheckCs
         Expect(!rebinder.Update(PressedKey(Key.K)), "Ask: no input while the menu asks");
         rebinder.Cancel();
         ExpectEqual(Last(), "canceled:r191_fire:0", "Ask: Cancel() emits Canceled");
-        ExpectEqual(EventsText(Fire), "MouseButton:Left", "Ask: Cancel changes nothing");
-        ExpectEqual(EventsText(Jump), "Key:G; JoypadButton:Paddle1", "Ask: jump unchanged");
+        ExpectEqual(EventsText(Fire), "Mouse:Left", "Ask: Cancel changes nothing");
+        ExpectEqual(EventsText(Jump), "KeyboardLabel:G; Gamepad:Paddle1", "Ask: jump unchanged");
 
         rebinder.Begin(Fire, 0);
         rebinder.Update(PressedKey(Key.G));
         ExpectEqual(rebinder.ResolveConflictAllow(), Error.Ok, "Ask: ResolveConflictAllow()");
-        ExpectEqual(EventsText(Fire), "PhysicalKey:G", "Ask allow: fire has G");
+        ExpectEqual(EventsText(Fire), "Keyboard:G", "Ask allow: fire has G");
         Expect(IsAction(PressedKey(Key.G), Jump), "Ask allow: jump keeps G");
 
         InputMapSettingsServer.ResetAction(Fire);
-        ExpectEqual(EventsText(Fire), "MouseButton:Left", "fire is back on the left button");
+        ExpectEqual(EventsText(Fire), "Mouse:Left", "fire is back on the left button");
         rebinder.Begin(Fire, 0);
         rebinder.Update(PressedKey(Key.G));
         ExpectEqual(rebinder.ResolveConflictSwap(), Error.Ok, "Ask: ResolveConflictSwap()");
-        ExpectEqual(Last(), "completed:r191_fire:0:PhysicalKey:G", "Ask swap: Completed");
-        ExpectEqual(EventsText(Jump), "MouseButton:Left; JoypadButton:Paddle1", "Ask swap: jump has the left button");
+        ExpectEqual(Last(), "completed:r191_fire:0:Keyboard:G", "Ask swap: Completed");
+        ExpectEqual(EventsText(Jump), "Mouse:Left; Gamepad:Paddle1", "Ask swap: jump has the left button");
     }
 
     private void CheckTwoRebinders()
@@ -259,7 +259,7 @@ public partial class Issue191FeatureInputActionRebinderCheck : FeatureCheckCs
         keyboard.Begin(Jump, 0);
         keyboard.Cancel();
         ExpectEqual(Last(), "canceled:r191_jump:0", "Cancel() before any input");
-        ExpectEqual(EventsText(Jump), "Key:G; JoypadButton:Paddle1", "Cancel() changes nothing");
+        ExpectEqual(EventsText(Jump), "KeyboardLabel:G; Gamepad:Paddle1", "Cancel() changes nothing");
 
         keyboard.Begin(Jump, 0);
         pad.Begin(Jump, 0);
@@ -268,7 +268,7 @@ public partial class Issue191FeatureInputActionRebinderCheck : FeatureCheckCs
         Expect(keyboard.IsActive() && !pad.IsActive(), "only the pad session ended");
         Expect(!pad.Update(PressedKey(Key.L)), "the ended pad rebinder takes nothing");
         Expect(keyboard.Update(PressedKey(Key.L)), "the keyboard rebinder takes the key");
-        ExpectEqual(EventsText(Jump), "PhysicalKey:L; JoypadButton:Paddle3", "both sessions changed their own slot");
+        ExpectEqual(EventsText(Jump), "Keyboard:L; Gamepad:Paddle3", "both sessions changed their own slot");
     }
 
     private void CheckBuiltinConflict()
@@ -289,7 +289,7 @@ public partial class Issue191FeatureInputActionRebinderCheck : FeatureCheckCs
         rebinder.ConflictMode = InputActionRebinder.ConflictModeEnum.Reject;
         _log.Clear();
         rebinder.Update(PressedKey(Key.Enter));
-        ExpectEqual(Last(), "completed:r191_jump:0:PhysicalKey:Enter", "ignored actions are no conflict");
+        ExpectEqual(Last(), "completed:r191_jump:0:Keyboard:Enter", "ignored actions are no conflict");
         rebinder.Cancel();
     }
 
@@ -306,7 +306,7 @@ public partial class Issue191FeatureInputActionRebinderCheck : FeatureCheckCs
         rebinder.Begin(Jump, 1);
         rebinder.Update(JoyMotion(JoyAxis.TriggerLeft, 0.8f, 2));
         string stored = EventsText(Jump);
-        ExpectEqual(stored, "PhysicalKey:Ctrl+J; JoypadMotion:TriggerLeft+", "the stored form of both events");
+        ExpectEqual(stored, "Keyboard:Ctrl+J; GamepadAxis:LeftTrigger", "the stored form of both events");
         ExpectEqual(InputMapSettingsServer.EventsToText(InputMapSettingsServer.TextToEvents(stored)), stored, "the stored form survives the text round trip");
         ExpectEqual(InputMapSettingsServer.Singleton.Save(), Error.Ok, "Save()");
         InputMapSettingsServer.Rebind(Jump, PressedKey(Key.M));

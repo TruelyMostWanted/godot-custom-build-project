@@ -150,8 +150,8 @@ func _check_filtering() -> void:
 	ctrl_h.ctrl_pressed = true
 	expect(rebinder.update(ctrl_h), "Ctrl+H is used")
 	expect(not rebinder.is_active(), "the session ends with the binding")
-	expect_equal(_last(), "completed:r191_jump:0:PhysicalKey:Ctrl+H", "completed with Ctrl+H")
-	expect_equal(events_text(JUMP), "PhysicalKey:Ctrl+H; JoypadButton:Paddle1", "slot 0 has Ctrl+H")
+	expect_equal(_last(), "completed:r191_jump:0:Keyboard:Ctrl+H", "completed with Ctrl+H")
+	expect_equal(events_text(JUMP), "Keyboard:Ctrl+H; Gamepad:Paddle1", "slot 0 has Ctrl+H")
 	expect(InputMap.event_is_action(ctrl_h, JUMP), "Ctrl+H works at once")
 
 	expect_equal(rebinder.begin(JUMP, 1), OK, "begin() a new slot")
@@ -159,8 +159,8 @@ func _check_filtering() -> void:
 	shift.shift_pressed = true
 	expect(rebinder.update(shift), "Shift pressed is used")
 	expect(rebinder.update(pressed_key(KEY_SHIFT, false)), "Shift released alone is used")
-	expect_equal(_last(), "completed:r191_jump:1:PhysicalKey:Shift", "a modifier released alone is bound")
-	expect_equal(events_text(JUMP), "PhysicalKey:Ctrl+H; JoypadButton:Paddle1; PhysicalKey:Shift", "slot 1 is added at the end")
+	expect_equal(_last(), "completed:r191_jump:1:Keyboard:Shift", "a modifier released alone is bound")
+	expect_equal(events_text(JUMP), "Keyboard:Ctrl+H; Gamepad:Paddle1; Keyboard:Shift", "slot 1 is added at the end")
 
 	rebinder.device_filter = InputActionRebinder.DEVICE_GAMEPAD
 	rebinder.gamepad_device = 1
@@ -169,7 +169,7 @@ func _check_filtering() -> void:
 	expect(not rebinder.update(joy_motion(JOY_AXIS_RIGHT_X, 0.3, 1)), "a weak stick move is ignored")
 	expect(not rebinder.update(joy_motion(JOY_AXIS_RIGHT_X, 0.9, 0)), "another pad is ignored")
 	expect(rebinder.update(joy_motion(JOY_AXIS_RIGHT_X, 0.9, 1)), "a strong move of the pad is used")
-	expect_equal(_last(), "completed:r191_jump:0:JoypadMotion:RightX+", "the direction is part of the binding")
+	expect_equal(_last(), "completed:r191_jump:0:GamepadAxis:RightStickRight", "the direction is part of the binding")
 	expect(InputMap.event_is_action(joy_motion(JOY_AXIS_RIGHT_X, 1.0, 3), JUMP), "the binding works for every pad")
 
 	expect_equal(rebinder.begin(&"r191_no_such_action", 0), ERR_DOES_NOT_EXIST, "begin() of an unknown action")
@@ -182,10 +182,10 @@ func _check_reject() -> void:
 	expect(rebinder.update(pressed_key(KEY_G)), "REJECT: the conflicting key is used")
 	expect_equal(_last(), "conflict:r191_fire:0:r191_jump:0", "REJECT: conflict names both slots")
 	expect(rebinder.is_active(), "REJECT: the session waits for another key")
-	expect_equal(InputAction.event_to_text(rebinder.get_conflict_event()), "PhysicalKey:G", "get_conflict_event()")
-	expect_equal(events_text(FIRE), "MouseButton:Left", "REJECT: fire is unchanged")
+	expect_equal(InputAction.event_to_text(rebinder.get_conflict_event()), "Keyboard:G", "get_conflict_event()")
+	expect_equal(events_text(FIRE), "Mouse:Left", "REJECT: fire is unchanged")
 	expect(rebinder.update(pressed_key(KEY_K)), "REJECT: another key")
-	expect_equal(_last(), "completed:r191_fire:0:PhysicalKey:K", "REJECT: the free key is bound")
+	expect_equal(_last(), "completed:r191_fire:0:Keyboard:K", "REJECT: the free key is bound")
 
 
 func _check_swap_order() -> void:
@@ -195,22 +195,22 @@ func _check_swap_order() -> void:
 	events_log.clear()
 	expect(rebinder.update(pressed_key(KEY_G)), "SWAP: the key is used")
 	InputMapSettingsServer.action_events_changed.disconnect(_on_action_events_changed)
-	expect_equal(events_text(FIRE), "PhysicalKey:G", "SWAP: fire has G")
-	expect_equal(events_text(JUMP), "MouseButton:Left; JoypadButton:Paddle1", "SWAP: jump has the old event of fire")
+	expect_equal(events_text(FIRE), "Keyboard:G", "SWAP: fire has G")
+	expect_equal(events_text(JUMP), "Mouse:Left; Gamepad:Paddle1", "SWAP: jump has the old event of fire")
 	expect(InputMap.event_is_action(mouse_button(MOUSE_BUTTON_LEFT), JUMP), "SWAP: the left button jumps")
 	expect(not InputMap.event_is_action(pressed_key(KEY_G), JUMP), "SWAP: G no longer jumps")
 	expect_equal(events_log.size(), 3, "SWAP: two server signals and completed")
 	if events_log.size() == 3:
 		expect(events_log.has("changed:r191_fire") and events_log.has("changed:r191_jump"), "SWAP: the server announces both actions")
-		expect_equal(events_log[2], "completed:r191_fire:0:PhysicalKey:G", "SWAP: completed comes after the server signals")
+		expect_equal(events_log[2], "completed:r191_fire:0:Keyboard:G", "SWAP: completed comes after the server signals")
 
 
 func _check_allow() -> void:
 	var rebinder := _make_rebinder(InputActionRebinder.DEVICE_ANY, InputActionRebinder.CONFLICT_ALLOW)
 	rebinder.begin(FIRE, 5)
 	expect(rebinder.update(pressed_key(KEY_G)), "ALLOW: the key is used")
-	expect_equal(_last(), "completed:r191_fire:1:PhysicalKey:G", "ALLOW: added behind the last event")
-	expect_equal(events_text(FIRE), "MouseButton:Left; PhysicalKey:G", "ALLOW: fire has G")
+	expect_equal(_last(), "completed:r191_fire:1:Keyboard:G", "ALLOW: added behind the last event")
+	expect_equal(events_text(FIRE), "Mouse:Left; Keyboard:G", "ALLOW: fire has G")
 	expect(InputMap.event_is_action(pressed_key(KEY_G), JUMP) and InputMap.event_is_action(pressed_key(KEY_G), FIRE), "ALLOW: G works for both")
 
 
@@ -223,22 +223,22 @@ func _check_ask() -> void:
 	expect(not rebinder.update(pressed_key(KEY_K)), "ASK: no input while the menu asks")
 	rebinder.cancel()
 	expect_equal(_last(), "canceled:r191_fire:0", "ASK: cancel() emits canceled")
-	expect_equal(events_text(FIRE), "MouseButton:Left", "ASK: cancel changes nothing")
-	expect_equal(events_text(JUMP), "Key:G; JoypadButton:Paddle1", "ASK: jump unchanged")
+	expect_equal(events_text(FIRE), "Mouse:Left", "ASK: cancel changes nothing")
+	expect_equal(events_text(JUMP), "KeyboardLabel:G; Gamepad:Paddle1", "ASK: jump unchanged")
 
 	rebinder.begin(FIRE, 0)
 	rebinder.update(pressed_key(KEY_G))
 	expect_equal(rebinder.resolve_conflict_allow(), OK, "ASK: resolve_conflict_allow()")
-	expect_equal(events_text(FIRE), "PhysicalKey:G", "ASK allow: fire has G")
+	expect_equal(events_text(FIRE), "Keyboard:G", "ASK allow: fire has G")
 	expect(InputMap.event_is_action(pressed_key(KEY_G), JUMP), "ASK allow: jump keeps G")
 
 	InputMapSettingsServer.reset_action(FIRE)
-	expect_equal(events_text(FIRE), "MouseButton:Left", "fire is back on the left button")
+	expect_equal(events_text(FIRE), "Mouse:Left", "fire is back on the left button")
 	rebinder.begin(FIRE, 0)
 	rebinder.update(pressed_key(KEY_G))
 	expect_equal(rebinder.resolve_conflict_swap(), OK, "ASK: resolve_conflict_swap()")
-	expect_equal(_last(), "completed:r191_fire:0:PhysicalKey:G", "ASK swap: completed")
-	expect_equal(events_text(JUMP), "MouseButton:Left; JoypadButton:Paddle1", "ASK swap: jump has the left button")
+	expect_equal(_last(), "completed:r191_fire:0:Keyboard:G", "ASK swap: completed")
+	expect_equal(events_text(JUMP), "Mouse:Left; Gamepad:Paddle1", "ASK swap: jump has the left button")
 
 
 func _check_two_rebinders() -> void:
@@ -247,7 +247,7 @@ func _check_two_rebinders() -> void:
 	keyboard.begin(JUMP, 0)
 	keyboard.cancel()
 	expect_equal(_last(), "canceled:r191_jump:0", "cancel() before any input")
-	expect_equal(events_text(JUMP), "Key:G; JoypadButton:Paddle1", "cancel() changes nothing")
+	expect_equal(events_text(JUMP), "KeyboardLabel:G; Gamepad:Paddle1", "cancel() changes nothing")
 
 	keyboard.begin(JUMP, 0)
 	pad.begin(JUMP, 0)
@@ -256,7 +256,7 @@ func _check_two_rebinders() -> void:
 	expect(keyboard.is_active() and not pad.is_active(), "only the pad session ended")
 	expect(not pad.update(pressed_key(KEY_L)), "the ended pad rebinder takes nothing")
 	expect(keyboard.update(pressed_key(KEY_L)), "the keyboard rebinder takes the key")
-	expect_equal(events_text(JUMP), "PhysicalKey:L; JoypadButton:Paddle3", "both sessions changed their own slot")
+	expect_equal(events_text(JUMP), "Keyboard:L; Gamepad:Paddle3", "both sessions changed their own slot")
 
 
 func _check_builtin_conflict() -> void:
@@ -283,7 +283,7 @@ func _check_builtin_conflict() -> void:
 		# Another built-in action of this project uses Enter too.
 		rebinder.ignored_actions = builtin_actions()
 		rebinder.update(pressed_key(KEY_ENTER))
-	expect_equal(_last(), "completed:r191_jump:0:PhysicalKey:Enter", "ignored actions are no conflict")
+	expect_equal(_last(), "completed:r191_jump:0:Keyboard:Enter", "ignored actions are no conflict")
 	rebinder.cancel()
 
 
@@ -299,7 +299,7 @@ func _check_save_load() -> void:
 	rebinder.begin(JUMP, 1)
 	rebinder.update(joy_motion(JOY_AXIS_TRIGGER_LEFT, 0.8, 2))
 	var stored := events_text(JUMP)
-	expect_equal(stored, "PhysicalKey:Ctrl+J; JoypadMotion:TriggerLeft+", "the stored form of both events")
+	expect_equal(stored, "Keyboard:Ctrl+J; GamepadAxis:LeftTrigger", "the stored form of both events")
 	expect_equal(InputMapSettingsServer.events_to_text(InputMapSettingsServer.text_to_events(stored)), stored, "the stored form survives the text round trip")
 	expect_equal(InputMapSettingsServer.save(), OK, "save()")
 	InputMapSettingsServer.rebind(JUMP, pressed_key(KEY_M))

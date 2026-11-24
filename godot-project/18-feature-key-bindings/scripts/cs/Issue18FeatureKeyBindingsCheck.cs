@@ -58,8 +58,8 @@ public partial class Issue18FeatureKeyBindingsCheck : FeatureCheckCs
 
     private void CheckTextForm()
     {
-        string[] texts = ["Key:Ctrl+S", "PhysicalKey:W", "KeyLabel:Shift+A", "Key:CmdOrCtrl+Z", "MouseButton:Left", "MouseButton:Ctrl+WheelUp",
-            "JoypadButton:A", "JoypadButton:LeftShoulder", "JoypadMotion:LeftX+", "JoypadMotion:TriggerRight+"];
+        string[] texts = ["KeyboardLabel:Ctrl+S", "Keyboard:W", "KeyboardPrinted:Shift+A", "KeyboardLabel:CmdOrCtrl+Z", "Mouse:Left", "Mouse:Ctrl+WheelUp",
+            "Gamepad:A", "Gamepad:LeftShoulder", "GamepadAxis:LeftStickRight", "GamepadAxis:RightTrigger"];
         foreach (string text in texts)
         {
             InputEvent @event = InputAction.TextToEvent(text);
@@ -69,21 +69,43 @@ public partial class Issue18FeatureKeyBindingsCheck : FeatureCheckCs
                 ExpectEqual(InputAction.EventToText(@event), text, $"round trip of \"{text}\"");
             }
         }
-        Expect(InputAction.TextToEvent("Key:Hyper+S") == null, "an unknown modifier is not valid");
+        // The text form [Device<N>:]<Type>:[<Modifiers>+]<Input>: devices, special keys, modifiers, all ten axis names.
+        string[] moreTexts = ["Device3:Gamepad:A", "Device3:GamepadAxis:LeftStickLeft", "Keyboard:Colon", "Keyboard:Ctrl+Plus", "Keyboard:Ctrl+Shift+S", "Keyboard:CmdOrCtrl+Z", "Mouse:Ctrl+Left", "Keyboard:Shift", "Gamepad:LeftStickPress", "GamepadAxis:LeftStickLeft", "GamepadAxis:LeftStickRight", "GamepadAxis:LeftStickUp", "GamepadAxis:LeftStickDown", "GamepadAxis:RightStickLeft", "GamepadAxis:RightStickRight", "GamepadAxis:RightStickUp", "GamepadAxis:RightStickDown", "GamepadAxis:LeftTrigger", "GamepadAxis:RightTrigger"];
+        foreach (string text in moreTexts)
+        {
+            InputEvent @event = InputAction.TextToEvent(text);
+            Expect(@event != null, $"TextToEvent(\"{text}\") gives an event");
+            if (@event != null)
+            {
+                ExpectEqual(InputAction.EventToText(@event), text, $"round trip of \"{text}\"");
+            }
+        }
+        ExpectEqual(InputAction.GetEventDevice(InputAction.TextToEvent("Device3:Gamepad:A")), InputAction.InputDevice.Gamepad, "Device3:Gamepad:A is a gamepad event");
+        ExpectEqual(InputAction.TextToEvent("Device3:Gamepad:A").Device, 3, "Device3:Gamepad:A reacts to pad 3");
+        ExpectEqual(InputAction.EventToText(InputAction.TextToEvent("Keyboard:Shift+Ctrl+S")), "Keyboard:Ctrl+Shift+S", "the modifiers are written in a fixed order");
+        ExpectEqual(InputAction.EventToText(InputAction.TextToEvent("GamepadAxis:LeftX-")), "GamepadAxis:LeftStickLeft", "the old axis name is read and written new");
+        ExpectEqual(InputAction.EventToText(InputAction.TextToEvent("JoypadMotion:TriggerRight+")), "GamepadAxis:RightTrigger", "the old type JoypadMotion is read");
+        ExpectEqual(InputAction.EventToText(InputAction.TextToEvent("JoypadButton:LeftStick@2")), "Device2:Gamepad:LeftStickPress", "the old button and device names are read");
+        string[] invalidTexts = ["Gamepad:Ctrl+A", "Device:Gamepad:A", "DeviceX:Gamepad:A", "Keyboard:", "Keyboard:Ctrl+", "GamepadAxis:LeftStickX-"];
+        foreach (string text in invalidTexts)
+        {
+            Expect(InputAction.TextToEvent(text) == null, $"\"{text}\" is not valid");
+        }
+        Expect(InputAction.TextToEvent("KeyboardLabel:Hyper+S") == null, "an unknown modifier is not valid");
         Expect(InputAction.TextToEvent("Joypad:A") == null, "an unknown type is not valid");
-        ExpectEqual(InputAction.EventToText(PressedKey(Key.W)), "PhysicalKey:W", "a pressed key is stored by its physical keycode");
+        ExpectEqual(InputAction.EventToText(PressedKey(Key.W)), "Keyboard:W", "a pressed key is stored by its physical keycode");
         ExpectEqual(InputAction.EventToText(new InputEventScreenTouch()), "", "a touch can't be bound");
         ExpectEqual(InputAction.GetEventDevice(new InputEventScreenTouch()), InputAction.InputDevice.Max, "a touch has no device");
         ExpectEqual(InputAction.GetEventDevice(new InputEventJoypadMotion()), InputAction.InputDevice.Gamepad, "a joypad axis is a gamepad event");
-        ExpectEqual(InputMapSettingsServer.GetEventLabel(InputAction.TextToEvent("Key:Ctrl+S")), "Ctrl+S", "label of Ctrl+S");
-        ExpectEqual(InputMapSettingsServer.GetEventLabel(InputAction.TextToEvent("MouseButton:Right")), "Right Mouse Button", "label of a mouse button");
-        ExpectEqual(InputMapSettingsServer.GetEventLabel(InputAction.TextToEvent("JoypadMotion:LeftX+")), "Left Stick Right", "label of a stick direction");
+        ExpectEqual(InputMapSettingsServer.GetEventLabel(InputAction.TextToEvent("KeyboardLabel:Ctrl+S")), "Ctrl+S", "label of Ctrl+S");
+        ExpectEqual(InputMapSettingsServer.GetEventLabel(InputAction.TextToEvent("Mouse:Right")), "Right Mouse Button", "label of a mouse button");
+        ExpectEqual(InputMapSettingsServer.GetEventLabel(InputAction.TextToEvent("GamepadAxis:LeftStickRight")), "Left Stick Right", "label of a stick direction");
 
-        var entry = new InputAction { Events = InputMapSettingsServer.TextToEvents("JoypadButton:B; Key:Space") };
+        var entry = new InputAction { Events = InputMapSettingsServer.TextToEvents("Gamepad:B; KeyboardLabel:Space") };
         ExpectEqual(entry.GetEventCount(), 2, "the text gives one event per entry");
         ExpectEqual(entry.GetDeviceEvents(InputAction.InputDevice.Gamepad).Count, 1, "the gamepad event is found by device");
         Expect(entry.Events[0] is InputEventJoypadButton, "the first event is parsed from the text");
-        ExpectEqual(InputMapSettingsServer.EventsToText(entry.Events), "JoypadButton:B; Key:Space", "text round trip");
+        ExpectEqual(InputMapSettingsServer.EventsToText(entry.Events), "Gamepad:B; KeyboardLabel:Space", "text round trip");
     }
 
     private void CheckDefaults()
@@ -92,9 +114,9 @@ public partial class Issue18FeatureKeyBindingsCheck : FeatureCheckCs
         Expect(actions.Contains("kb18_jump") && actions.Contains("kb18_fire"), "the project actions are managed");
         Expect(!actions.Contains("ui_accept"), "built-in ui_* actions are left out by default");
         ExpectEqual(InputMapSettingsServer.Singleton.Get("save_mode").AsInt32(), 0, "save_mode is CUSTOM_ONLY by default");
-        ExpectEqual(InputAction.EventToText(InputMapSettingsServer.GetEvent(Jump, InputAction.InputDevice.Keyboard, 0)), "Key:Space", "jump: keyboard slot 0 is Space");
-        ExpectEqual(InputAction.EventToText(InputMapSettingsServer.GetEvent(Jump, InputAction.InputDevice.Gamepad, 0)), "JoypadButton:A", "jump: gamepad slot 0 is A");
-        ExpectEqual(InputAction.EventToText(InputMapSettingsServer.GetEvent(Fire, InputAction.InputDevice.Gamepad, 0)), "JoypadMotion:TriggerRight+", "fire: gamepad slot 0 is the right trigger");
+        ExpectEqual(InputAction.EventToText(InputMapSettingsServer.GetEvent(Jump, InputAction.InputDevice.Keyboard, 0)), "KeyboardLabel:Space", "jump: keyboard slot 0 is Space");
+        ExpectEqual(InputAction.EventToText(InputMapSettingsServer.GetEvent(Jump, InputAction.InputDevice.Gamepad, 0)), "Gamepad:A", "jump: gamepad slot 0 is A");
+        ExpectEqual(InputAction.EventToText(InputMapSettingsServer.GetEvent(Fire, InputAction.InputDevice.Gamepad, 0)), "GamepadAxis:RightTrigger", "fire: gamepad slot 0 is the right trigger");
         Expect(Mathf.IsEqualApprox(InputMapSettingsServer.GetActionDeadzone(Jump), 0.5f), "jump: deadzone 0.5 from the project");
         ExpectEqual(InputMapSettingsServer.GetEvents(Jump).Count, 2, "jump has two events");
     }
@@ -116,7 +138,7 @@ public partial class Issue18FeatureKeyBindingsCheck : FeatureCheckCs
         InputMapSettingsServer.Rebind(Jump, PressedKey(Key.Up), 1);
         InputMapSettingsServer.ClearEvent(Jump, InputAction.InputDevice.Keyboard, 0);
         ExpectEqual(InputMapSettingsServer.GetSlotCount(Jump, InputAction.InputDevice.Keyboard), 1, "clearing slot 0 leaves one keyboard slot");
-        ExpectEqual(InputAction.EventToText(InputMapSettingsServer.GetEvent(Jump, InputAction.InputDevice.Keyboard, 0)), "PhysicalKey:Up", "slot 1 moved up to slot 0");
+        ExpectEqual(InputAction.EventToText(InputMapSettingsServer.GetEvent(Jump, InputAction.InputDevice.Keyboard, 0)), "Keyboard:Up", "slot 1 moved up to slot 0");
         Expect(IsAction(PressedKey(Key.Up), Jump), "the moved key still works");
         Expect(!IsAction(PressedKey(Key.W), Jump), "the cleared key no longer works");
 
@@ -157,11 +179,11 @@ public partial class Issue18FeatureKeyBindingsCheck : FeatureCheckCs
             string path = $"user://kb18_bindings_cs.{extension}";
             server.SetFilePath(path);
             InputMapSettingsServer.Rebind(Jump, PressedKey(Key.W));
-            InputMapSettingsServer.Rebind(Jump, InputAction.TextToEvent("JoypadMotion:LeftY-"));
-            InputMapSettingsServer.Rebind(Fire, InputAction.TextToEvent("MouseButton:Ctrl+Right"));
+            InputMapSettingsServer.Rebind(Jump, InputAction.TextToEvent("GamepadAxis:LeftStickUp"));
+            InputMapSettingsServer.Rebind(Fire, InputAction.TextToEvent("Mouse:Ctrl+Right"));
             ExpectEqual(server.Save(), Error.Ok, $"{extension}: Save()");
             string text = FileAccess.GetFileAsString(path);
-            Expect(text.Contains("PhysicalKey:W") && text.Contains("JoypadMotion:LeftY-") && text.Contains("MouseButton:Ctrl+Right"), $"{extension}: the file holds the event texts");
+            Expect(text.Contains("Keyboard:W") && text.Contains("GamepadAxis:LeftStickUp") && text.Contains("Mouse:Ctrl+Right"), $"{extension}: the file holds the event texts");
             InputMapSettingsServer.ResetAll();
             ExpectEqual(server.Load(), Error.Ok, $"{extension}: Load()");
             server.Apply();
@@ -185,10 +207,10 @@ public partial class Issue18FeatureKeyBindingsCheck : FeatureCheckCs
         var server = InputMapSettingsServer.Singleton;
         InputMapSettingsServer.Rebind(Jump, PressedKey(Key.W));
         // A row of an action that a later game version no longer has.
-        server.AddEntry(new InputAction { Action = "kb18_removed", Events = InputMapSettingsServer.TextToEvents("Key:G") });
+        server.AddEntry(new InputAction { Action = "kb18_removed", Events = InputMapSettingsServer.TextToEvents("KeyboardLabel:G") });
         ExpectEqual(server.Save(), Error.Ok, "Save() writes the player file");
         string text = FileAccess.GetFileAsString(InputMapFile);
-        Expect(text.Contains("PhysicalKey:W"), "the INI file contains PhysicalKey:W");
+        Expect(text.Contains("Keyboard:W"), "the INI file contains Keyboard:W");
         Expect(text.Contains("kb18_removed"), "the INI file contains the removed action");
 
         var probe = RunProbe();
