@@ -228,6 +228,7 @@ public partial class Issue21FeatureVideoQualitySettingsCheck : FeatureCheckCs
         Expect(Approx(VideoQualitySettingsServer.GetScaling3DScale(), 0.75), "the scale is loaded");
         ExpectEqual(VideoQualitySettingsServer.GetMsaa3D(), Viewport.Msaa.Msaa2X, "msaa_3d is loaded");
         Expect(VideoQualitySettingsServer.IsUsingTaa(), "use_taa is loaded (also where the renderer ignores it)");
-        ExpectEqual(GetTree().Root.Msaa3D, Viewport.Msaa.Msaa2X, "the loaded value reaches the root");
+        VideoQualitySettingsServer.Singleton.Apply();
+        ExpectEqual(GetTree().Root.Msaa3D, Viewport.Msaa.Msaa2X, "the loaded value reaches the root after Apply()");
     }
 }

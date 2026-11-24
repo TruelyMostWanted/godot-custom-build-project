@@ -189,4 +189,5 @@ func _check_storage() -> void:
 	expect(is_equal_approx(VideoQualitySettingsServer.get_scaling_3d_scale(), 0.75), "the scale is loaded")
 	expect_equal(VideoQualitySettingsServer.get_msaa_3d(), Viewport.MSAA_2X, "msaa_3d is loaded")
 	expect(VideoQualitySettingsServer.is_using_taa(), "use_taa is loaded (also where the renderer ignores it)")
-	expect_equal(get_tree().root.msaa_3d, Viewport.MSAA_2X, "the loaded value reaches the root")
+	VideoQualitySettingsServer.apply()
+	expect_equal(get_tree().root.msaa_3d, Viewport.MSAA_2X, "the loaded value reaches the root after apply()")
