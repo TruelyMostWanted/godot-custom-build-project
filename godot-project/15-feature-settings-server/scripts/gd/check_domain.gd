@@ -9,7 +9,7 @@ func _get_domain() -> StringName:
 	return &"check15_gd"
 
 
-func _get_apply_phase() -> int:
+func _get_apply_phase() -> SettingsServer.ApplyPhase:
 	return SettingsServer.APPLY_PHASE_SCENE
 
 

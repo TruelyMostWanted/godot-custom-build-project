@@ -25,7 +25,9 @@ public partial class Issue15FeatureSettingsServerCheck : FeatureCheckCs
         Expect(Engine.HasSingleton("SettingsServerManager"), "SettingsServerManager is a registered singleton");
         Expect(SettingsServerManager.Singleton is SettingsServerManagerInstance, "SettingsServerManager.Singleton is the instance type");
         Expect(ClassDB.CanInstantiate("SettingsServer"), "SettingsServer is a virtual class that C# extends");
-        ExpectEqual(SettingsServerManager.GetStartupPhase(), (int)SettingsServer.ApplyPhase.Scene, "all startup phases ran before the main scene");
+        ExpectEqual(SettingsServerManager.GetStartupPhase(), SettingsServer.ApplyPhase.Scene, "all startup phases ran before the main scene");
+        ExpectEqual(SettingsServerManager.GetStorageFormat(), ResourceTextSerializer.Format.Ini, "default storage format is ResourceTextSerializer.Format.Ini");
+        Expect(!SettingsServerManager.HasDirtyServers(), "HasDirtyServers() is false after startup");
         Expect(SettingsServerManager.GetServer("check15_gd") is SettingsServer, "the GDScript domain is a SettingsServer in C#");
 
         var server = SettingsServerManager.GetServer("check15_cs") as Issue15CheckDomainCs;
@@ -78,6 +80,7 @@ public partial class Issue15FeatureSettingsServerCheck : FeatureCheckCs
         domain.SetValue("Volume", 0.2);
         domain.SetValue("Quality", 2);
         Expect(domain.IsDirty(), "SetValue() in manual mode makes the domain dirty");
+        ExpectEqual(string.Join(",", domain.GetDirtySettingNames()), "Volume,Quality", "GetDirtySettingNames() lists the changed settings");
         domain.Revert();
         Expect(!domain.IsDirty(), "Revert() clears the dirty state");
         Expect(Mathf.IsEqualApprox(domain.GetValue("Volume").AsDouble(), 0.8), "Revert() gives back the last applied volume");
@@ -128,7 +131,23 @@ public partial class Issue15FeatureSettingsServerCheck : FeatureCheckCs
         Expect(domain.IsConfirmationPending(), "a confirmation is pending");
         await ToSignal(GetTree().CreateTimer(0.6), SceneTreeTimer.SignalName.Timeout);
         Expect(!domain.IsConfirmationPending(), "the confirmation timed out");
-        ExpectEqual(domain.GetValue("Quality").AsInt32(), 1, "without ConfirmPending() the old value comes back");
+        ExpectEqual(domain.GetValue("Quality").AsInt32(), 1, "without ConfirmChanges() the old value comes back");
+
+        domain.SetValue("Quality", 0);
+        domain.ApplyWithConfirmation(5.0);
+        domain.ConfirmChanges();
+        ExpectEqual(domain.GetAppliedValue("Quality").AsInt32(), 0, "ConfirmChanges() keeps the new value");
+
+        domain.SetValue("Quality", 2);
+        domain.ApplyWithConfirmation(5.0);
+        domain.CancelConfirmation();
+        Expect(!domain.IsConfirmationPending(), "CancelConfirmation() ends the confirmation");
+        ExpectEqual(domain.GetAppliedValue("Quality").AsInt32(), 0, "CancelConfirmation() gives back the confirmed value");
+
+        var finished = false;
+        domain.ReadFromEngineFinished += () => finished = true;
+        domain.ReadFromEngine();
+        Expect(finished, "ReadFromEngine() emits ReadFromEngineFinished");
         domain.Free();
     }
 
