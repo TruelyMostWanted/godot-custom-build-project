@@ -50,6 +50,8 @@ public partial class Issue15FeatureSettingsServerCheck : FeatureCheckCs
         CheckApplyDuringConfirmation();
         CheckRestartValues();
         CheckListDefaultsAndValidation();
+        CheckProjectPaths();
+        CheckFailureSignals();
         await CheckRestart(server);
 
         foreach (string file in DirAccess.GetFilesAt(Dir))
@@ -65,6 +67,110 @@ public partial class Issue15FeatureSettingsServerCheck : FeatureCheckCs
         domain.ApplyMode = SettingsServer.ApplyModeEnum.Manual;
         domain.FilePath = path;
         return domain;
+    }
+
+    private void CheckProjectPaths()
+    {
+        // Every registered domain (engine and script domains) gets the project setting of its file path.
+        foreach (string domainName in SettingsServerManager.GetDomains())
+        {
+            Expect(ProjectSettings.HasSetting($"settings/paths/{domainName}_settings_path"), $"project setting settings/paths/{domainName}_settings_path exists");
+        }
+        const string setting = "settings/paths/check15_cs_settings_path";
+        ExpectEqual(ProjectSettings.GetSetting(setting).AsString(), "", "the path setting is empty by default");
+
+        foreach (string extension in new[] { "json", "ini", "xml", "toml", "yaml" })
+        {
+            if (!ResourceTextSerializer.IsFormatAvailable(ResourceTextSerializer.GetFormatFromExtension(extension)))
+            {
+                GD.Print($"  SKIP  project path .{extension} (module not in this build)");
+                continue;
+            }
+            string path = Dir.PathJoin("project_path." + extension);
+            ProjectSettings.SetSetting(setting, path);
+            var writer = new Issue15CheckDomainCs();
+            writer.ApplyMode = SettingsServer.ApplyModeEnum.Manual;
+            ExpectEqual(writer.GetFilePath(), path, $"{extension}: GetFilePath() returns the project setting");
+            writer.SetValue("Volume", 0.3);
+            writer.SetValue("Quality", 2);
+            writer.Apply(); // Save() writes the applied values.
+            ExpectEqual(writer.Save(), Error.Ok, $"{extension}: Save() to the project path");
+            writer.Free();
+
+            var reader = new Issue15CheckDomainCs();
+            ExpectEqual(reader.Load(), Error.Ok, $"{extension}: Load() from the project path");
+            Expect(Mathf.IsEqualApprox((float)reader.GetValue("Volume").AsDouble(), 0.3f), $"{extension}: volume loaded");
+            ExpectEqual(reader.GetValue("Quality").AsInt32(), 2, $"{extension}: quality loaded");
+            reader.Free();
+        }
+        Expect(FileAccess.GetFileAsString(Dir.PathJoin("project_path.json")).StripEdges().StartsWith('{'), "the .json path is written as JSON");
+        Expect(FileAccess.GetFileAsString(Dir.PathJoin("project_path.xml")).StripEdges().StartsWith('<'), "the .xml path is written as XML");
+
+        // A path set at runtime wins over the project setting.
+        ProjectSettings.SetSetting(setting, Dir.PathJoin("project_path.json"));
+        var domain = new Issue15CheckDomainCs();
+        domain.FilePath = Dir.PathJoin("runtime.ini");
+        ExpectEqual(domain.GetFilePath(), Dir.PathJoin("runtime.ini"), "FilePath set at runtime wins over the project setting");
+        domain.FilePath = "";
+        ExpectEqual(domain.GetFilePath(), Dir.PathJoin("project_path.json"), "an empty runtime path gives the project setting back");
+
+        // An unknown extension prints an error and uses settings/storage/format (INI).
+        string unknown = Dir.PathJoin("project_path.cfg");
+        ProjectSettings.SetSetting(setting, unknown);
+        domain.ApplyMode = SettingsServer.ApplyModeEnum.Manual;
+        domain.SetValue("Quality", 0);
+        domain.Apply();
+        ExpectEqual(domain.Save(), Error.Ok, "an unknown extension is saved in the global format (an error is printed)");
+        string text = FileAccess.GetFileAsString(unknown).StripEdges();
+        Expect(!text.StartsWith('{') && !text.StartsWith('<'), "an unknown extension is written as INI");
+        domain.Free();
+
+        ProjectSettings.SetSetting(setting, "");
+        var fallback = new Issue15CheckDomainCs();
+        ExpectEqual(fallback.GetFilePath(), PlayerFile, "an empty project setting gives the folder and format path");
+        fallback.Free();
+    }
+
+    private void CheckFailureSignals()
+    {
+        var events = new System.Collections.Generic.List<string>();
+        string path = Dir.PathJoin("signals.json");
+        var domain = NewDomain(path);
+        domain.LoadFailed += (error, filePath) => events.Add($"load_failed {(int)error} {filePath}");
+        domain.SaveFailed += (error, filePath) => events.Add($"save_failed {(int)error} {filePath}");
+        domain.SettingsChanged += names => events.Add($"settings_changed {string.Join(",", names)}");
+
+        ExpectEqual(domain.Load(), Error.FileNotFound, "Load() without a file");
+        ExpectEqual(events.Count, 0, "a missing file emits no LoadFailed");
+
+        using (var file = FileAccess.Open(path, FileAccess.ModeFlags.Write))
+        {
+            file.StoreString("{ \"Volume\": ");
+        }
+        Error loadError = domain.Load();
+        Expect(loadError != Error.Ok, "a broken file is reported (a warning is printed)");
+        ExpectEqual(string.Join("|", events), $"load_failed {(int)loadError} {path}", "LoadFailed(error, path) for a broken file");
+        events.Clear();
+
+        // A folder that can't be created: its parent is a file.
+        string blocker = Dir.PathJoin("blocker.txt");
+        using (var file = FileAccess.Open(blocker, FileAccess.ModeFlags.Write))
+        {
+            file.StoreString("not a folder");
+        }
+        string badPath = blocker.PathJoin("sub").PathJoin("signals.ini");
+        domain.FilePath = badPath;
+        Error saveError = domain.Save();
+        Expect(saveError != Error.Ok, "Save() into a folder that can't be created fails (an error is printed)");
+        ExpectEqual(string.Join("|", events), $"save_failed {(int)saveError} {badPath}", "SaveFailed(error, path)");
+        events.Clear();
+
+        domain.SetValue("Volume", 0.7);
+        ExpectEqual(string.Join("|", events), "settings_changed Volume", "SettingsChanged(names) after SetValue()");
+        events.Clear();
+        domain.Revert();
+        ExpectEqual(string.Join("|", events), "settings_changed Volume", "SettingsChanged(names) after Revert()");
+        domain.Free();
     }
 
     private void CheckValidation()
