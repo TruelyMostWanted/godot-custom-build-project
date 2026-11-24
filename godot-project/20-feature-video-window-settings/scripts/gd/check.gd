@@ -101,11 +101,12 @@ func _check_content_scale() -> void:
 	VideoWindowSettingsServer.set_content_scale_mode(Window.CONTENT_SCALE_MODE_CANVAS_ITEMS)
 	VideoWindowSettingsServer.set_content_scale_aspect(Window.CONTENT_SCALE_ASPECT_EXPAND)
 	VideoWindowSettingsServer.set_content_scale_stretch(Window.CONTENT_SCALE_STRETCH_INTEGER)
-	VideoWindowSettingsServer.set_content_scale_factor(1.5)
+	# Integer stretch makes the window floor the factor to a whole number, so a whole factor is checked here.
+	VideoWindowSettingsServer.set_content_scale_factor(2.0)
 	expect_equal(root.content_scale_mode, Window.CONTENT_SCALE_MODE_CANVAS_ITEMS, "the root window gets the content scale mode")
 	expect_equal(root.content_scale_aspect, Window.CONTENT_SCALE_ASPECT_EXPAND, "the root window gets the content scale aspect")
 	expect_equal(root.content_scale_stretch, Window.CONTENT_SCALE_STRETCH_INTEGER, "the root window gets the content scale stretch")
-	expect_equal(root.content_scale_factor, 1.5, "the root window gets the content scale factor")
+	expect_equal(root.content_scale_factor, 2.0, "the root window gets the content scale factor")
 	_reset()
 	expect_equal(root.content_scale_factor, VideoWindowSettingsServer.get_default_value(&"content_scale_factor"), "reset_to_defaults() gives back the project factor")
 
@@ -142,7 +143,8 @@ func _check_validation() -> void:
 	VideoWindowSettingsServer.set_hdr_max_luminance(-50.0)
 	expect_equal(VideoWindowSettingsServer.get_hdr_max_luminance(), -1.0, "a negative luminance means automatic")
 	VideoWindowSettingsServer.set_content_scale_factor(0.0)
-	expect_equal(VideoWindowSettingsServer.get_content_scale_factor(), 0.1, "the content scale factor is at least 0.1")
+	var factor := VideoWindowSettingsServer.get_content_scale_factor()
+	expect(is_equal_approx(factor, 0.1), "the content scale factor is at least 0.1 (got %s)" % factor)
 	VideoWindowSettingsServer.revert()
 	VideoWindowSettingsServer.apply_mode = SettingsServer.APPLY_MODE_IMMEDIATE
 
