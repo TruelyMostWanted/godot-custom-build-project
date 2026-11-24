@@ -51,7 +51,7 @@ public partial class Issue20FeatureVideoWindowSettingsCheck : FeatureCheckCs
     private static void Reset()
     {
         VideoWindowSettingsServer.Singleton.ResetToDefaults();
-        VideoWindowSettingsServer.Singleton.ConfirmPending();
+        VideoWindowSettingsServer.Singleton.ConfirmChanges();
     }
 
     private static bool IsHeadless() => DisplayServer.GetName() == "headless";
@@ -83,12 +83,12 @@ public partial class Issue20FeatureVideoWindowSettingsCheck : FeatureCheckCs
         Vector2I oldSize = VideoWindowSettingsServer.GetWindowSize();
         VideoWindowSettingsServer.SetWindowSize(new Vector2I(1024, 600));
         Expect(server.IsConfirmationPending(), "a new window size waits for the confirmation");
-        server.CancelPending();
-        ExpectEqual(VideoWindowSettingsServer.GetWindowSize(), oldSize, "CancelPending() gives back the old size");
+        server.CancelConfirmation();
+        ExpectEqual(VideoWindowSettingsServer.GetWindowSize(), oldSize, "CancelConfirmation() gives back the old size");
 
         VideoWindowSettingsServer.SetWindowSize(new Vector2I(1024, 600));
-        server.ConfirmPending();
-        ExpectEqual(server.GetAppliedValue("window_size").AsVector2I(), new Vector2I(1024, 600), "ConfirmPending() keeps the new size");
+        server.ConfirmChanges();
+        ExpectEqual(server.GetAppliedValue("window_size").AsVector2I(), new Vector2I(1024, 600), "ConfirmChanges() keeps the new size");
         Reset();
     }
 
@@ -102,8 +102,8 @@ public partial class Issue20FeatureVideoWindowSettingsCheck : FeatureCheckCs
         {
             ExpectEqual(DisplayServer.WindowGetVsyncMode(), DisplayServer.VSyncMode.Disabled, "the display server has the V-Sync mode");
         }
-        server.Retrieve();
-        ExpectEqual(VideoWindowSettingsServer.GetVsyncMode(), DisplayServer.VSyncMode.Disabled, "Retrieve() reads the same V-Sync mode back");
+        server.ReadFromEngine();
+        ExpectEqual(VideoWindowSettingsServer.GetVsyncMode(), DisplayServer.VSyncMode.Disabled, "ReadFromEngine() reads the same V-Sync mode back");
         Reset();
     }
 
@@ -167,7 +167,7 @@ public partial class Issue20FeatureVideoWindowSettingsCheck : FeatureCheckCs
         VideoWindowSettingsServer.SetWindowSize(new Vector2I(1920, 1080));
         VideoWindowSettingsServer.SetScreen(5); // A screen that does not exist.
         ExpectEqual(server.Apply(), Error.Ok, "Apply() in manual mode");
-        server.ConfirmPending();
+        server.ConfirmChanges();
         server.ApplyMode = SettingsServer.ApplyModeEnum.Immediate;
         var inventory = new Window { Size = new Vector2I(400, 300), Position = new Vector2I(60, 70) };
         VideoWindowSettingsServer.SaveWindowState(inventory, ProbeWindowKey);

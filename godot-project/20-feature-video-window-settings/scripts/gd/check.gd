@@ -43,7 +43,7 @@ func _run_checks() -> void:
 
 func _reset() -> void:
 	VideoWindowSettingsServer.reset_to_defaults()
-	VideoWindowSettingsServer.confirm_pending()
+	VideoWindowSettingsServer.confirm_changes()
 
 
 func _is_headless() -> bool:
@@ -74,12 +74,12 @@ func _check_confirmation() -> void:
 	var old_size := VideoWindowSettingsServer.get_window_size()
 	VideoWindowSettingsServer.set_window_size(Vector2i(1024, 600))
 	expect(VideoWindowSettingsServer.is_confirmation_pending(), "a new window size waits for the confirmation")
-	VideoWindowSettingsServer.cancel_pending()
-	expect_equal(VideoWindowSettingsServer.get_window_size(), old_size, "cancel_pending() gives back the old size")
+	VideoWindowSettingsServer.cancel_confirmation()
+	expect_equal(VideoWindowSettingsServer.get_window_size(), old_size, "cancel_confirmation() gives back the old size")
 
 	VideoWindowSettingsServer.set_window_size(Vector2i(1024, 600))
-	VideoWindowSettingsServer.confirm_pending()
-	expect_equal(VideoWindowSettingsServer.get_applied_value(&"window_size"), Vector2i(1024, 600), "confirm_pending() keeps the new size")
+	VideoWindowSettingsServer.confirm_changes()
+	expect_equal(VideoWindowSettingsServer.get_applied_value(&"window_size"), Vector2i(1024, 600), "confirm_changes() keeps the new size")
 	if not _is_headless() and DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_WINDOWED and VideoWindowSettingsServer.is_value_supported(&"window_size"):
 		expect_equal(DisplayServer.window_get_size(), Vector2i(1024, 600), "the main window has the new size")
 	_reset()
@@ -91,8 +91,8 @@ func _check_vsync() -> void:
 	expect_equal(VideoWindowSettingsServer.get_applied_value(&"vsync_mode"), DisplayServer.VSYNC_DISABLED, "V-Sync is applied at once")
 	if not _is_headless() and VideoWindowSettingsServer.is_value_supported(&"vsync_mode"):
 		expect_equal(DisplayServer.window_get_vsync_mode(), DisplayServer.VSYNC_DISABLED, "the display server has the V-Sync mode")
-	VideoWindowSettingsServer.retrieve()
-	expect_equal(VideoWindowSettingsServer.get_vsync_mode(), DisplayServer.VSYNC_DISABLED, "retrieve() reads the same V-Sync mode back")
+	VideoWindowSettingsServer.read_from_engine()
+	expect_equal(VideoWindowSettingsServer.get_vsync_mode(), DisplayServer.VSYNC_DISABLED, "read_from_engine() reads the same V-Sync mode back")
 	_reset()
 
 
@@ -171,7 +171,7 @@ func _check_restart() -> void:
 	VideoWindowSettingsServer.set_screen(5) # A screen that does not exist.
 	VideoWindowSettingsServer.set_borderless(true)
 	expect_equal(VideoWindowSettingsServer.apply(), OK, "apply() in manual mode")
-	VideoWindowSettingsServer.confirm_pending()
+	VideoWindowSettingsServer.confirm_changes()
 	VideoWindowSettingsServer.apply_mode = SettingsServer.APPLY_MODE_IMMEDIATE
 	var inventory := Window.new()
 	inventory.size = Vector2i(400, 300)
