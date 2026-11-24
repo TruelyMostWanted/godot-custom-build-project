@@ -16,6 +16,7 @@ func _get_check_name() -> String:
 
 
 func _run_checks() -> void:
+	await _check_typed_signals()
 	expect(Engine.has_singleton("CameraSettingsServer"), "CameraSettingsServer is a registered singleton")
 	server = Engine.get_singleton("CameraSettingsServer")
 	expect(server is SettingsServer, "CameraSettingsServer is a SettingsServer")
@@ -185,3 +186,45 @@ func _check_storage_and_scene_change() -> void:
 	expect_equal(loaded.keep_aspect, Camera3D.KEEP_WIDTH, "the camera of a new scene gets keep_aspect")
 	instance.queue_free()
 	await get_tree().process_frame
+
+
+## Issue #173: the typed signal fires once per applied change, not for pending changes in manual mode.
+func _check_typed_signals() -> void:
+	if not Engine.has_singleton("CameraSettingsServer"):
+		return
+	var s: SettingsServer = Engine.get_singleton("CameraSettingsServer")
+	expect(s.has_signal(&"field_of_view_changed"), "CameraSettingsServer has the typed signal field_of_view_changed")
+	var arg_info: Dictionary = {}
+	for info: Dictionary in s.get_signal_list():
+		if info.name == "field_of_view_changed":
+			arg_info = info.args[0]
+	expect_equal(arg_info.get("type"), TYPE_FLOAT, "field_of_view_changed has a typed argument")
+	var file_path := s.get_file_path()
+	var had_file := FileAccess.file_exists(file_path)
+	var previous_mode := s.apply_mode
+	s.apply_mode = SettingsServer.APPLY_MODE_IMMEDIATE
+	s.reset_value(&"field_of_view")
+	var new_value: Variant = 90.0 if s.get_applied_value(&"field_of_view") != 90.0 else 60.0
+	var received: Array = []
+	var on_changed := func(v: Variant) -> void: received.append(v)
+	s.connect(&"field_of_view_changed", on_changed)
+
+	s.apply_mode = SettingsServer.APPLY_MODE_MANUAL
+	s.set_value(&"field_of_view", new_value)
+	expect_equal(received.size(), 0, "field_of_view_changed does not fire for a pending change in manual mode")
+	s.apply()
+	expect_equal(received, [new_value], "field_of_view_changed fires once on apply() with the applied value")
+	if not received.is_empty():
+		expect_equal(typeof(received[0]), TYPE_FLOAT, "field_of_view_changed passes a typed value")
+	s.apply()
+	expect_equal(received.size(), 1, "field_of_view_changed does not fire when nothing changed")
+	s.reset_value(&"field_of_view")
+	expect_equal(received.size(), 1, "field_of_view_changed waits for apply() after a reset in manual mode")
+	s.apply()
+	expect_equal(received.size(), 2, "field_of_view_changed fires again when the default is applied")
+
+	s.disconnect(&"field_of_view_changed", on_changed)
+	s.apply_mode = previous_mode
+	await get_tree().process_frame
+	if not had_file:
+		DirAccess.remove_absolute(file_path)

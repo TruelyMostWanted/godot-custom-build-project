@@ -27,6 +27,8 @@ public partial class Issue28FeatureCameraSettingsCheck : FeatureCheckCs
 
     protected override async Task RunChecks()
     {
+        await CheckTypedSignals();
+
         var server = CameraSettingsServer.Singleton;
         Expect(Engine.HasSingleton("CameraSettingsServer"), "CameraSettingsServer is a registered singleton");
         Expect(server is CameraSettingsServerInstance, "CameraSettingsServer.Singleton is the instance type");
@@ -211,5 +213,50 @@ public partial class Issue28FeatureCameraSettingsCheck : FeatureCheckCs
         ExpectEqual(loaded.KeepAspect, Camera3D.KeepAspectEnum.Width, "the camera of a new scene gets keep_aspect");
         instance.QueueFree();
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+    }
+
+    /// <summary>Issue #173: the typed signal fires once per applied change, not for pending changes in manual mode.</summary>
+    private async Task CheckTypedSignals()
+    {
+        if (!Engine.HasSingleton("CameraSettingsServer"))
+        {
+            return;
+        }
+        var s = (SettingsServer)Engine.GetSingleton("CameraSettingsServer");
+        Expect(s.HasSignal("field_of_view_changed"), "CameraSettingsServer has the typed signal field_of_view_changed");
+        string filePath = s.GetFilePath();
+        bool hadFile = FileAccess.FileExists(filePath);
+        var previousMode = s.ApplyMode;
+        s.ApplyMode = SettingsServer.ApplyModeEnum.Immediate;
+        s.ResetValue("field_of_view");
+        double newValue = s.GetAppliedValue("field_of_view").AsDouble() != 90.0 ? 90.0 : 60.0;
+        var received = new System.Collections.Generic.List<Variant>();
+        var onChanged = Callable.From((Variant v) => received.Add(v));
+        s.Connect("field_of_view_changed", onChanged);
+
+        s.ApplyMode = SettingsServer.ApplyModeEnum.Manual;
+        s.SetValue("field_of_view", newValue);
+        ExpectEqual(received.Count, 0, "field_of_view_changed does not fire for a pending change in manual mode");
+        s.Apply();
+        ExpectEqual(received.Count, 1, "field_of_view_changed fires once on Apply()");
+        if (received.Count > 0)
+        {
+            ExpectEqual(received[0].VariantType, Variant.Type.Float, "field_of_view_changed passes a typed value");
+            ExpectEqual((float)received[0].AsDouble(), (float)newValue, "field_of_view_changed passes the applied value");
+        }
+        s.Apply();
+        ExpectEqual(received.Count, 1, "field_of_view_changed does not fire when nothing changed");
+        s.ResetValue("field_of_view");
+        ExpectEqual(received.Count, 1, "field_of_view_changed waits for Apply() after a reset in manual mode");
+        s.Apply();
+        ExpectEqual(received.Count, 2, "field_of_view_changed fires again when the default is applied");
+
+        s.Disconnect("field_of_view_changed", onChanged);
+        s.ApplyMode = previousMode;
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        if (!hadFile)
+        {
+            DirAccess.RemoveAbsolute(filePath);
+        }
     }
 }
