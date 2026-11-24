@@ -17,6 +17,7 @@ func _get_check_name() -> String:
 
 
 func _run_checks() -> void:
+	await _check_typed_signals()
 	expect(Engine.has_singleton("VideoTextureSettingsServer"), "VideoTextureSettingsServer is a registered singleton")
 	expect(Engine.get_singleton("VideoTextureSettingsServer") is SettingsServer, "VideoTextureSettingsServer is a SettingsServer")
 	expect_equal(SettingsServerManager.get_server(&"video_texture"), Engine.get_singleton("VideoTextureSettingsServer"), "the domain is registered as \"video_texture\"")
@@ -218,3 +219,45 @@ func _check_streaming() -> void:
 		expect_equal(texture_streaming.memory_budget_mb_override, ProjectSettings.get_setting("rendering/textures/streaming/memory_budget_mb"), "reset_to_defaults() gives back the project budget")
 	await get_tree().process_frame
 	DirAccess.remove_absolute(STREAMING_FILE)
+
+
+## Issue #173: the typed signal fires once per applied change, not for pending changes in manual mode.
+func _check_typed_signals() -> void:
+	if not Engine.has_singleton("VideoTextureSettingsServer"):
+		return
+	var s: SettingsServer = Engine.get_singleton("VideoTextureSettingsServer")
+	expect(s.has_signal(&"texture_mipmap_bias_changed"), "VideoTextureSettingsServer has the typed signal texture_mipmap_bias_changed")
+	var arg_info: Dictionary = {}
+	for info: Dictionary in s.get_signal_list():
+		if info.name == "texture_mipmap_bias_changed":
+			arg_info = info.args[0]
+	expect_equal(arg_info.get("type"), TYPE_FLOAT, "texture_mipmap_bias_changed has a typed argument")
+	var file_path := s.get_file_path()
+	var had_file := FileAccess.file_exists(file_path)
+	var previous_mode := s.apply_mode
+	s.apply_mode = SettingsServer.APPLY_MODE_IMMEDIATE
+	s.reset_value(&"texture_mipmap_bias")
+	var new_value: Variant = 0.5 if s.get_applied_value(&"texture_mipmap_bias") != 0.5 else -0.5
+	var received: Array = []
+	var on_changed := func(v: Variant) -> void: received.append(v)
+	s.connect(&"texture_mipmap_bias_changed", on_changed)
+
+	s.apply_mode = SettingsServer.APPLY_MODE_MANUAL
+	s.set_value(&"texture_mipmap_bias", new_value)
+	expect_equal(received.size(), 0, "texture_mipmap_bias_changed does not fire for a pending change in manual mode")
+	s.apply()
+	expect_equal(received, [new_value], "texture_mipmap_bias_changed fires once on apply() with the applied value")
+	if not received.is_empty():
+		expect_equal(typeof(received[0]), TYPE_FLOAT, "texture_mipmap_bias_changed passes a typed value")
+	s.apply()
+	expect_equal(received.size(), 1, "texture_mipmap_bias_changed does not fire when nothing changed")
+	s.reset_value(&"texture_mipmap_bias")
+	expect_equal(received.size(), 1, "texture_mipmap_bias_changed waits for apply() after a reset in manual mode")
+	s.apply()
+	expect_equal(received.size(), 2, "texture_mipmap_bias_changed fires again when the default is applied")
+
+	s.disconnect(&"texture_mipmap_bias_changed", on_changed)
+	s.apply_mode = previous_mode
+	await get_tree().process_frame
+	if not had_file:
+		DirAccess.remove_absolute(file_path)
