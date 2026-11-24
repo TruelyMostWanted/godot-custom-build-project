@@ -61,7 +61,7 @@ public partial class Issue75FeatureAudioCommandsCheck : FeatureCheckCs
         {
             layout.AddChannel(MakeChannel(channelName));
         }
-        AudioMixerServer.LoadLayout(layout);
+        AudioMixerServer.ApplyLayout(layout);
         AudioMixerServer.Singleton.CommandExecuted += OnCommandExecuted;
         string longWav = SaveWav("long.tres", 30.0);
 
@@ -76,10 +76,10 @@ public partial class Issue75FeatureAudioCommandsCheck : FeatureCheckCs
         fade.FadeCurve = AudioMixerServer.FadeCurve.EqualPower;
         fade.LoopMode = AudioCommand.LoopModeEnum.On;
         list.AddCommand(fade);
-        var jump = MakeCommand("track_3", AudioCommand.CommandEnum.ChangeIndex, "music");
+        var jump = MakeCommand("track_3", AudioCommand.CommandEnum.SetQueueIndex, "music");
         jump.QueueIndex = 3;
         list.AddCommand(jump);
-        var clip = MakeCommand("battle", AudioCommand.CommandEnum.SwitchClip, "music");
+        var clip = MakeCommand("battle", AudioCommand.CommandEnum.SwitchToClip, "music");
         clip.ClipName = "Battle";
         clip.VolumeDb = -6.5f;
         list.AddCommand(clip);
@@ -143,7 +143,7 @@ public partial class Issue75FeatureAudioCommandsCheck : FeatureCheckCs
         Expect(AudioMixerServer.ExecuteGroup("forest") == Error.Ok, "ExecuteGroup(\"forest\") returns Ok");
         Expect(Forest.All(channelName => AudioMixerServer.IsPlaying(channelName)), "all forest channels play");
         Expect(!AudioMixerServer.IsPlaying("traffic"), "the city command did not run");
-        Expect(AudioMixerServer.GetChannel("birds").LoopEntry, "LoopMode On loops the channel entry");
+        Expect(AudioMixerServer.GetChannel("birds").LoopCurrentEntry, "LoopMode On loops the channel entry");
 
         // 4. An invalid command returns an error without stopping other channels.
         var ghost = MakeCommand("ghost", AudioCommand.CommandEnum.Play, "ghost", longWav);
@@ -173,7 +173,7 @@ public partial class Issue75FeatureAudioCommandsCheck : FeatureCheckCs
 
         AudioMixerServer.Singleton.CommandExecuted -= OnCommandExecuted;
         board.ClearPreloadedStreams();
-        AudioMixerServer.LoadLayout(new AudioMixerLayout());
+        AudioMixerServer.ApplyLayout(new AudioMixerLayout());
         return Task.CompletedTask;
     }
 }

@@ -64,7 +64,7 @@ func _run_checks() -> void:
 	channel_names.append_array(FOREST)
 	for channel_name in channel_names:
 		layout.add_channel(_make_channel(channel_name))
-	AudioMixerServer.load_layout(layout)
+	AudioMixerServer.apply_layout(layout)
 	AudioMixerServer.command_executed.connect(_on_command_executed)
 	var long_wav := _save_wav("long.tres", 30.0)
 
@@ -79,10 +79,10 @@ func _run_checks() -> void:
 	fade.fade_curve = AudioMixerServer.FADE_CURVE_EQUAL_POWER
 	fade.loop_mode = AudioCommand.LOOP_MODE_ON
 	list.add_command(fade)
-	var jump := _make_command(&"track_3", AudioCommand.COMMAND_CHANGE_INDEX, &"music")
+	var jump := _make_command(&"track_3", AudioCommand.COMMAND_SET_QUEUE_INDEX, &"music")
 	jump.queue_index = 3
 	list.add_command(jump)
-	var clip := _make_command(&"battle", AudioCommand.COMMAND_SWITCH_CLIP, &"music")
+	var clip := _make_command(&"battle", AudioCommand.COMMAND_SWITCH_TO_CLIP, &"music")
 	clip.clip_name = &"Battle"
 	clip.volume_db = -6.5
 	list.add_command(clip)
@@ -145,7 +145,7 @@ func _run_checks() -> void:
 		forest_on = forest_on and AudioMixerServer.is_playing(channel_name)
 	expect(forest_on, "all forest channels play")
 	expect(not AudioMixerServer.is_playing(&"traffic"), "the city command did not run")
-	expect(AudioMixerServer.get_channel(&"birds").loop_entry, "loop_mode ON loops the channel entry")
+	expect(AudioMixerServer.get_channel(&"birds").loop_current_entry, "loop_mode ON loops the channel entry")
 
 	# 4. An invalid command returns an error without stopping other channels.
 	var ghost := _make_command(&"ghost", AudioCommand.COMMAND_PLAY, &"ghost", long_wav)
@@ -175,4 +175,4 @@ func _run_checks() -> void:
 
 	AudioMixerServer.command_executed.disconnect(_on_command_executed)
 	board.clear_preloaded_streams()
-	AudioMixerServer.load_layout(AudioMixerLayout.new())
+	AudioMixerServer.apply_layout(AudioMixerLayout.new())
