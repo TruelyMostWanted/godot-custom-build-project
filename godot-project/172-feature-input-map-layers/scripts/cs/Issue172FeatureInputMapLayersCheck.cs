@@ -56,20 +56,20 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
         ExpectEqual(action.Action.ToString(), "l172_demo", "action name");
         Expect(Approx((float)action.Deadzone, 0.4f), "deadzone");
 
-        action.Events = InputMapSettingsServer.TextToEvents("Key:Ctrl+S; JoypadButton:A");
+        action.Events = InputMapSettingsServer.TextToEvents("KeyboardLabel:Ctrl+S; Gamepad:A");
         ExpectEqual(action.GetEventCount(), 2, "the text form gives two events");
         Expect(action.Events[0] is InputEventKey, "the first event is a key");
         Expect(action.Events[1] is InputEventJoypadButton, "the second event is a joypad button");
-        ExpectEqual(InputMapSettingsServer.EventsToText(action.Events), "KeyboardLabel:Ctrl+S; Gamepad:A@Any", "bindings round trip");
+        ExpectEqual(InputMapSettingsServer.EventsToText(action.Events), "KeyboardLabel:Ctrl+S; Gamepad:A", "bindings round trip");
         ExpectEqual(action.GetDeviceEvents(InputAction.InputDevice.Keyboard).Count, 1, "one keyboard event");
         ExpectEqual(action.GetDeviceEvents(InputAction.InputDevice.Gamepad).Count, 1, "one gamepad event");
         ExpectEqual(action.GetDeviceEvents(InputAction.InputDevice.Mouse).Count, 0, "no mouse event");
 
-        InputEvent mouse = InputAction.TextToEvent("MouseButton:Left");
+        InputEvent mouse = InputAction.TextToEvent("Mouse:Left");
         action.AddEvent(mouse);
         ExpectEqual(action.GetEventCount(), 3, "AddEvent() adds an event");
         Expect(action.HasEvent(mouse), "HasEvent()");
-        action.AddEvent(InputAction.TextToEvent("MouseButton:Left"));
+        action.AddEvent(InputAction.TextToEvent("Mouse:Left"));
         ExpectEqual(action.GetEventCount(), 3, "AddEvent() ignores an equal event");
         Expect(action.RemoveEvent(mouse), "RemoveEvent() finds the event");
         Expect(!action.RemoveEvent(mouse), "RemoveEvent() of a missing event is false");
@@ -81,11 +81,11 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
 
         // Touch has no text form: kept in events, left out of bindings.
         action.AddEvent(new InputEventScreenTouch());
-        action.AddEvent(InputAction.TextToEvent("Key:Space"));
+        action.AddEvent(InputAction.TextToEvent("KeyboardLabel:Space"));
         ExpectEqual(action.GetEventCount(), 2, "touch and key are both events");
         ExpectEqual(InputMapSettingsServer.EventsToText(action.Events), "KeyboardLabel:Space", "touch is not part of the bindings text");
 
-        string[] texts = ["Key:Ctrl+S", "PhysicalKey:W", "MouseButton:Ctrl+WheelUp", "JoypadButton:LeftShoulder", "JoypadMotion:LeftX+"];
+        string[] texts = ["KeyboardLabel:Ctrl+S", "Keyboard:W", "Mouse:Ctrl+WheelUp", "Gamepad:LeftShoulder", "GamepadAxis:LeftStickRight"];
         foreach (string text in texts)
         {
             InputEvent @event = InputAction.TextToEvent(text);
@@ -95,11 +95,11 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
                 ExpectEqual(InputAction.EventToText(@event), text, $"round trip of \"{text}\"");
             }
         }
-        Expect(InputAction.TextToEvent("Key:Hyper+S") == null, "an unknown modifier is not valid");
+        Expect(InputAction.TextToEvent("KeyboardLabel:Hyper+S") == null, "an unknown modifier is not valid");
         ExpectEqual(InputAction.EventToText(new InputEventScreenTouch()), "", "a touch has no text");
         ExpectEqual(InputAction.GetEventDevice(PressedKey(Key.A)), InputAction.InputDevice.Keyboard, "key device");
-        ExpectEqual(InputAction.GetEventDevice(InputAction.TextToEvent("MouseButton:Left")), InputAction.InputDevice.Mouse, "mouse device");
-        ExpectEqual(InputAction.GetEventDevice(InputAction.TextToEvent("JoypadMotion:LeftX+")), InputAction.InputDevice.Gamepad, "joypad axis device");
+        ExpectEqual(InputAction.GetEventDevice(InputAction.TextToEvent("Mouse:Left")), InputAction.InputDevice.Mouse, "mouse device");
+        ExpectEqual(InputAction.GetEventDevice(InputAction.TextToEvent("GamepadAxis:LeftStickRight")), InputAction.InputDevice.Gamepad, "joypad axis device");
         ExpectEqual(InputAction.GetEventDevice(new InputEventScreenTouch()), InputAction.InputDevice.Max, "touch has no device");
     }
 
@@ -112,8 +112,8 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
     {
         var list = new InputActions();
         ExpectEqual(list.GetActionCount(), 0, "a new InputActions is empty");
-        var jump = new InputAction { Action = "l172_jump", Events = InputMapSettingsServer.TextToEvents("Key:Space") };
-        var fire = new InputAction { Action = "l172_fire", Events = InputMapSettingsServer.TextToEvents("MouseButton:Left") };
+        var jump = new InputAction { Action = "l172_jump", Events = InputMapSettingsServer.TextToEvents("KeyboardLabel:Space") };
+        var fire = new InputAction { Action = "l172_fire", Events = InputMapSettingsServer.TextToEvents("Mouse:Left") };
         list.AddAction(jump);
         list.AddAction(fire);
         ExpectEqual(list.GetActionCount(), 2, "two actions");
@@ -123,7 +123,7 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
         Expect(list.GetAction("l172_none") == null, "GetAction() of a missing name is null");
         ExpectEqual(Names(list), "l172_jump,l172_fire", "names in insertion order");
 
-        var jump2 = new InputAction { Action = "l172_jump", Events = InputMapSettingsServer.TextToEvents("Key:W") };
+        var jump2 = new InputAction { Action = "l172_jump", Events = InputMapSettingsServer.TextToEvents("KeyboardLabel:W") };
         list.AddAction(jump2);
         ExpectEqual(list.GetActionCount(), 2, "adding a name again replaces the action");
         Expect(list.GetAction("l172_jump") == jump2, "the new action replaced the old one");
@@ -161,7 +161,7 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
 
         var list = new InputActions();
         var jump = new InputAction { Action = "l172_file_jump", Deadzone = 0.5f };
-        jump.Events = InputMapSettingsServer.TextToEvents("Key:Space; PhysicalKey:Ctrl+W; MouseButton:Right; JoypadButton:A@1; JoypadMotion:LeftY-");
+        jump.Events = InputMapSettingsServer.TextToEvents("KeyboardLabel:Space; Keyboard:Ctrl+W; Mouse:Right; Device1:Gamepad:A; GamepadAxis:LeftStickUp");
         jump.AddEvent(new InputEventScreenTouch { Index = 2 });
         list.AddAction(jump);
         list.AddAction(new InputAction { Action = "l172_file_empty" });
@@ -187,10 +187,10 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
         Expect(text.Contains("deadzone = 0.5"), ".tres: the deadzone that is not the default");
         Expect(!text.Contains("bindings"), ".tres: no text form");
 
-        // The text form of InputMapSettingsServer: one pad with @<device>, events without text left out.
-        ExpectEqual(InputMapSettingsServer.EventsToText(jump.Events), "KeyboardLabel:Space; Keyboard:Ctrl+W; Mouse:Right; Gamepad:A@1; GamepadAxis:LeftY-", "EventsToText()");
-        ExpectEqual(InputMapSettingsServer.TextToEvents("Key:Space; NotAType:X").Count, 1, "TextToEvents() skips invalid items");
-        ExpectEqual(InputMapSettingsServer.TextToEvents("JoypadButton:A@1")[0].Device, 1, "TextToEvents(): the pad");
+        // The text form of InputMapSettingsServer: one pad with a Device<N>: prefix, events without text left out.
+        ExpectEqual(InputMapSettingsServer.EventsToText(jump.Events), "KeyboardLabel:Space; Keyboard:Ctrl+W; Mouse:Right; Device1:Gamepad:A; GamepadAxis:LeftStickUp", "EventsToText()");
+        ExpectEqual(InputMapSettingsServer.TextToEvents("KeyboardLabel:Space; NotAType:X").Count, 1, "TextToEvents() skips invalid items");
+        ExpectEqual(InputMapSettingsServer.TextToEvents("Device1:Gamepad:A")[0].Device, 1, "TextToEvents(): the pad");
     }
 
     private void CheckLayers()
@@ -227,7 +227,7 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
         Expect(Approx((float)attack.Deadzone, 0.3f), "GetInputAction() deadzone from the project");
         ExpectEqual(InputMapSettingsServer.EventsToText(attack.Events), "KeyboardLabel:F", "GetInputAction() events as text");
         ExpectEqual(attack.GetInstanceId(), custom.GetAction(Attack).GetInstanceId(), "GetInputAction() is the action of the custom layer");
-        InputEvent keyH = InputAction.TextToEvent("Key:H");
+        InputEvent keyH = InputAction.TextToEvent("KeyboardLabel:H");
         attack.AddEvent(keyH);
         Expect(IsAction(PressedKey(Key.H), Attack), "an event added to the returned action works");
         attack.RemoveEvent(keyH);
@@ -235,7 +235,7 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
         ExpectEqual(InputMap.GetInputAction(Attack).GetEventCount(), 1, "one event again");
 
         // Direct edits of a layer reach the InputMap.
-        custom.AddAction(new InputAction { Action = "l172_direct", Events = InputMapSettingsServer.TextToEvents("Key:F9") });
+        custom.AddAction(new InputAction { Action = "l172_direct", Events = InputMapSettingsServer.TextToEvents("KeyboardLabel:F9") });
         Expect(InputMap.HasAction("l172_direct"), "an action added to the custom layer is in the InputMap");
         Expect(IsAction(PressedKey(Key.F9), "l172_direct"), "its key works");
         Expect(custom.RemoveAction("l172_direct"), "remove it from the layer");
@@ -245,7 +245,7 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
     private void CheckSetInputAction()
     {
         InputAction original = InputMap.GetInputAction(Attack);
-        var changed = new InputAction { Action = Attack, Deadzone = 0.6f, Events = InputMapSettingsServer.TextToEvents("Key:G") };
+        var changed = new InputAction { Action = Attack, Deadzone = 0.6f, Events = InputMapSettingsServer.TextToEvents("KeyboardLabel:G") };
         InputMap.SetInputAction(changed);
         Expect(IsAction(PressedKey(Key.G), Attack), "SetInputAction(): the new key works");
         Expect(!IsAction(PressedKey(Key.F), Attack), "SetInputAction(): the old key no longer works");
@@ -258,7 +258,7 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
         var extra = new InputActions();
         for (int n = 0; n < 2; n++)
         {
-            extra.AddAction(new InputAction { Action = $"l172_extra_{n}", Events = InputMapSettingsServer.TextToEvents($"Key:F{n + 5}") });
+            extra.AddAction(new InputAction { Action = $"l172_extra_{n}", Events = InputMapSettingsServer.TextToEvents($"KeyboardLabel:F{n + 5}") });
         }
         InputMap.SetInputActions(extra);
         Expect(InputMap.HasAction("l172_extra_0") && InputMap.HasAction("l172_extra_1"), "SetInputActions() adds new actions");
@@ -322,9 +322,9 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
         ExpectEqual(InputMapSettingsServer.Rebind("ui_accept", PressedKey(Key.Q)), Error.DoesNotExist, "a built-in action can't be rebound in CUSTOM_ONLY");
 
         InputMapSettingsServer.ResetAll();
-        ExpectEqual(InputAction.EventToText(InputMapSettingsServer.GetEvent(Attack, InputAction.InputDevice.Keyboard, 0)), "Key:F", "slot 0 is F");
+        ExpectEqual(InputAction.EventToText(InputMapSettingsServer.GetEvent(Attack, InputAction.InputDevice.Keyboard, 0)), "KeyboardLabel:F", "slot 0 is F");
         ExpectEqual(InputMapSettingsServer.Rebind(Attack, PressedKey(Key.X)), Error.Ok, "Rebind() slot 0");
-        ExpectEqual(InputAction.EventToText(InputMapSettingsServer.GetEvent(Attack, InputAction.InputDevice.Keyboard, 0)), "PhysicalKey:X", "GetEvent() gives the new key");
+        ExpectEqual(InputAction.EventToText(InputMapSettingsServer.GetEvent(Attack, InputAction.InputDevice.Keyboard, 0)), "Keyboard:X", "GetEvent() gives the new key");
         Expect(IsAction(PressedKey(Key.X), Attack), "the new key works at once");
         Expect(!IsAction(PressedKey(Key.F), Attack), "the old key no longer works");
         ExpectEqual(InputMapSettingsServer.Rebind(Attack, PressedKey(Key.Y), 1), Error.Ok, "Rebind() slot 1");
@@ -333,7 +333,7 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
 
         InputMapSettingsServer.ClearEvent(Attack, InputAction.InputDevice.Keyboard, 0);
         ExpectEqual(InputMapSettingsServer.GetSlotCount(Attack, InputAction.InputDevice.Keyboard), 1, "ClearEvent() removes the slot");
-        ExpectEqual(InputAction.EventToText(InputMapSettingsServer.GetEvent(Attack, InputAction.InputDevice.Keyboard, 0)), "PhysicalKey:Y", "later slots move up");
+        ExpectEqual(InputAction.EventToText(InputMapSettingsServer.GetEvent(Attack, InputAction.InputDevice.Keyboard, 0)), "Keyboard:Y", "later slots move up");
         Expect(!IsAction(PressedKey(Key.X), Attack), "the cleared key no longer works");
         Expect(IsAction(PressedKey(Key.Y), Attack), "the moved key works");
 
