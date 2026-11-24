@@ -84,7 +84,7 @@ public partial class Issue16FeatureAudioSettingsCheck : FeatureCheckCs
         Expect(Mathf.IsEqualApprox(AudioBusSettingsServer.GetBusVolumeDb("Music"), -12.0f), "GetBusVolumeDb()");
         AudioBusSettingsServer.SetBusVolumeLinear("Sfx", 0.5f);
         Expect(Math.Abs(AudioBusSettingsServer.GetBusVolumeLinear("Sfx") - 0.5f) < 0.001f, "linear volume (50 %)");
-        Expect(Math.Abs(BusVolumeDb("Sfx") - Mathf.LinearToDb(0.5f)) < 0.01f, "linear volume is stored in dB");
+        Expect(Mathf.IsEqualApprox(BusVolumeDb("Sfx"), -6.0f), "linear volume is stored in dB, snapped to 0.1 dB (#189)");
         AudioBusSettingsServer.SetBusMute("Music", true);
         Expect(AudioServer.IsBusMute(AudioServer.GetBusIndex("Music")), "SetBusMute() reaches AudioServer");
         AudioBusSettingsServer.SetBusSolo("Sfx", true);
