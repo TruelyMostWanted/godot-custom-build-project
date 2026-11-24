@@ -45,6 +45,8 @@ func _run_checks() -> void:
 	_check_restart_values()
 	_check_list_defaults()
 	_check_entry_validation()
+	_check_project_paths()
+	_check_failure_signals()
 	await _check_restart(server)
 
 	_remove_dir(DIR)
@@ -271,6 +273,99 @@ func _check_entry_validation() -> void:
 		expect_equal(reader.get_entry_value(0, &"level"), 10, "#71: hand-edited entry values are clamped on load")
 	reader.free()
 	list.free()
+
+
+func _check_project_paths() -> void:
+	# Every registered domain (engine and script domains) gets the project setting of its file path.
+	for domain_name in SettingsServerManager.get_domains():
+		expect(ProjectSettings.has_setting("settings/paths/%s_settings_path" % domain_name), "project setting settings/paths/%s_settings_path exists" % domain_name)
+	var setting := "settings/paths/check15_gd_settings_path"
+	expect_equal(ProjectSettings.get_setting(setting), "", "the path setting is empty by default")
+
+	for extension in ["json", "ini", "xml", "toml", "yaml"]:
+		if not ResourceTextSerializer.is_format_available(ResourceTextSerializer.get_format_from_extension(extension)):
+			print("  SKIP  project path .%s (module not in this build)" % extension)
+			continue
+		var path := DIR.path_join("project_path." + extension)
+		ProjectSettings.set_setting(setting, path)
+		var writer: SettingsServer = load(DOMAIN_SCRIPT).new()
+		writer.set_apply_mode(SettingsServer.APPLY_MODE_MANUAL)
+		expect_equal(writer.get_file_path(), path, "%s: get_file_path() returns the project setting" % extension)
+		writer.set_value(&"volume", 0.3)
+		writer.set_value(&"quality", 2)
+		writer.apply() # save() writes the applied values.
+		expect_equal(writer.save(), OK, "%s: save() to the project path" % extension)
+		writer.free()
+		var reader: SettingsServer = load(DOMAIN_SCRIPT).new()
+		expect_equal(reader.load(), OK, "%s: load() from the project path" % extension)
+		expect(is_equal_approx(reader.get_value(&"volume"), 0.3), "%s: volume loaded" % extension)
+		expect_equal(reader.get_value(&"quality"), 2, "%s: quality loaded" % extension)
+		reader.free()
+	expect(FileAccess.get_file_as_string(DIR.path_join("project_path.json")).strip_edges().begins_with("{"), "the .json path is written as JSON")
+	expect(FileAccess.get_file_as_string(DIR.path_join("project_path.xml")).strip_edges().begins_with("<"), "the .xml path is written as XML")
+
+	# A path set at runtime wins over the project setting.
+	ProjectSettings.set_setting(setting, DIR.path_join("project_path.json"))
+	var domain: SettingsServer = load(DOMAIN_SCRIPT).new()
+	domain.set_file_path(DIR.path_join("runtime.ini"))
+	expect_equal(domain.get_file_path(), DIR.path_join("runtime.ini"), "set_file_path() wins over the project setting")
+	domain.set_file_path("")
+	expect_equal(domain.get_file_path(), DIR.path_join("project_path.json"), "an empty runtime path gives the project setting back")
+
+	# An unknown extension prints an error and uses settings/storage/format (INI).
+	var unknown := DIR.path_join("project_path.cfg")
+	ProjectSettings.set_setting(setting, unknown)
+	domain.set_apply_mode(SettingsServer.APPLY_MODE_MANUAL)
+	domain.set_value(&"quality", 0)
+	domain.apply()
+	expect_equal(domain.save(), OK, "an unknown extension is saved in the global format (an error is printed)")
+	var text := FileAccess.get_file_as_string(unknown).strip_edges()
+	expect(not text.begins_with("{") and not text.begins_with("<"), "an unknown extension is written as INI")
+	domain.free()
+
+	ProjectSettings.set_setting(setting, "")
+	var fallback: SettingsServer = load(DOMAIN_SCRIPT).new()
+	expect_equal(fallback.get_file_path(), PLAYER_FILE, "an empty project setting gives the folder and format path")
+	fallback.free()
+
+
+func _check_failure_signals() -> void:
+	var events := []
+	var path := DIR.path_join("signals.json")
+	var domain := _new_domain(path)
+	domain.load_failed.connect(func(error: Error, file_path: String): events.append(["load_failed", error, file_path]))
+	domain.save_failed.connect(func(error: Error, file_path: String): events.append(["save_failed", error, file_path]))
+	domain.settings_changed.connect(func(names: PackedStringArray): events.append(["settings_changed", names]))
+
+	expect_equal(domain.load(), ERR_FILE_NOT_FOUND, "load() without a file")
+	expect(events.is_empty(), "a missing file emits no load_failed")
+
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	file.store_string("{ \"volume\": ")
+	file.close()
+	var load_error := domain.load()
+	expect(load_error != OK, "a broken file is reported (a warning is printed)")
+	expect(events.size() == 1 and events[0] == ["load_failed", load_error, path], "load_failed(error, path) for a broken file")
+	events.clear()
+
+	# A folder that can't be created: its parent is a file.
+	var blocker := DIR.path_join("blocker.txt")
+	file = FileAccess.open(blocker, FileAccess.WRITE)
+	file.store_string("not a folder")
+	file.close()
+	var bad_path := blocker.path_join("sub").path_join("signals.ini")
+	domain.set_file_path(bad_path)
+	var save_error := domain.save()
+	expect(save_error != OK, "save() into a folder that can't be created fails (an error is printed)")
+	expect(events.size() == 1 and events[0] == ["save_failed", save_error, bad_path], "save_failed(error, path)")
+	events.clear()
+
+	domain.set_value(&"volume", 0.7)
+	expect(events.size() == 1 and events[0] == ["settings_changed", PackedStringArray(["volume"])], "settings_changed(names) after set_value()")
+	events.clear()
+	domain.revert()
+	expect(events.size() == 1 and events[0] == ["settings_changed", PackedStringArray(["volume"])], "settings_changed(names) after revert()")
+	domain.free()
 
 
 func _check_restart(server: SettingsServer) -> void:
