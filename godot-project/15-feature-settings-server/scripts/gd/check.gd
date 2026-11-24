@@ -276,57 +276,100 @@ func _check_entry_validation() -> void:
 
 
 func _check_project_paths() -> void:
-	# Every registered domain (engine and script domains) gets the project setting of its file path.
+	# #184: every registered domain (engine and script domains) gets the group settings/<domain>/.
 	for domain_name in SettingsServerManager.get_domains():
-		expect(ProjectSettings.has_setting("settings/paths/%s_settings_path" % domain_name), "project setting settings/paths/%s_settings_path exists" % domain_name)
-	var setting := "settings/paths/check15_gd_settings_path"
-	expect_equal(ProjectSettings.get_setting(setting), "", "the path setting is empty by default")
+		for key in ["file_name", "override_format", "format"]:
+			var setting_name := "settings/%s/%s" % [domain_name, key]
+			expect(ProjectSettings.has_setting(setting_name), "project setting %s exists" % setting_name)
+	for removed in ["settings/storage/folder", "settings/storage/format", "settings/paths/check15_gd_settings_path", "settings/apply/confirmation_timeout"]:
+		expect(not ProjectSettings.has_setting(removed), "#184: %s is removed" % removed)
+	for general in ["folder", "default_format", "only_changed_values", "autosave", "confirmation_timeout"]:
+		expect(ProjectSettings.has_setting("settings/general/" + general), "#184: settings/general/%s exists" % general)
+	var file_name_setting := "settings/check15_gd/file_name"
+	var override_setting := "settings/check15_gd/override_format"
+	var format_setting := "settings/check15_gd/format"
+	expect_equal(ProjectSettings.get_setting(file_name_setting), "check15_gd", "the file name defaults to the domain name")
+	expect_equal(ProjectSettings.get_setting(override_setting), false, "the format is not overridden by default")
 
+	var domain: SettingsServer = load(DOMAIN_SCRIPT).new()
+	expect_equal(domain.get_file_path(), PLAYER_FILE, "path composition: <folder>/<file_name>.<extension of default_format>")
+
+	# Path composition with folder, file name and subfolder.
+	ProjectSettings.set_setting("settings/general/folder", DIR)
+	ProjectSettings.set_setting(file_name_setting, "profiles/check15_gd")
+	var composed := DIR.path_join("profiles/check15_gd.ini")
+	expect_equal(domain.get_file_path(), composed, "a relative subfolder in the file name")
+
+	# The format of the domain is only used with override_format; the extension follows the format.
+	ProjectSettings.set_setting(format_setting, ResourceTextSerializer.FORMAT_JSON)
+	expect_equal(domain.get_file_path(), composed, "format without override_format is ignored")
+	ProjectSettings.set_setting(override_setting, true)
+	composed = DIR.path_join("profiles/check15_gd.json")
+	expect_equal(domain.get_file_path(), composed, "override_format uses the format of the domain")
+	ProjectSettings.set_setting("settings/general/default_format", ResourceTextSerializer.FORMAT_XML)
+	expect_equal(domain.get_file_path(), composed, "override_format wins over default_format")
+	ProjectSettings.set_setting(override_setting, false)
+	expect_equal(domain.get_file_path(), DIR.path_join("profiles/check15_gd.xml"), "default_format picks the extension")
+	ProjectSettings.set_setting("settings/general/default_format", ResourceTextSerializer.FORMAT_INI)
+	ProjectSettings.set_setting(override_setting, true)
+
+	# save() creates the subfolder; load() reads it back.
+	domain.set_apply_mode(SettingsServer.APPLY_MODE_MANUAL)
+	domain.set_value(&"volume", 0.3)
+	domain.set_value(&"quality", 2)
+	domain.apply() # save() writes the applied values.
+	expect_equal(domain.save(), OK, "save() to the composed path")
+	expect(FileAccess.get_file_as_string(composed).strip_edges().begins_with("{"), "the composed .json path is written as JSON")
+	var reader: SettingsServer = load(DOMAIN_SCRIPT).new()
+	expect_equal(reader.load(), OK, "load() from the composed path")
+	expect(is_equal_approx(reader.get_value(&"volume"), 0.3), "volume loaded")
+	expect_equal(reader.get_value(&"quality"), 2, "quality loaded")
+	reader.free()
+
+	# An invalid file name (absolute, "..", empty folder name) prints an error and uses the domain name.
+	for invalid in ["../outside", "/absolute", "res://inside", "a//b"]:
+		ProjectSettings.set_setting(file_name_setting, invalid)
+		expect_equal(domain.get_file_path(), DIR.path_join("check15_gd.json"), "invalid file name %s falls back to the domain name (an error is printed)" % invalid)
+
+	# A path set at runtime wins; there the extension picks the format.
+	ProjectSettings.set_setting(file_name_setting, "check15_gd")
 	for extension in ["json", "ini", "xml", "toml", "yaml"]:
 		if not ResourceTextSerializer.is_format_available(ResourceTextSerializer.get_format_from_extension(extension)):
-			print("  SKIP  project path .%s (module not in this build)" % extension)
+			print("  SKIP  runtime path .%s (module not in this build)" % extension)
 			continue
-		var path := DIR.path_join("project_path." + extension)
-		ProjectSettings.set_setting(setting, path)
+		var path := DIR.path_join("runtime_path." + extension)
 		var writer: SettingsServer = load(DOMAIN_SCRIPT).new()
+		writer.set_file_path(path)
 		writer.set_apply_mode(SettingsServer.APPLY_MODE_MANUAL)
-		expect_equal(writer.get_file_path(), path, "%s: get_file_path() returns the project setting" % extension)
-		writer.set_value(&"volume", 0.3)
+		expect_equal(writer.get_file_path(), path, "%s: set_file_path() wins over the project settings" % extension)
 		writer.set_value(&"quality", 2)
-		writer.apply() # save() writes the applied values.
-		expect_equal(writer.save(), OK, "%s: save() to the project path" % extension)
+		writer.apply()
+		expect_equal(writer.save(), OK, "%s: save() to the runtime path" % extension)
 		writer.free()
-		var reader: SettingsServer = load(DOMAIN_SCRIPT).new()
-		expect_equal(reader.load(), OK, "%s: load() from the project path" % extension)
-		expect(is_equal_approx(reader.get_value(&"volume"), 0.3), "%s: volume loaded" % extension)
-		expect_equal(reader.get_value(&"quality"), 2, "%s: quality loaded" % extension)
-		reader.free()
-	expect(FileAccess.get_file_as_string(DIR.path_join("project_path.json")).strip_edges().begins_with("{"), "the .json path is written as JSON")
-	expect(FileAccess.get_file_as_string(DIR.path_join("project_path.xml")).strip_edges().begins_with("<"), "the .xml path is written as XML")
-
-	# A path set at runtime wins over the project setting.
-	ProjectSettings.set_setting(setting, DIR.path_join("project_path.json"))
-	var domain: SettingsServer = load(DOMAIN_SCRIPT).new()
+	expect(FileAccess.get_file_as_string(DIR.path_join("runtime_path.json")).strip_edges().begins_with("{"), "the .json runtime path is written as JSON")
+	expect(FileAccess.get_file_as_string(DIR.path_join("runtime_path.xml")).strip_edges().begins_with("<"), "the .xml runtime path is written as XML")
 	domain.set_file_path(DIR.path_join("runtime.ini"))
-	expect_equal(domain.get_file_path(), DIR.path_join("runtime.ini"), "set_file_path() wins over the project setting")
+	expect_equal(domain.get_file_path(), DIR.path_join("runtime.ini"), "set_file_path() wins over the project settings")
 	domain.set_file_path("")
-	expect_equal(domain.get_file_path(), DIR.path_join("project_path.json"), "an empty runtime path gives the project setting back")
+	expect_equal(domain.get_file_path(), DIR.path_join("check15_gd.json"), "an empty runtime path gives the composed path back")
 
-	# An unknown extension prints an error and uses settings/storage/format (INI).
-	var unknown := DIR.path_join("project_path.cfg")
-	ProjectSettings.set_setting(setting, unknown)
-	domain.set_apply_mode(SettingsServer.APPLY_MODE_MANUAL)
+	# An unknown extension prints an error and uses the format of the domain (JSON here).
+	var unknown := DIR.path_join("runtime_path.cfg")
+	domain.set_file_path(unknown)
 	domain.set_value(&"quality", 0)
 	domain.apply()
-	expect_equal(domain.save(), OK, "an unknown extension is saved in the global format (an error is printed)")
-	var text := FileAccess.get_file_as_string(unknown).strip_edges()
-	expect(not text.begins_with("{") and not text.begins_with("<"), "an unknown extension is written as INI")
+	expect_equal(domain.save(), OK, "an unknown extension is saved in the format of the domain (an error is printed)")
+	expect(FileAccess.get_file_as_string(unknown).strip_edges().begins_with("{"), "an unknown extension is written as JSON")
 	domain.free()
 
-	ProjectSettings.set_setting(setting, "")
+	ProjectSettings.set_setting("settings/general/folder", "user://settings")
+	ProjectSettings.set_setting(override_setting, false)
+	ProjectSettings.set_setting(format_setting, ResourceTextSerializer.FORMAT_INI)
 	var fallback: SettingsServer = load(DOMAIN_SCRIPT).new()
-	expect_equal(fallback.get_file_path(), PLAYER_FILE, "an empty project setting gives the folder and format path")
+	expect_equal(fallback.get_file_path(), PLAYER_FILE, "the defaults give the folder and format path back")
 	fallback.free()
+	DirAccess.remove_absolute(DIR.path_join("profiles/check15_gd.json"))
+	DirAccess.remove_absolute(DIR.path_join("profiles"))
 
 
 func _check_failure_signals() -> void:

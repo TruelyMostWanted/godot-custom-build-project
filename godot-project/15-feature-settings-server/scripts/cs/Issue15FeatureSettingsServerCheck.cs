@@ -71,64 +71,111 @@ public partial class Issue15FeatureSettingsServerCheck : FeatureCheckCs
 
     private void CheckProjectPaths()
     {
-        // Every registered domain (engine and script domains) gets the project setting of its file path.
+        // #184: every registered domain (engine and script domains) gets the group settings/<domain>/.
         foreach (string domainName in SettingsServerManager.GetDomains())
         {
-            Expect(ProjectSettings.HasSetting($"settings/paths/{domainName}_settings_path"), $"project setting settings/paths/{domainName}_settings_path exists");
+            foreach (string key in new[] { "file_name", "override_format", "format" })
+            {
+                Expect(ProjectSettings.HasSetting($"settings/{domainName}/{key}"), $"project setting settings/{domainName}/{key} exists");
+            }
         }
-        const string setting = "settings/paths/check15_cs_settings_path";
-        ExpectEqual(ProjectSettings.GetSetting(setting).AsString(), "", "the path setting is empty by default");
+        foreach (string removed in new[] { "settings/storage/folder", "settings/storage/format", "settings/paths/check15_cs_settings_path", "settings/apply/confirmation_timeout" })
+        {
+            Expect(!ProjectSettings.HasSetting(removed), $"#184: {removed} is removed");
+        }
+        foreach (string general in new[] { "folder", "default_format", "only_changed_values", "autosave", "confirmation_timeout" })
+        {
+            Expect(ProjectSettings.HasSetting("settings/general/" + general), $"#184: settings/general/{general} exists");
+        }
+        const string fileNameSetting = "settings/check15_cs/file_name";
+        const string overrideSetting = "settings/check15_cs/override_format";
+        const string formatSetting = "settings/check15_cs/format";
+        ExpectEqual(ProjectSettings.GetSetting(fileNameSetting).AsString(), "check15_cs", "the file name defaults to the domain name");
+        ExpectEqual(ProjectSettings.GetSetting(overrideSetting).AsBool(), false, "the format is not overridden by default");
 
+        var domain = new Issue15CheckDomainCs();
+        ExpectEqual(domain.GetFilePath(), PlayerFile, "path composition: <folder>/<file_name>.<extension of default_format>");
+
+        // Path composition with folder, file name and subfolder.
+        ProjectSettings.SetSetting("settings/general/folder", Dir);
+        ProjectSettings.SetSetting(fileNameSetting, "profiles/check15_cs");
+        string composed = Dir.PathJoin("profiles/check15_cs.ini");
+        ExpectEqual(domain.GetFilePath(), composed, "a relative subfolder in the file name");
+
+        // The format of the domain is only used with override_format; the extension follows the format.
+        ProjectSettings.SetSetting(formatSetting, (int)ResourceTextSerializer.Format.Json);
+        ExpectEqual(domain.GetFilePath(), composed, "format without override_format is ignored");
+        ProjectSettings.SetSetting(overrideSetting, true);
+        composed = Dir.PathJoin("profiles/check15_cs.json");
+        ExpectEqual(domain.GetFilePath(), composed, "override_format uses the format of the domain");
+        ProjectSettings.SetSetting("settings/general/default_format", (int)ResourceTextSerializer.Format.Xml);
+        ExpectEqual(domain.GetFilePath(), composed, "override_format wins over default_format");
+        ProjectSettings.SetSetting(overrideSetting, false);
+        ExpectEqual(domain.GetFilePath(), Dir.PathJoin("profiles/check15_cs.xml"), "default_format picks the extension");
+        ProjectSettings.SetSetting("settings/general/default_format", (int)ResourceTextSerializer.Format.Ini);
+        ProjectSettings.SetSetting(overrideSetting, true);
+
+        // Save() creates the subfolder; Load() reads it back.
+        domain.ApplyMode = SettingsServer.ApplyModeEnum.Manual;
+        domain.SetValue("Volume", 0.3);
+        domain.SetValue("Quality", 2);
+        domain.Apply(); // Save() writes the applied values.
+        ExpectEqual(domain.Save(), Error.Ok, "Save() to the composed path");
+        Expect(FileAccess.GetFileAsString(composed).StripEdges().StartsWith('{'), "the composed .json path is written as JSON");
+        var reader = new Issue15CheckDomainCs();
+        ExpectEqual(reader.Load(), Error.Ok, "Load() from the composed path");
+        Expect(Mathf.IsEqualApprox((float)reader.GetValue("Volume").AsDouble(), 0.3f), "volume loaded");
+        ExpectEqual(reader.GetValue("Quality").AsInt32(), 2, "quality loaded");
+        reader.Free();
+
+        // An invalid file name (absolute, "..", empty folder name) prints an error and uses the domain name.
+        foreach (string invalid in new[] { "../outside", "/absolute", "res://inside", "a//b" })
+        {
+            ProjectSettings.SetSetting(fileNameSetting, invalid);
+            ExpectEqual(domain.GetFilePath(), Dir.PathJoin("check15_cs.json"), $"invalid file name {invalid} falls back to the domain name (an error is printed)");
+        }
+
+        // A path set at runtime wins; there the extension picks the format.
+        ProjectSettings.SetSetting(fileNameSetting, "check15_cs");
         foreach (string extension in new[] { "json", "ini", "xml", "toml", "yaml" })
         {
             if (!ResourceTextSerializer.IsFormatAvailable(ResourceTextSerializer.GetFormatFromExtension(extension)))
             {
-                GD.Print($"  SKIP  project path .{extension} (module not in this build)");
+                GD.Print($"  SKIP  runtime path .{extension} (module not in this build)");
                 continue;
             }
-            string path = Dir.PathJoin("project_path." + extension);
-            ProjectSettings.SetSetting(setting, path);
-            var writer = new Issue15CheckDomainCs();
-            writer.ApplyMode = SettingsServer.ApplyModeEnum.Manual;
-            ExpectEqual(writer.GetFilePath(), path, $"{extension}: GetFilePath() returns the project setting");
-            writer.SetValue("Volume", 0.3);
+            string path = Dir.PathJoin("runtime_path." + extension);
+            var writer = NewDomain(path);
+            ExpectEqual(writer.GetFilePath(), path, $"{extension}: FilePath set at runtime wins over the project settings");
             writer.SetValue("Quality", 2);
-            writer.Apply(); // Save() writes the applied values.
-            ExpectEqual(writer.Save(), Error.Ok, $"{extension}: Save() to the project path");
+            writer.Apply();
+            ExpectEqual(writer.Save(), Error.Ok, $"{extension}: Save() to the runtime path");
             writer.Free();
-
-            var reader = new Issue15CheckDomainCs();
-            ExpectEqual(reader.Load(), Error.Ok, $"{extension}: Load() from the project path");
-            Expect(Mathf.IsEqualApprox((float)reader.GetValue("Volume").AsDouble(), 0.3f), $"{extension}: volume loaded");
-            ExpectEqual(reader.GetValue("Quality").AsInt32(), 2, $"{extension}: quality loaded");
-            reader.Free();
         }
-        Expect(FileAccess.GetFileAsString(Dir.PathJoin("project_path.json")).StripEdges().StartsWith('{'), "the .json path is written as JSON");
-        Expect(FileAccess.GetFileAsString(Dir.PathJoin("project_path.xml")).StripEdges().StartsWith('<'), "the .xml path is written as XML");
-
-        // A path set at runtime wins over the project setting.
-        ProjectSettings.SetSetting(setting, Dir.PathJoin("project_path.json"));
-        var domain = new Issue15CheckDomainCs();
+        Expect(FileAccess.GetFileAsString(Dir.PathJoin("runtime_path.json")).StripEdges().StartsWith('{'), "the .json runtime path is written as JSON");
+        Expect(FileAccess.GetFileAsString(Dir.PathJoin("runtime_path.xml")).StripEdges().StartsWith('<'), "the .xml runtime path is written as XML");
         domain.FilePath = Dir.PathJoin("runtime.ini");
-        ExpectEqual(domain.GetFilePath(), Dir.PathJoin("runtime.ini"), "FilePath set at runtime wins over the project setting");
+        ExpectEqual(domain.GetFilePath(), Dir.PathJoin("runtime.ini"), "FilePath set at runtime wins over the project settings");
         domain.FilePath = "";
-        ExpectEqual(domain.GetFilePath(), Dir.PathJoin("project_path.json"), "an empty runtime path gives the project setting back");
+        ExpectEqual(domain.GetFilePath(), Dir.PathJoin("check15_cs.json"), "an empty runtime path gives the composed path back");
 
-        // An unknown extension prints an error and uses settings/storage/format (INI).
-        string unknown = Dir.PathJoin("project_path.cfg");
-        ProjectSettings.SetSetting(setting, unknown);
-        domain.ApplyMode = SettingsServer.ApplyModeEnum.Manual;
+        // An unknown extension prints an error and uses the format of the domain (JSON here).
+        string unknown = Dir.PathJoin("runtime_path.cfg");
+        domain.FilePath = unknown;
         domain.SetValue("Quality", 0);
         domain.Apply();
-        ExpectEqual(domain.Save(), Error.Ok, "an unknown extension is saved in the global format (an error is printed)");
-        string text = FileAccess.GetFileAsString(unknown).StripEdges();
-        Expect(!text.StartsWith('{') && !text.StartsWith('<'), "an unknown extension is written as INI");
+        ExpectEqual(domain.Save(), Error.Ok, "an unknown extension is saved in the format of the domain (an error is printed)");
+        Expect(FileAccess.GetFileAsString(unknown).StripEdges().StartsWith('{'), "an unknown extension is written as JSON");
         domain.Free();
 
-        ProjectSettings.SetSetting(setting, "");
+        ProjectSettings.SetSetting("settings/general/folder", "user://settings");
+        ProjectSettings.SetSetting(overrideSetting, false);
+        ProjectSettings.SetSetting(formatSetting, (int)ResourceTextSerializer.Format.Ini);
         var fallback = new Issue15CheckDomainCs();
-        ExpectEqual(fallback.GetFilePath(), PlayerFile, "an empty project setting gives the folder and format path");
+        ExpectEqual(fallback.GetFilePath(), PlayerFile, "the defaults give the folder and format path back");
         fallback.Free();
+        DirAccess.RemoveAbsolute(Dir.PathJoin("profiles/check15_cs.json"));
+        DirAccess.RemoveAbsolute(Dir.PathJoin("profiles"));
     }
 
     private void CheckFailureSignals()

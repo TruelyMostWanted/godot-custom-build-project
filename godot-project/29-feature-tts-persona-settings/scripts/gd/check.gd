@@ -119,9 +119,16 @@ func _check_default_persona() -> void:
 
 
 func _check_csv() -> void:
-	ProjectSettings.set_setting("settings/storage/format", ResourceTextSerializer.FORMAT_CSV)
+	ProjectSettings.set_setting("settings/general/default_format", ResourceTextSerializer.FORMAT_CSV)
 	expect_equal(TTSPersonaSettingsServer.get_file_path(), "user://settings/tts_personas.csv", "the personas can be stored as CSV")
-	ProjectSettings.set_setting("settings/storage/format", ResourceTextSerializer.FORMAT_INI)
+	ProjectSettings.set_setting("settings/general/default_format", ResourceTextSerializer.FORMAT_INI)
+	# #184: only this domain as CSV, through its own group settings/tts_personas/.
+	ProjectSettings.set_setting("settings/tts_personas/override_format", true)
+	ProjectSettings.set_setting("settings/tts_personas/format", ResourceTextSerializer.FORMAT_CSV)
+	expect_equal(TTSPersonaSettingsServer.get_file_path(), "user://settings/tts_personas.csv", "#184: override_format stores only this domain as CSV")
+	ProjectSettings.set_setting("settings/tts_personas/override_format", false)
+	ProjectSettings.set_setting("settings/tts_personas/format", ResourceTextSerializer.FORMAT_INI)
+	expect_equal(TTSPersonaSettingsServer.get_file_path(), "user://settings/tts_personas.ini", "#184: without override_format the default format is used")
 
 	var path := DIR.path_join("personas.csv")
 	TTSPersonaSettingsServer.add_persona(_make_persona(&"guard", "", "de", 0.8))
