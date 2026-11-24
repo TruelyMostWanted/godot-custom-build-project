@@ -58,17 +58,19 @@ public partial class Issue08FeatureFilesManifestServerCheck : FeatureCheckCs
         ExpectEqual(FilesManifestServer.AddFolder(Name, Root + "mods"), Error.Ok, "AddFolder()");
         ExpectEqual(FilesManifestServer.AddFolder(Name, Root + "mods"), Error.AlreadyExists, "AddFolder() twice: AlreadyExists");
         ExpectEqual(FilesManifestServer.AddExtension(Name, "TRES"), Error.Ok, "AddExtension()");
-        ExpectEqual(FilesManifestServer.GetPaths(Name).Length, 1, "GetPaths(): one file");
+        ExpectEqual(FilesManifestServer.GetFilePaths(Name).Length, 1, "GetFilePaths(): one file");
         ExpectEqual(FilesManifestServer.SaveManifest(Name, Root + "manifest.tres"), Error.Ok, "SaveManifest()");
         var loaded = ResourceLoader.Load(Root + "manifest.tres", "", ResourceLoader.CacheMode.Ignore) as FilesManifest;
         Expect(loaded != null && loaded.Extensions.Length == 1 && loaded.Extensions[0] == ".tres" && loaded.FolderPaths.Length == 1, "saved manifest has the changes");
 
         FilesManifestServer.AddFolder(Name, Root + "missing");
         FilesManifestServer.AddExtension(Name, "nosuchext");
-        var result = FilesManifestServer.Validate(Name);
-        Expect(!(bool)result["valid"] && ((string[])result["missing_folders"]).Length == 1, "Validate() reports a missing folder");
-        var unknown = (string[])result["unknown_extensions"];
+        FilesManifestValidation result = FilesManifestServer.Validate(Name);
+        Expect(!result.Valid && result.MissingFolders.Length == 1, "Validate() reports a missing folder");
+        Expect(result.MissingFiles.Length == 0, "Validate() reports no missing file");
+        string[] unknown = result.UnknownExtensions;
         Expect(unknown.Length == 1 && unknown[0] == ".nosuchext", "Validate() reports an unknown extension");
+        ExpectEqual(result.Error, Error.FileNotFound, "Validate() error is FileNotFound for a missing folder");
         ExpectEqual(FilesManifestServer.CreateMissingFolders(Name), Error.Ok, "CreateMissingFolders()");
         Expect(DirAccess.DirExistsAbsolute(Root + "missing"), "missing folder created");
 
