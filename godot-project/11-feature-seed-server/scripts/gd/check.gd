@@ -32,7 +32,7 @@ func _run_checks() -> void:
 	SeedServer.clear()
 
 	# Seed from text: stable value.
-	expect(SeedServer.text_to_seed(DAILY_TEXT) == DAILY_SEED, "text_to_seed gives the golden value")
+	expect(SeedServer.get_seed_from_text(DAILY_TEXT) == DAILY_SEED, "get_seed_from_text gives the golden value")
 	expect(SeedServer.set_seed_from_text(DAILY_TEXT) == DAILY_SEED, "set_seed_from_text returns the seed")
 	expect(SeedServer.global_seed == DAILY_SEED, "set_seed_from_text sets global_seed")
 
@@ -99,8 +99,8 @@ func _run_checks() -> void:
 	SeedServer.global_seed = 99
 	expect(custom.seed != before, "changing the global seed reseeds registered noise")
 	expect(Array(SeedServer.get_noise_names()) == ["caves", "terrain"], "get_noise_names is sorted")
-	SeedServer.remove_noise("caves")
-	expect(not SeedServer.has_noise("caves"), "remove_noise removes a noise")
+	SeedServer.unregister_noise("caves")
+	expect(not SeedServer.has_noise("caves"), "unregister_noise removes a noise")
 
 	# Global functions.
 	SeedServer.seed_global_functions = true
