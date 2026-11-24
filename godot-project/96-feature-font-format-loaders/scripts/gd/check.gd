@@ -17,12 +17,12 @@ func _get_check_name() -> String:
 
 func _run_checks() -> void:
 	DirAccess.make_dir_recursive_absolute(DIR.path_join("fonts"))
-	for file in DYNAMIC_FONTS:
+	for file: String in DYNAMIC_FONTS:
 		_copy(RES.path_join("fonts").path_join(file), DIR.path_join("fonts").path_join(file))
 	for file in BMFONT_FILES:
 		_copy(RES.path_join("bmfont").path_join(file), DIR.path_join("fonts").path_join(file))
 
-	for file in DYNAMIC_FONTS:
+	for file: String in DYNAMIC_FONTS:
 		await _check_dynamic_font_from_user(file)
 	await _check_bmfont_from_user()
 	_check_cache()
@@ -93,7 +93,7 @@ func _check_cache() -> void:
 
 
 func _check_save_same_bytes() -> void:
-	for file in DYNAMIC_FONTS:
+	for file: String in DYNAMIC_FONTS:
 		var source := DIR.path_join("fonts").path_join(file)
 		var ext := file.get_extension()
 		var font := ResourceLoader.load(source, "FontFile", ResourceLoader.CACHE_MODE_IGNORE) as FontFile

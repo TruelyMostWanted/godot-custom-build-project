@@ -2,7 +2,35 @@
 
 importer="font_data_dynamic"
 type="FontFile"
+uid="uid://c5pw30yv2bmhb"
+path="res://.godot/imported/JetBrainsMono_Imported.woff2-84de73ea7f7c945132a79479362c3c70.fontdata"
+
+[deps]
+
+source_file="res://96-feature-font-format-loaders/resources/imported/JetBrainsMono_Imported.woff2"
+dest_files=["res://.godot/imported/JetBrainsMono_Imported.woff2-84de73ea7f7c945132a79479362c3c70.fontdata"]
 
 [params]
 
+Rendering=null
 antialiasing=0
+generate_mipmaps=false
+disable_embedded_bitmaps=true
+multichannel_signed_distance_field=false
+msdf_pixel_range=8
+msdf_size=48
+allow_system_fallback=true
+force_autohinter=false
+modulate_color_glyphs=false
+hinting=3
+subpixel_positioning=4
+keep_rounding_remainders=true
+oversampling=0.0
+Fallbacks=null
+fallbacks=[]
+Compress=null
+compress=true
+preload=[]
+language_support={}
+script_support={}
+opentype_features={}
