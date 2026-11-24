@@ -3,7 +3,7 @@ extends FeatureCheck
 ## GDScript checks of 53-feature-loader-index-scripts. Check the same things as scripts/cs/Issue53FeatureLoaderIndexScriptsCheck.cs.
 # Script loaders that override only _get_recognized_extensions() are now found through the extension index,
 # and the binary loader too. The choice of the loader must stay as it was (registration order, first match wins).
-# A loader that changes its list calls ResourceLoader.refresh_format_index().
+# A loader that changes its list calls ResourceLoader.rebuild_extension_index().
 # Assumption: a loader reports its identity through resource_name (load) and through the type name it returns (get_resource_type).
 # Assumption: res://icon.svg is an imported asset of this project (icon.svg.import), so it stands for the .import path.
 
@@ -150,12 +150,12 @@ func _check_refresh() -> void:
 	ResourceLoader.add_resource_format_loader(l)
 	expect_equal(_winner(_old), "L", "the loader is found for its first extension")
 	l.extensions = PackedStringArray(["t53new"])
-	expect_equal(_winner(_new), "<none>", "a changed list is not seen before refresh_format_index() (documented)")
+	expect_equal(_winner(_new), "<none>", "a changed list is not seen before rebuild_extension_index() (documented)")
 	expect_equal(_winner(_old), "<none>", "the old extension is no longer recognized: recognize_path() reads the current list")
-	ResourceLoader.refresh_format_index()
-	expect_equal(_winner(_new), "L", "after refresh_format_index() the new extension is found")
-	expect_equal(_type(_new), "TypeL", "after refresh_format_index() get_resource_type() asks the loader for the new extension")
-	expect_equal(_winner(_old), "<none>", "after refresh_format_index() the old extension stays unrecognized")
+	ResourceLoader.rebuild_extension_index()
+	expect_equal(_winner(_new), "L", "after rebuild_extension_index() the new extension is found")
+	expect_equal(_type(_new), "TypeL", "after rebuild_extension_index() get_resource_type() asks the loader for the new extension")
+	expect_equal(_winner(_old), "<none>", "after rebuild_extension_index() the old extension stays unrecognized")
 	l.extensions = PackedStringArray(["t53old", "t53new"])
 	ResourceLoader.remove_resource_format_loader(l)
 	ResourceLoader.add_resource_format_loader(l)

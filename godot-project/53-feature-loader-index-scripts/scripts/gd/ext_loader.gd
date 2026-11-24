@@ -1,7 +1,7 @@
 extends ResourceFormatLoader
 ## Loader by extension for 53-feature-loader-index-scripts: overrides _get_recognized_extensions() only, so the engine indexes it.
 ## It loads an empty Resource named after its tag; type_name is what get_resource_type() reports.
-## extensions may change at runtime; the check then calls ResourceLoader.refresh_format_index().
+## extensions may change at runtime; the check then calls ResourceLoader.rebuild_extension_index().
 
 var tag := ""
 var extensions := PackedStringArray()
