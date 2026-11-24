@@ -1,10 +1,10 @@
 extends FeatureCheck
 ## GDScript checks of 28-feature-camera-settings. Check the same things as scripts/cs/Issue28FeatureCameraSettingsCheck.cs.
 ##
-## The camera values go to the Camera3D nodes in the group "camera_settings" and to added cameras, at once.
+## The camera values go to the Camera3D nodes in the group "camera_3d_settings" and to added cameras, at once.
 ## Cameras outside the group keep their authored values. The motion values are game-side (never pushed).
 
-const CAMERA_FILE := "user://settings/camera.ini"
+const CAMERA_FILE := "user://settings/camera_3d.ini"
 const NAMES := ["enabled", "field_of_view", "keep_aspect", "near", "far", "shake_intensity", "head_bob_intensity", "motion_blur_intensity"]
 const GAME_SIDE := ["shake_intensity", "head_bob_intensity", "motion_blur_intensity"]
 
@@ -17,15 +17,15 @@ func _get_check_name() -> String:
 
 func _run_checks() -> void:
 	await _check_typed_signals()
-	expect(Engine.has_singleton("CameraSettingsServer"), "CameraSettingsServer is a registered singleton")
-	server = Engine.get_singleton("CameraSettingsServer")
-	expect(server is SettingsServer, "CameraSettingsServer is a SettingsServer")
-	expect_equal(SettingsServerManager.get_server(&"camera"), server, "the domain is registered as \"camera\"")
+	expect(Engine.has_singleton("Camera3DSettingsServer"), "Camera3DSettingsServer is a registered singleton")
+	server = Engine.get_singleton("Camera3DSettingsServer")
+	expect(server is SettingsServer, "Camera3DSettingsServer is a SettingsServer")
+	expect_equal(SettingsServerManager.get_server(&"camera_3d"), server, "the domain is registered as \"camera_3d\"")
 	expect(server.is_started(), "the domain was started before the main scene")
 	expect_equal(server.get_apply_phase(), SettingsServer.APPLY_PHASE_SCENE, "applied after the SceneTree exists")
 	expect_equal(server.get_file_path(), CAMERA_FILE, "file path")
-	expect(server.get_settings() is CameraSettings, "the settings resource is a CameraSettings")
-	expect_equal(server.get_camera_group(), &"camera_settings", "get_camera_group()")
+	expect(server.get_settings() is Camera3DSettings, "the settings resource is a Camera3DSettings")
+	expect_equal(server.get_camera_group(), &"camera_3d_settings", "get_camera_group()")
 	var names: PackedStringArray = server.get_setting_names()
 	expect_equal(names.size(), NAMES.size(), "8 values")
 	for setting in NAMES:
@@ -61,10 +61,10 @@ func _is_authored(camera: Camera3D) -> bool:
 
 
 func _check_defaults() -> void:
-	expect(is_equal_approx(server.get_default_value(&"field_of_view"), ProjectSettings.get_setting("settings/camera/field_of_view")), "default FOV is the project setting")
-	expect_equal(server.get_default_value(&"keep_aspect"), ProjectSettings.get_setting("settings/camera/keep_aspect"), "default keep_aspect is the project setting")
-	expect(is_equal_approx(server.get_default_value(&"near"), ProjectSettings.get_setting("settings/camera/near")), "default near is the project setting")
-	expect(is_equal_approx(server.get_default_value(&"far"), ProjectSettings.get_setting("settings/camera/far")), "default far is the project setting")
+	expect(is_equal_approx(server.get_default_value(&"field_of_view"), ProjectSettings.get_setting("settings/camera_3d/field_of_view")), "default FOV is the project setting")
+	expect_equal(server.get_default_value(&"keep_aspect"), ProjectSettings.get_setting("settings/camera_3d/keep_aspect"), "default keep_aspect is the project setting")
+	expect(is_equal_approx(server.get_default_value(&"near"), ProjectSettings.get_setting("settings/camera_3d/near")), "default near is the project setting")
+	expect(is_equal_approx(server.get_default_value(&"far"), ProjectSettings.get_setting("settings/camera_3d/far")), "default far is the project setting")
 	expect(server.is_enabled(), "enabled by default")
 	expect(is_equal_approx(server.get_shake_intensity(), 1.0), "default shake intensity 1")
 
@@ -190,10 +190,10 @@ func _check_storage_and_scene_change() -> void:
 
 ## Issue #173: the typed signal fires once per applied change, not for pending changes in manual mode.
 func _check_typed_signals() -> void:
-	if not Engine.has_singleton("CameraSettingsServer"):
+	if not Engine.has_singleton("Camera3DSettingsServer"):
 		return
-	var s: SettingsServer = Engine.get_singleton("CameraSettingsServer")
-	expect(s.has_signal(&"field_of_view_changed"), "CameraSettingsServer has the typed signal field_of_view_changed")
+	var s: SettingsServer = Engine.get_singleton("Camera3DSettingsServer")
+	expect(s.has_signal(&"field_of_view_changed"), "Camera3DSettingsServer has the typed signal field_of_view_changed")
 	var arg_info: Dictionary = {}
 	for info: Dictionary in s.get_signal_list():
 		if info.name == "field_of_view_changed":
