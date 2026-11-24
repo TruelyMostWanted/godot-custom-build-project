@@ -73,7 +73,7 @@ func _run_checks() -> void:
 	# .gltf round trip (external .bin buffer).
 	var gltf_path := FOLDER.path_join("ship.gltf")
 	expect(ResourceSaver.save(ship, gltf_path) == OK, "ResourceSaver.save writes .gltf")
-	expect(FileAccess.file_exists(FOLDER.path_join("ship.bin")), ".gltf has an external .bin buffer")
+	expect(FileAccess.file_exists(FOLDER.path_join("ship0.bin")), ".gltf has an external .bin buffer")
 	_check_ship(ResourceLoader.load(gltf_path, "", ResourceLoader.CACHE_MODE_IGNORE), ".gltf")
 
 	# Cache: two loads give the same resource.

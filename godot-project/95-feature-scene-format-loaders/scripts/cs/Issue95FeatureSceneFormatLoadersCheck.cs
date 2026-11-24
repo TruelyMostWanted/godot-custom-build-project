@@ -87,7 +87,7 @@ public partial class Issue95FeatureSceneFormatLoadersCheck : FeatureCheckCs
         // .gltf round trip (external .bin buffer).
         var gltfPath = Folder.PathJoin("ship.gltf");
         Expect(ResourceSaver.Save(ship, gltfPath) == Error.Ok, "ResourceSaver.Save writes .gltf");
-        Expect(FileAccess.FileExists(Folder.PathJoin("ship.bin")), ".gltf has an external .bin buffer");
+        Expect(FileAccess.FileExists(Folder.PathJoin("ship0.bin")), ".gltf has an external .bin buffer");
         CheckShip(ResourceLoader.Load<PackedScene>(gltfPath, "", ResourceLoader.CacheMode.Ignore), ".gltf");
 
         // Cache: two loads give the same resource.
