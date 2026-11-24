@@ -48,7 +48,9 @@ func _run_checks() -> void:
 	if from_buffer != null:
 		expect(absf(from_buffer.get_length() - 1.0) < 0.1, "load_from_buffer length is about 1 s")
 		expect(from_buffer.data == bytes, "load_from_buffer keeps the data")
-	expect(AudioStreamOpus.load_from_buffer(PackedByteArray([1, 2, 3, 4])) == null, "load_from_buffer of garbage gives null")
+	# Upstream behavior: garbage gives null or an empty stream (length 0), never a playable one.
+	var garbage := AudioStreamOpus.load_from_buffer(PackedByteArray([1, 2, 3, 4]))
+	expect(garbage == null or garbage.get_length() == 0.0, "load_from_buffer of garbage gives no playable stream")
 
 	# Playback.
 	var playback: AudioStreamPlayback = (from_buffer if from_buffer != null else imported).instantiate_playback()

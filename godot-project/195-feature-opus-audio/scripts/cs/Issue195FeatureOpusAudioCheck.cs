@@ -61,7 +61,9 @@ public partial class Issue195FeatureOpusAudioCheck : FeatureCheckCs
             Expect(Math.Abs(fromBuffer.GetLength() - 1.0) < 0.1, "load_from_buffer length is about 1 s");
             Expect(fromBuffer.Data.SequenceEqual(bytes), "load_from_buffer keeps the data");
         }
-        Expect(AudioStreamOpus.LoadFromBuffer([1, 2, 3, 4]) == null, "load_from_buffer of garbage gives null");
+        // Upstream behavior: garbage gives null or an empty stream (length 0), never a playable one.
+        AudioStreamOpus garbage = AudioStreamOpus.LoadFromBuffer([1, 2, 3, 4]);
+        Expect(garbage == null || garbage.GetLength() == 0.0, "load_from_buffer of garbage gives no playable stream");
 
         // Playback.
         AudioStreamOpus stream = fromBuffer ?? imported;
