@@ -15,8 +15,9 @@ public partial class Issue16FeatureAudioSettingsCheck : FeatureCheckCs
 {
     private const string Dir = "user://16-feature-audio-settings-cs";
     private const string ProbeScene = "res://16-feature-audio-settings/scenes/restart_probe.tscn";
-    private const string BusesFile = "user://settings/audio_buses.ini";
-    private const string DevicesFile = "user://settings/audio.ini";
+    private const string BusesFile = "user://settings/audio_bus.ini";
+    private const string DevicesFile = "user://settings/audio_device.ini";
+    private const string NightPreset = "res://16-feature-audio-settings/resources/night_mode_preset.tres";
 
     protected override string CheckName => "16-feature-audio-settings";
 
@@ -32,8 +33,13 @@ public partial class Issue16FeatureAudioSettingsCheck : FeatureCheckCs
         Expect(AudioBusSettingsServer.Singleton is ListSettingsServer, "AudioBusSettingsServerInstance derives from ListSettingsServer");
         Expect(AudioDeviceSettingsServer.Singleton is AudioDeviceSettingsServerInstance, "AudioDeviceSettingsServer.Singleton is the instance type");
         Expect(AudioDeviceSettingsServer.Singleton is SettingsServer, "AudioDeviceSettingsServerInstance derives from SettingsServer");
-        Expect(SettingsServerManager.GetServer("audio_buses") == AudioBusSettingsServer.Singleton, "the bus domain is registered as \"audio_buses\"");
-        Expect(SettingsServerManager.GetServer("audio") == AudioDeviceSettingsServer.Singleton, "the device domain is registered as \"audio\"");
+        Expect(SettingsServerManager.GetServer("audio_bus") == AudioBusSettingsServer.Singleton, "#185: the bus domain is registered as \"audio_bus\"");
+        Expect(SettingsServerManager.GetServer("audio_device") == AudioDeviceSettingsServer.Singleton, "#185: the device domain is registered as \"audio_device\"");
+        Expect(SettingsServerManager.GetServer("audio_buses") == null && SettingsServerManager.GetServer("audio") == null, "#185: the old domain names are gone");
+        Expect(ProjectSettings.HasSetting("settings/audio_bus/player_buses"), "#185: project setting settings/audio_bus/player_buses");
+        Expect(ProjectSettings.GetSetting("settings/audio_bus/store_volume").AsBool() && ProjectSettings.GetSetting("settings/audio_bus/store_mute").AsBool() && !ProjectSettings.GetSetting("settings/audio_bus/store_solo").AsBool(), "#185: store_volume and store_mute on, store_solo off");
+        Expect(!ProjectSettings.HasSetting("settings/audio/create_missing_buses"), "#185: create_missing_buses is gone");
+        Expect(AudioBusSettingsServer.StoreVolume && AudioBusSettingsServer.StoreMute && !AudioBusSettingsServer.StoreSolo && AudioBusSettingsServer.PlayerBuses.Length == 0, "#185: the server properties follow the project settings");
         Expect(AudioBusSettingsServer.Singleton.IsStarted(), "the bus domain was started before the main scene");
         Expect(AudioDeviceSettingsServer.Singleton.IsStarted(), "the device domain was started before the main scene");
         ExpectEqual(AudioBusSettingsServer.Singleton.GetFilePath(), BusesFile, "bus file path");
@@ -43,7 +49,9 @@ public partial class Issue16FeatureAudioSettingsCheck : FeatureCheckCs
         CheckManualMode();
         CheckCsv();
         CheckMissingBus();
+        CheckStoredValues();
         CheckLayoutChange();
+        CheckPresets();
         CheckDevices();
         CheckRestart();
 
@@ -80,7 +88,10 @@ public partial class Issue16FeatureAudioSettingsCheck : FeatureCheckCs
         AudioBusSettingsServer.SetBusMute("Music", true);
         Expect(AudioServer.IsBusMute(AudioServer.GetBusIndex("Music")), "SetBusMute() reaches AudioServer");
         AudioBusSettingsServer.SetBusSolo("Sfx", true);
-        Expect(AudioServer.IsBusSolo(AudioServer.GetBusIndex("Sfx")), "SetBusSolo() reaches AudioServer");
+        Expect(!AudioServer.IsBusSolo(AudioServer.GetBusIndex("Sfx")), "#185: SetBusSolo() does nothing while solo is not stored (a warning is printed)");
+        AudioBusSettingsServer.StoreSolo = true;
+        AudioBusSettingsServer.SetBusSolo("Sfx", true);
+        Expect(AudioServer.IsBusSolo(AudioServer.GetBusIndex("Sfx")), "SetBusSolo() reaches AudioServer with StoreSolo");
         AudioBusSettingsServer.SetBusVolumeDb("Music", 100.0f);
         Expect(Mathf.IsEqualApprox(AudioBusSettingsServer.GetBusVolumeDb("Music"), 24.0f), "volume is clamped to 24 dB");
 
@@ -88,6 +99,7 @@ public partial class Issue16FeatureAudioSettingsCheck : FeatureCheckCs
         Expect(Mathf.IsEqualApprox(BusVolumeDb("Music"), -6.0f), "ResetToDefaults() gives back the layout volume");
         Expect(!AudioServer.IsBusMute(AudioServer.GetBusIndex("Music")), "ResetToDefaults() unmutes");
         Expect(!AudioServer.IsBusSolo(AudioServer.GetBusIndex("Sfx")), "ResetToDefaults() clears solo");
+        AudioBusSettingsServer.StoreSolo = false;
     }
 
     private void CheckManualMode()
@@ -110,7 +122,7 @@ public partial class Issue16FeatureAudioSettingsCheck : FeatureCheckCs
     {
         var server = AudioBusSettingsServer.Singleton;
         ProjectSettings.SetSetting("settings/general/default_format", (int)ResourceTextSerializer.Format.Csv);
-        ExpectEqual(server.GetFilePath(), "user://settings/audio_buses.csv", "the bus list can be stored as CSV");
+        ExpectEqual(server.GetFilePath(), "user://settings/audio_bus.csv", "the bus list can be stored as CSV");
         ExpectEqual(AudioDeviceSettingsServer.Singleton.GetFilePath(), DevicesFile, "the devices stay INI (a warning is printed once)");
         ProjectSettings.SetSetting("settings/general/default_format", (int)ResourceTextSerializer.Format.Ini);
 
@@ -127,6 +139,8 @@ public partial class Issue16FeatureAudioSettingsCheck : FeatureCheckCs
             sfx += line.Contains("Sfx") ? 1 : 0;
         }
         Expect(master == 1 && music == 1 && sfx == 1, "CSV: one row per bus");
+        string header = FileAccess.GetFileAsString(path).Split('\n')[0];
+        Expect(header.Contains("volume_db") && header.Contains("mute") && !header.Contains("solo"), "#185: CSV columns are the stored values only: " + header);
 
         AudioBusSettingsServer.SetBusVolumeDb("Music", -3.0f);
         AudioBusSettingsServer.SetBusMute("Sfx", false);
@@ -149,20 +163,9 @@ public partial class Issue16FeatureAudioSettingsCheck : FeatureCheckCs
         int index = server.FindEntry("Voice");
         Expect(index >= 0, "the entry of a missing bus is kept");
 
-        AudioBusSettingsServer.CreateMissingBuses = true;
-        server.SetEntryValue(index, "volume_db", -10.0f);
+        ExpectEqual(AudioServer.GetBusCount(), 3, "#185: no bus is created; the layout builds the buses");
+        server.RemoveEntry(index);
         server.Apply();
-        int bus = AudioServer.GetBusIndex("Voice");
-        Expect(bus >= 0, "CreateMissingBuses adds the bus");
-        Expect(bus >= 0 && Mathf.IsEqualApprox(AudioServer.GetBusVolumeDb(bus), -10.0f), "the created bus gets the stored volume");
-
-        AudioBusSettingsServer.CreateMissingBuses = false;
-        server.RemoveEntry(server.FindEntry("Voice"));
-        server.Apply();
-        if (bus >= 0)
-        {
-            AudioServer.RemoveBus(bus);
-        }
         server.ApplyMode = SettingsServer.ApplyModeEnum.Immediate;
     }
 
@@ -173,6 +176,7 @@ public partial class Issue16FeatureAudioSettingsCheck : FeatureCheckCs
         AudioBusLayout gameLayout = AudioServer.GenerateBusLayout();
         AudioBusSettingsServer.SetBusVolumeDb("Music", -21.0f);
         AudioBusSettingsServer.SetBusMute("Music", true);
+        AudioBusSettingsServer.StoreSolo = true;
         AudioBusSettingsServer.SetBusSolo("Sfx", true);
         AudioServer.SetBusLayout(gameLayout);
         Expect(Mathf.IsEqualApprox(BusVolumeDb("Music"), -21.0f), "#122: SetBusLayout() keeps the stored volume");
@@ -180,13 +184,20 @@ public partial class Issue16FeatureAudioSettingsCheck : FeatureCheckCs
         Expect(AudioServer.IsBusSolo(AudioServer.GetBusIndex("Sfx")), "#122: SetBusLayout() keeps the stored solo");
         Expect(!server.IsDirty(), "#122: the re-apply changes no setting");
 
-        // A layout with only Master: with CreateMissingBuses, the stored buses are added again, once each.
-        AudioBusSettingsServer.CreateMissingBuses = true;
-        AudioServer.SetBusLayout(new AudioBusLayout());
-        int bus = AudioServer.GetBusIndex("Music");
-        Expect(bus >= 0 && Mathf.IsEqualApprox(AudioServer.GetBusVolumeDb(bus), -21.0f), "#122: CreateMissingBuses adds a stored bus after SetBusLayout()");
-        ExpectEqual(AudioServer.GetBusCount(), 3, "#122: each stored bus is created once");
-        AudioBusSettingsServer.CreateMissingBuses = false;
+        // #185: player buses. Sfx is not a player bus any more: a new layout keeps its own Sfx mix.
+        AudioBusSettingsServer.PlayerBuses = ["Music"];
+        int sfx = AudioServer.GetBusIndex("Sfx");
+        AudioServer.SetBusVolumeDb(sfx, -9.0f);
+        AudioServer.SetBusSolo(sfx, false);
+        AudioBusLayout quietLayout = AudioServer.GenerateBusLayout();
+        AudioServer.SetBusLayout(quietLayout);
+        Expect(Mathf.IsEqualApprox(BusVolumeDb("Music"), -21.0f), "#185: the player bus gets the player value after SetBusLayout()");
+        Expect(Mathf.IsEqualApprox(BusVolumeDb("Sfx"), -9.0f), "#185: a bus that is not a player bus keeps the value of the new layout");
+        Expect(!AudioServer.IsBusSolo(AudioServer.GetBusIndex("Sfx")), "#185: the solo of a non-player bus is not pushed again");
+        AudioBusSettingsServer.SetBusVolumeDb("Sfx", -1.0f);
+        Expect(Mathf.IsEqualApprox(BusVolumeDb("Sfx"), -9.0f), "#185: SetBusVolumeDb() on a non-player bus does nothing (a warning is printed)");
+        AudioBusSettingsServer.PlayerBuses = [];
+        AudioServer.SetBusLayout(gameLayout);
 
         // In manual mode, the applied values come back, not the pending ones.
         server.ApplyMode = SettingsServer.ApplyModeEnum.Manual;
@@ -197,6 +208,62 @@ public partial class Issue16FeatureAudioSettingsCheck : FeatureCheckCs
         server.ApplyMode = SettingsServer.ApplyModeEnum.Immediate;
         server.ResetToDefaults();
         Expect(Mathf.IsEqualApprox(BusVolumeDb("Music"), -6.0f), "#122: ResetToDefaults() after the layout change");
+        Expect(!AudioServer.IsBusSolo(AudioServer.GetBusIndex("Sfx")), "#122: ResetToDefaults() clears the stored solo");
+        AudioBusSettingsServer.StoreSolo = false;
+    }
+
+    // Issue #185: only the stored values are written; a file with values that are no longer stored is read without them,
+    // stored values missing in the file come from the layout.
+    private void CheckStoredValues()
+    {
+        var server = AudioBusSettingsServer.Singleton;
+        string path = Dir.PathJoin("stored_values.ini");
+        server.FilePath = path;
+        AudioBusSettingsServer.SetBusVolumeDb("Music", -14.0f);
+        AudioBusSettingsServer.SetBusMute("Music", true);
+        ExpectEqual(server.Save(), Error.Ok, "#185: Save() with the default store settings");
+        string text = FileAccess.GetFileAsString(path);
+        Expect(text.Contains("volume_db") && text.Contains("mute") && !text.Contains("solo"), "#185: the file holds volume and mute, no solo");
+
+        string csvPath = Dir.PathJoin("hand_edited.csv");
+        using (var file = FileAccess.Open(csvPath, FileAccess.ModeFlags.Write))
+        {
+            file.StoreString("bus_name,volume_db,solo\nMusic,-17,true\n");
+        }
+        server.FilePath = csvPath;
+        ExpectEqual(server.Load(), Error.Ok, "#185: a file with an unstored value loads");
+        Expect(Mathf.IsEqualApprox(AudioBusSettingsServer.GetBusVolumeDb("Music"), -17.0f), "#185: the stored volume is read");
+        Expect(!AudioBusSettingsServer.IsBusSolo("Music"), "#185: the solo of the file is ignored");
+        Expect(!AudioBusSettingsServer.IsBusMute("Music"), "#185: the mute missing in the file comes from the layout");
+        ExpectEqual(string.Join(",", AudioBusSettingsServer.GetBusNames()), "Master,Music,Sfx", "#185: buses missing in the file come from the layout");
+        server.Apply();
+        server.FilePath = "";
+        server.ResetToDefaults();
+    }
+
+    // Issue #185: an AudioBusListSettings in res:// is a preset; buses it does not list stay unchanged.
+    private void CheckPresets()
+    {
+        var preset = GD.Load<AudioBusListSettings>(NightPreset);
+        Expect(preset != null && preset.Buses.Count == 1, "#185: the preset resource loads");
+        if (preset == null)
+        {
+            return;
+        }
+        AudioBusSettingsServer.SetBusVolumeDb("Sfx", -5.0f);
+        Expect(AudioBusSettingsServer.IsCustom(), "#185: no preset applied: Custom");
+        ExpectEqual(AudioBusSettingsServer.ApplyPreset(preset), Error.Ok, "#185: ApplyPreset()");
+        Expect(Mathf.IsEqualApprox(BusVolumeDb("Music"), -18.0f), "#185: the preset volume reaches AudioServer");
+        Expect(AudioServer.IsBusMute(AudioServer.GetBusIndex("Music")), "#185: the preset mute reaches AudioServer");
+        Expect(Mathf.IsEqualApprox(BusVolumeDb("Sfx"), -5.0f), "#185: a bus that the preset does not list keeps its value");
+        Expect(AudioBusSettingsServer.GetCurrentPreset() == preset, "#185: GetCurrentPreset()");
+        Expect(!AudioBusSettingsServer.IsCustom(), "#185: not Custom right after ApplyPreset()");
+        AudioBusSettingsServer.SetBusVolumeDb("Music", -3.0f);
+        Expect(AudioBusSettingsServer.IsCustom(), "#185: a single change makes it Custom");
+        Expect(!AudioBusSettingsServer.MatchesPreset(preset), "#185: MatchesPreset() is false after the change");
+        AudioBusSettingsServer.SetBusVolumeDb("Music", -18.0f);
+        Expect(AudioBusSettingsServer.MatchesPreset(preset), "#185: MatchesPreset() is true again");
+        AudioBusSettingsServer.Singleton.ResetToDefaults();
     }
 
     private void CheckDevices()
