@@ -27,7 +27,7 @@ public partial class Issue12FeatureTtsServerCheck : FeatureCheckCs
 
     private static TtsPersona MakePersona(string name, string voice, string language)
     {
-        return new TtsPersona { Name = name, Voice = voice, Language = language };
+        return new TtsPersona { PersonaName = name, Voice = voice, Language = language };
     }
 
     private static string BaseLanguage(string language)
@@ -35,9 +35,9 @@ public partial class Issue12FeatureTtsServerCheck : FeatureCheckCs
 
     protected override async Task RunChecks()
     {
-        Expect(Engine.HasSingleton("TtsServer"), "TtsServer is a registered singleton");
-        Expect(ClassDB.ClassExists("TtsPersona"), "TtsPersona is a registered class");
-        Expect(!ClassDB.CanInstantiate("TtsServer"), "TtsServer cannot be instantiated");
+        Expect(Engine.HasSingleton("TTSServer"), "TTSServer is a registered singleton");
+        Expect(ClassDB.ClassExists("TTSPersona"), "TTSPersona is a registered class");
+        Expect(!ClassDB.CanInstantiate("TTSServer"), "TTSServer cannot be instantiated");
         TtsServer.ClearPersonas();
 
         CheckPersonaValues();
@@ -55,7 +55,7 @@ public partial class Issue12FeatureTtsServerCheck : FeatureCheckCs
     private void CheckPersonaValues()
     {
         var persona = new TtsPersona();
-        ExpectEqual(persona.Name, "", "default name is empty");
+        ExpectEqual((string)persona.PersonaName, "", "default PersonaName is empty");
         ExpectEqual(persona.Voice, "", "default voice is empty");
         ExpectEqual(persona.Language, "", "default language is empty");
         ExpectEqual(persona.Volume, 50, "default volume is 50");
@@ -98,7 +98,7 @@ public partial class Issue12FeatureTtsServerCheck : FeatureCheckCs
             return;
         }
         Expect(loaded != persona, "loaded persona is a new object");
-        ExpectEqual(loaded.Name, "narrator", "loaded name");
+        ExpectEqual((string)loaded.PersonaName, "narrator", "loaded PersonaName");
         ExpectEqual(loaded.Voice, "Some Voice", "loaded voice");
         ExpectEqual(loaded.Language, "en_US", "loaded language");
         ExpectEqual(loaded.Volume, 80, "loaded volume");
@@ -111,7 +111,7 @@ public partial class Issue12FeatureTtsServerCheck : FeatureCheckCs
     {
         TtsPersona builtin = TtsServer.GetDefaultPersona();
         Expect(builtin != null, "a built-in default persona exists");
-        ExpectEqual(TtsServer.GetDefaultPersonaName(), "", "no default persona name at start");
+        ExpectEqual((string)TtsServer.GetDefaultPersonaName(), "", "no default persona name at start");
 
         var narrator = MakePersona("narrator", "", "en");
         var guard = MakePersona("guard", "", "de");
@@ -129,10 +129,10 @@ public partial class Issue12FeatureTtsServerCheck : FeatureCheckCs
         TtsServer.AddPersona(MakePersona("", "", ""));
         TtsServer.SetDefaultPersona("king");
         ExpectEqual(TtsServer.GetPersonas().Count, 2, "invalid personas are not added");
-        ExpectEqual(TtsServer.GetDefaultPersonaName(), "", "an unknown default persona is rejected");
+        ExpectEqual((string)TtsServer.GetDefaultPersonaName(), "", "an unknown default persona is rejected");
 
         TtsServer.SetDefaultPersona("guard");
-        ExpectEqual(TtsServer.GetDefaultPersonaName(), "guard", "set_default_persona sets the name");
+        ExpectEqual((string)TtsServer.GetDefaultPersonaName(), "guard", "set_default_persona sets the name");
         Expect(TtsServer.GetDefaultPersona() == guard, "get_default_persona returns the persona");
 
         var guard2 = MakePersona("guard", "", "fr");
@@ -142,7 +142,7 @@ public partial class Issue12FeatureTtsServerCheck : FeatureCheckCs
 
         TtsServer.RemovePersona("guard");
         Expect(!TtsServer.HasPersona("guard"), "remove_persona removes the persona");
-        ExpectEqual(TtsServer.GetDefaultPersonaName(), "", "removing the default persona resets the default");
+        ExpectEqual((string)TtsServer.GetDefaultPersonaName(), "", "removing the default persona resets the default");
         Expect(TtsServer.GetDefaultPersona() == builtin, "the built-in persona is the default again");
         TtsServer.RemovePersona("does_not_exist");
 
@@ -169,7 +169,7 @@ public partial class Issue12FeatureTtsServerCheck : FeatureCheckCs
         ExpectEqual(TtsServer.Speak("Hello"), -1L, "speak returns -1 when unavailable");
         ExpectEqual(TtsServer.Speak("Hello", MakePersona("x", "Voice", "en")), -1L, "speak with a persona returns -1 when unavailable");
         ExpectEqual(TtsServer.GetPendingUtterances().Length, 0, "nothing is pending when unavailable");
-        ExpectEqual(TtsServer.ResolveVoice(MakePersona("x", "Some Voice", "en")), "Some Voice", "without voices, resolve_voice passes the voice on");
+        ExpectEqual(TtsServer.ResolveVoiceId(MakePersona("x", "Some Voice", "en")), "Some Voice", "without voices, ResolveVoiceId passes the voice on");
     }
 
     private void ConnectSignals()
@@ -243,12 +243,12 @@ public partial class Issue12FeatureTtsServerCheck : FeatureCheckCs
         string firstName = first["name"].AsString();
         string language = first["language"].AsString();
         Expect(TtsServer.GetVoices(language).Count > 0, "get_voices filters by language");
-        ExpectEqual(TtsServer.ResolveVoice(MakePersona("x", firstId, "")), firstId, "resolve_voice keeps an existing voice ID");
-        ExpectEqual(TtsServer.ResolveVoice(MakePersona("x", firstName, "")), firstId, "resolve_voice finds a voice by name");
+        ExpectEqual(TtsServer.ResolveVoiceId(MakePersona("x", firstId, "")), firstId, "ResolveVoiceId keeps an existing voice ID");
+        ExpectEqual(TtsServer.ResolveVoiceId(MakePersona("x", firstName, "")), firstId, "ResolveVoiceId finds a voice by name");
 
         // A missing voice falls back to a voice of the same language.
         var missing = MakePersona("missing", "voice-that-does-not-exist", language);
-        string resolved = TtsServer.ResolveVoice(missing);
+        string resolved = TtsServer.ResolveVoiceId(missing);
         string resolvedLanguage = "";
         foreach (Godot.Collections.Dictionary voice in voices)
         {
