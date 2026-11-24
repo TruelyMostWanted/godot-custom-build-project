@@ -38,6 +38,7 @@ public partial class Issue18FeatureKeyBindingsCheck : FeatureCheckCs
         CheckConflicts();
         CheckReset();
         CheckFormats();
+        CheckFileLayout();
         CheckRestart();
 
         // Leave no player files behind for later runs.
@@ -79,11 +80,11 @@ public partial class Issue18FeatureKeyBindingsCheck : FeatureCheckCs
         ExpectEqual(InputMapSettingsServer.GetEventLabel(InputAction.TextToEvent("MouseButton:Right")), "Right Mouse Button", "label of a mouse button");
         ExpectEqual(InputMapSettingsServer.GetEventLabel(InputAction.TextToEvent("JoypadMotion:LeftX+")), "Left Stick Right", "label of a stick direction");
 
-        var entry = new InputAction { Events = InputMapSettingsServer.TextToEvents("JoypadButton:B; Key:Space") };
+        var entry = new InputAction { Events = InputMapSettingsServer.TextToEvents("Gamepad:B; KeyboardLabel:Space") };
         ExpectEqual(entry.GetEventCount(), 2, "the text gives one event per entry");
         ExpectEqual(entry.GetDeviceEvents(InputAction.InputDevice.Gamepad).Count, 1, "the gamepad event is found by device");
         Expect(entry.Events[0] is InputEventJoypadButton, "the first event is parsed from the text");
-        ExpectEqual(InputMapSettingsServer.EventsToText(entry.Events), "JoypadButton:B; Key:Space", "text round trip");
+        ExpectEqual(InputMapSettingsServer.EventsToText(entry.Events), "Gamepad:B@Any; KeyboardLabel:Space", "text round trip");
     }
 
     private void CheckDefaults()
@@ -161,7 +162,8 @@ public partial class Issue18FeatureKeyBindingsCheck : FeatureCheckCs
             InputMapSettingsServer.Rebind(Fire, InputAction.TextToEvent("MouseButton:Ctrl+Right"));
             ExpectEqual(server.Save(), Error.Ok, $"{extension}: Save()");
             string text = FileAccess.GetFileAsString(path);
-            Expect(text.Contains("PhysicalKey:W") && text.Contains("JoypadMotion:LeftY-") && text.Contains("MouseButton:Ctrl+Right"), $"{extension}: the file holds the event texts");
+            Expect(text.Contains("Keyboard") && text.Contains("LeftY") && text.Contains("Mouse") && text.Contains("Ctrl"), $"{extension}: the file holds the event fields");
+            Expect(!text.Contains("PhysicalKey:W") && !text.Contains("InputEvent"), $"{extension}: no event texts, no sub-resources");
             InputMapSettingsServer.ResetAll();
             ExpectEqual(server.Load(), Error.Ok, $"{extension}: Load()");
             server.Apply();
@@ -172,6 +174,95 @@ public partial class Issue18FeatureKeyBindingsCheck : FeatureCheckCs
             InputMapSettingsServer.ResetAll();
             DirAccess.RemoveAbsolute(path);
         }
+        server.SetFilePath("");
+    }
+
+    private void CheckFileLayout()
+    {
+        var server = InputMapSettingsServer.Singleton;
+        // The text form: physical (Keyboard) or label (KeyboardLabel), Any or one pad, the axis direction, the modifiers.
+        const string text = "Keyboard:Ctrl+S; KeyboardLabel:E; Mouse:Left; Gamepad:A@Any; GamepadAxis:LeftX-; Gamepad:B@2";
+        InputEvent[] events = InputMapSettingsServer.TextToEvents(text).ToArray();
+        ExpectEqual(events.Length, 6, "TextToEvents(): six events");
+        ExpectEqual(InputMapSettingsServer.EventsToText(new Godot.Collections.Array<InputEvent>(events)), text, "EventsToText() writes the same names");
+        var ctrlS = (InputEventKey)events[0];
+        ExpectEqual(ctrlS.PhysicalKeycode, Key.S, "Keyboard: the physical keycode");
+        ExpectEqual(ctrlS.Keycode, Key.None, "Keyboard: no label keycode");
+        Expect(ctrlS.CtrlPressed, "Keyboard:Ctrl+S has the modifier");
+        var labelE = (InputEventKey)events[1];
+        ExpectEqual(labelE.Keycode, Key.E, "KeyboardLabel: the keycode");
+        ExpectEqual(labelE.PhysicalKeycode, Key.None, "KeyboardLabel: no physical keycode");
+        ExpectEqual(events[3].Device, -1, "Gamepad:A@Any reacts to all pads");
+        ExpectEqual(events[5].Device, 2, "Gamepad:B@2 reacts to pad 2");
+        Expect(events[4] is InputEventJoypadMotion { Axis: JoyAxis.LeftX, AxisValue: < 0.0f }, "GamepadAxis:LeftX- is the left stick to the left");
+        // The names of version 2 files are still read.
+        ExpectEqual(InputMapSettingsServer.EventsToText(InputMapSettingsServer.TextToEvents("Key:Ctrl+S; PhysicalKey:W; MouseButton:Left; JoypadButton:A@1; JoypadMotion:LeftY-")),
+            "KeyboardLabel:Ctrl+S; Keyboard:W; Mouse:Left; Gamepad:A@1; GamepadAxis:LeftY-", "the names of version 2 are read");
+
+        InputMapSettingsEvent record = InputMapSettingsEvent.FromText("GamepadAxis:RightY+@1");
+        Expect(record != null, "FromText() gives a record");
+        if (record != null)
+        {
+            ExpectEqual((int)record.Device, 2, "record: device Gamepad");
+            ExpectEqual(record.Input, "RightY", "record: input");
+            ExpectEqual(record.Direction, "+", "record: direction");
+            ExpectEqual(record.DeviceId, "1", "record: DeviceId is the pad number");
+            ExpectEqual(record.ToText(), "GamepadAxis:RightY+@1", "record: text");
+        }
+        InputMapSettingsEvent keyRecord = InputMapSettingsEvent.FromEvent(PressedKey(Key.W));
+        ExpectEqual((int)keyRecord.KeyMode, 0, "a pressed key is a Physical key record");
+        ExpectEqual(keyRecord.DeviceId, "Any", "a key has DeviceId Any");
+        Expect(InputMapSettingsEvent.FromText("Keyboard:NoSuchKey") == null, "an unknown key is not valid");
+
+        // The file layout: one record per event in the formats with nesting, one row per event in CSV.
+        InputMapSettingsServer.ResetAll();
+        InputMapSettingsServer.Rebind(Jump, PressedKey(Key.W));
+        InputMapSettingsServer.Rebind(Jump, InputAction.TextToEvent("JoypadMotion:LeftX-"));
+        InputMapSettingsServer.Rebind(Fire, InputAction.TextToEvent("MouseButton:Ctrl+Right"));
+        foreach (string extension in new[] { "json", "ini", "csv", "xml", "toml", "yaml" })
+        {
+            if (!ResourceTextSerializer.IsFormatAvailable(ResourceTextSerializer.GetFormatFromExtension(extension)))
+            {
+                GD.Print($"  SKIP  layout .{extension} (module not in this build)");
+                continue;
+            }
+            string path = $"user://kb18_layout_cs.{extension}";
+            server.SetFilePath(path);
+            ExpectEqual(server.Save(), Error.Ok, $"{extension}: Save()");
+            string fileText = FileAccess.GetFileAsString(path);
+            if (extension == "csv")
+            {
+                Expect(fileText.StartsWith("action,index,device,input,direction,modifiers,key_mode,device_id,deadzone"), "csv: the header names the fields");
+                Expect(fileText.Contains("kb18_jump,0,Keyboard,W,,,Physical,Any,"), "csv: the physical key W is one row");
+                Expect(fileText.Contains("kb18_jump,1,Gamepad,LeftX,-,,"), "csv: the axis has a direction");
+                Expect(fileText.Contains("kb18_fire,0,Mouse,Right,,Ctrl,Physical,Any,"), "csv: the mouse button has the modifier Ctrl");
+            }
+            else
+            {
+                Expect(fileText.Contains("input_events") && fileText.Contains("key_mode") && fileText.Contains("device_id"), $"{extension}: the events are records with fields");
+            }
+            InputMapSettingsServer.ResetAll();
+            ExpectEqual(server.Load(), Error.Ok, $"{extension}: Load()");
+            server.Apply();
+            Expect(IsAction(PressedKey(Key.W), Jump), $"{extension}: Keyboard:W survives");
+            ExpectEqual(InputMapSettingsServer.EventsToText(InputMapSettingsServer.GetEvents(Fire)), "Mouse:Ctrl+Right", $"{extension}: the mouse event survives");
+            DirAccess.RemoveAbsolute(path);
+        }
+
+        // A file of version 2: one text cell per action.
+        const string v2Path = "user://kb18_v2_cs.json";
+        using (var v2 = FileAccess.Open(v2Path, FileAccess.ModeFlags.Write))
+        {
+            v2.StoreString("{\"$type\": \"InputMapSettingsRows\", \"metadata/settings_version\": 2, \"actions\": [{\"action\": \"kb18_jump\", \"deadzone\": 0.4, \"bindings\": \"Key:K; JoypadButton:B@2\"}]}");
+        }
+        InputMapSettingsServer.ResetAll();
+        server.SetFilePath(v2Path);
+        ExpectEqual(server.Load(), Error.Ok, "a version 2 file loads");
+        server.Apply();
+        ExpectEqual(InputMapSettingsServer.EventsToText(InputMapSettingsServer.GetEvents(Jump)), "KeyboardLabel:K; Gamepad:B@2", "version 2: the bindings are read");
+        Expect(Mathf.IsEqualApprox(InputMapSettingsServer.GetActionDeadzone(Jump), 0.4f), "version 2: the deadzone is read");
+        DirAccess.RemoveAbsolute(v2Path);
+        InputMapSettingsServer.ResetAll();
         server.SetFilePath("");
     }
 
@@ -188,7 +279,7 @@ public partial class Issue18FeatureKeyBindingsCheck : FeatureCheckCs
         server.AddEntry(new InputAction { Action = "kb18_removed", Events = InputMapSettingsServer.TextToEvents("Key:G") });
         ExpectEqual(server.Save(), Error.Ok, "Save() writes the player file");
         string text = FileAccess.GetFileAsString(InputMapFile);
-        Expect(text.Contains("PhysicalKey:W"), "the INI file contains PhysicalKey:W");
+        Expect(text.Contains("Keyboard") && text.Contains("input_events"), "the INI file has the event fields (device Keyboard)");
         Expect(text.Contains("kb18_removed"), "the INI file contains the removed action");
 
         var probe = RunProbe();

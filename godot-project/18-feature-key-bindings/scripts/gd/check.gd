@@ -31,6 +31,7 @@ func _run_checks() -> void:
 	_check_conflicts()
 	_check_reset()
 	_check_formats()
+	_check_file_layout()
 	_check_restart()
 
 	# Leave no player files behind for later runs.
@@ -66,11 +67,11 @@ func _check_text_form() -> void:
 	expect_equal(InputMapSettingsServer.get_event_label(InputAction.text_to_event("JoypadMotion:LeftX+")), "Left Stick Right", "label of a stick direction")
 
 	var entry := InputAction.new()
-	entry.events = InputMapSettingsServer.text_to_events("JoypadButton:B; Key:Space")
+	entry.events = InputMapSettingsServer.text_to_events("Gamepad:B; KeyboardLabel:Space")
 	expect_equal(entry.get_event_count(), 2, "the text gives one event per entry")
 	expect_equal(entry.get_device_events(InputAction.INPUT_DEVICE_GAMEPAD).size(), 1, "the gamepad event is found by device")
 	expect(entry.events[0] is InputEventJoypadButton, "the first event is parsed from the text")
-	expect_equal(InputMapSettingsServer.events_to_text(entry.events), "JoypadButton:B; Key:Space", "text round trip")
+	expect_equal(InputMapSettingsServer.events_to_text(entry.events), "Gamepad:B@Any; KeyboardLabel:Space", "text round trip")
 
 
 func _check_defaults() -> void:
@@ -142,7 +143,8 @@ func _check_formats() -> void:
 		InputMapSettingsServer.rebind(FIRE, InputAction.text_to_event("MouseButton:Ctrl+Right"))
 		expect_equal(InputMapSettingsServer.save(), OK, "%s: save()" % extension)
 		var text := FileAccess.get_file_as_string(path)
-		expect(text.contains("PhysicalKey:W") and text.contains("JoypadMotion:LeftY-") and text.contains("MouseButton:Ctrl+Right"), "%s: the file holds the event texts" % extension)
+		expect(text.contains("Keyboard") and text.contains("LeftY") and text.contains("Mouse") and text.contains("Ctrl"), "%s: the file holds the event fields" % extension)
+		expect(not text.contains("PhysicalKey:W") and not text.contains("InputEvent"), "%s: no event texts, no sub-resources" % extension)
 		InputMapSettingsServer.reset_all()
 		expect_equal(InputMapSettingsServer.load(), OK, "%s: load()" % extension)
 		InputMapSettingsServer.apply()
@@ -163,6 +165,79 @@ func _check_formats() -> void:
 	InputMapSettingsServer.set_file_path("")
 
 
+func _check_file_layout() -> void:
+	# The text form: physical (Keyboard) or label (KeyboardLabel), Any or one pad, the axis direction, the modifiers.
+	var text := "Keyboard:Ctrl+S; KeyboardLabel:E; Mouse:Left; Gamepad:A@Any; GamepadAxis:LeftX-; Gamepad:B@2"
+	var events := InputMapSettingsServer.text_to_events(text)
+	expect_equal(events.size(), 6, "text_to_events(): six events")
+	expect_equal(InputMapSettingsServer.events_to_text(events), text, "events_to_text() writes the same names")
+	expect_equal(events[0].physical_keycode, KEY_S, "Keyboard: the physical keycode")
+	expect_equal(events[0].keycode, KEY_NONE, "Keyboard: no label keycode")
+	expect(events[0].ctrl_pressed, "Keyboard:Ctrl+S has the modifier")
+	expect_equal(events[1].keycode, KEY_E, "KeyboardLabel: the keycode")
+	expect_equal(events[1].physical_keycode, KEY_NONE, "KeyboardLabel: no physical keycode")
+	expect_equal(events[3].device, -1, "Gamepad:A@Any reacts to all pads")
+	expect_equal(events[5].device, 2, "Gamepad:B@2 reacts to pad 2")
+	expect(events[4] is InputEventJoypadMotion and events[4].axis == JOY_AXIS_LEFT_X and events[4].axis_value < 0.0, "GamepadAxis:LeftX- is the left stick to the left")
+	# The names of version 2 files are still read.
+	expect_equal(InputMapSettingsServer.events_to_text(InputMapSettingsServer.text_to_events("Key:Ctrl+S; PhysicalKey:W; MouseButton:Left; JoypadButton:A@1; JoypadMotion:LeftY-")),
+			"KeyboardLabel:Ctrl+S; Keyboard:W; Mouse:Left; Gamepad:A@1; GamepadAxis:LeftY-", "the names of version 2 are read")
+
+	var record := InputMapSettingsEvent.from_text("GamepadAxis:RightY+@1")
+	expect(record != null, "from_text() gives a record")
+	if record != null:
+		expect_equal(record.device, InputMapSettingsEvent.DEVICE_GAMEPAD, "record: device Gamepad")
+		expect_equal(record.input, "RightY", "record: input")
+		expect_equal(record.direction, "+", "record: direction")
+		expect_equal(record.device_id, "1", "record: device_id is the pad number")
+		expect_equal(record.to_text(), "GamepadAxis:RightY+@1", "record: text")
+	var key_record := InputMapSettingsEvent.from_event(pressed_key(KEY_W))
+	expect_equal(key_record.key_mode, InputMapSettingsEvent.KEY_MODE_PHYSICAL, "a pressed key is a Physical key record")
+	expect_equal(key_record.device_id, "Any", "a key has DeviceId Any")
+	expect(InputMapSettingsEvent.from_text("Keyboard:NoSuchKey") == null, "an unknown key is not valid")
+
+	# The file layout: one record per event in the formats with nesting, one row per event in CSV.
+	InputMapSettingsServer.reset_all()
+	InputMapSettingsServer.rebind(JUMP, pressed_key(KEY_W))
+	InputMapSettingsServer.rebind(JUMP, InputAction.text_to_event("JoypadMotion:LeftX-"))
+	InputMapSettingsServer.rebind(FIRE, InputAction.text_to_event("MouseButton:Ctrl+Right"))
+	for extension in ["json", "ini", "csv", "xml", "toml", "yaml"]:
+		if not ResourceTextSerializer.is_format_available(ResourceTextSerializer.get_format_from_extension(extension)):
+			continue
+		var path := "user://kb18_layout.%s" % extension
+		InputMapSettingsServer.set_file_path(path)
+		expect_equal(InputMapSettingsServer.save(), OK, "%s: save()" % extension)
+		var file_text := FileAccess.get_file_as_string(path)
+		if extension == "csv":
+			expect(file_text.begins_with("action,index,device,input,direction,modifiers,key_mode,device_id,deadzone"), "csv: the header names the fields")
+			expect(file_text.contains("kb18_jump,0,Keyboard,W,,,Physical,Any,"), "csv: the physical key W is one row")
+			expect(file_text.contains("kb18_jump,1,Gamepad,LeftX,-,,"), "csv: the axis has a direction")
+			expect(file_text.contains("kb18_fire,0,Mouse,Right,,Ctrl,Physical,Any,"), "csv: the mouse button has the modifier Ctrl")
+		else:
+			expect(file_text.contains("input_events") and file_text.contains("key_mode") and file_text.contains("device_id"), "%s: the events are records with fields" % extension)
+		InputMapSettingsServer.reset_all()
+		expect_equal(InputMapSettingsServer.load(), OK, "%s: load()" % extension)
+		InputMapSettingsServer.apply()
+		expect(InputMap.event_is_action(pressed_key(KEY_W), JUMP), "%s: Keyboard:W survives" % extension)
+		expect_equal(InputMapSettingsServer.events_to_text(InputMapSettingsServer.get_events(FIRE)), "Mouse:Ctrl+Right", "%s: the mouse event survives" % extension)
+		DirAccess.remove_absolute(path)
+
+	# A file of version 2: one text cell per action.
+	var v2_path := "user://kb18_v2.json"
+	var v2 := FileAccess.open(v2_path, FileAccess.WRITE)
+	v2.store_string('{"$type": "InputMapSettingsRows", "metadata/settings_version": 2, "actions": [{"action": "kb18_jump", "deadzone": 0.4, "bindings": "Key:K; JoypadButton:B@2"}]}')
+	v2.close()
+	InputMapSettingsServer.reset_all()
+	InputMapSettingsServer.set_file_path(v2_path)
+	expect_equal(InputMapSettingsServer.load(), OK, "a version 2 file loads")
+	InputMapSettingsServer.apply()
+	expect_equal(InputMapSettingsServer.events_to_text(InputMapSettingsServer.get_events(JUMP)), "KeyboardLabel:K; Gamepad:B@2", "version 2: the bindings are read")
+	expect(is_equal_approx(InputMapSettingsServer.get_action_deadzone(JUMP), 0.4), "version 2: the deadzone is read")
+	DirAccess.remove_absolute(v2_path)
+	InputMapSettingsServer.reset_all()
+	InputMapSettingsServer.set_file_path("")
+
+
 func _check_restart() -> void:
 	if not OS.has_feature("pc"):
 		print("  SKIP  restart check (needs a desktop platform to start a second process)")
@@ -175,7 +250,7 @@ func _check_restart() -> void:
 	InputMapSettingsServer.add_entry(gone)
 	expect_equal(InputMapSettingsServer.save(), OK, "save() writes the player file")
 	var text := FileAccess.get_file_as_string(INPUT_MAP_FILE)
-	expect(text.contains("PhysicalKey:W"), "the INI file contains PhysicalKey:W")
+	expect(text.contains("Keyboard") and text.contains("input_events"), "the INI file has the event fields (device Keyboard)")
 	expect(text.contains("kb18_removed"), "the INI file contains the removed action")
 
 	var probe := _run_probe()
