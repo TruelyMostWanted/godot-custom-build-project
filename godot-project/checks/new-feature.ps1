@@ -26,6 +26,9 @@ $pascal = 'Issue' + ((($Name -split '-') | ForEach-Object { $_.Substring(0, 1).T
 
 Copy-Item -Path $template -Destination $target -Recurse
 
+# UIDs must be unique per project: drop the copied .uid files, Godot creates new ones on import
+Get-ChildItem -Path $target -Recurse -File -Filter *.uid | Remove-Item
+
 # rename files with the placeholder in their name
 Get-ChildItem -Path $target -Recurse -File | Where-Object { $_.Name -like '*__FEATURE_PASCAL__*' } | ForEach-Object {
     Rename-Item -Path $_.FullName -NewName ($_.Name -replace '__FEATURE_PASCAL__', $pascal)
@@ -35,6 +38,7 @@ Get-ChildItem -Path $target -Recurse -File | Where-Object { $_.Name -like '*__FE
 $utf8NoBom = New-Object System.Text.UTF8Encoding $false
 Get-ChildItem -Path $target -Recurse -File -Include *.gd, *.cs, *.tscn, *.tres, *.md | ForEach-Object {
     $text = [System.IO.File]::ReadAllText($_.FullName)
+    $text = $text -replace ' uid="uid://[a-z0-9]+"', ''
     $text = $text.Replace('__FEATURE_PASCAL__', $pascal).Replace('__FEATURE_NAME__', $Name).Replace('res://_feature-template/', "res://$Name/")
     [System.IO.File]::WriteAllText($_.FullName, $text, $utf8NoBom)
 }
