@@ -48,7 +48,6 @@ func _run_checks() -> void:
 	TTSPersonaSettingsServer.reset_to_defaults()
 	TTSServer.clear_personas()
 	await get_tree().process_frame
-	TTSPersonaSettingsServer.flush_autosave()
 	DirAccess.remove_absolute(PERSONAS_FILE)
 	for file_name in DirAccess.get_files_at(DIR):
 		DirAccess.remove_absolute(DIR.path_join(file_name))
