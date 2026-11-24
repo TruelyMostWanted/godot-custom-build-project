@@ -41,6 +41,7 @@ public partial class Issue16FeatureAudioSettingsCheck : FeatureCheckCs
         CheckManualMode();
         CheckCsv();
         CheckMissingBus();
+        CheckLayoutChange();
         CheckDevices();
         CheckRestart();
 
@@ -161,6 +162,39 @@ public partial class Issue16FeatureAudioSettingsCheck : FeatureCheckCs
             AudioServer.RemoveBus(bus);
         }
         server.ApplyMode = SettingsServer.ApplyModeEnum.Immediate;
+    }
+
+    // Issue #122: a new bus layout at runtime resets the bus values; the stored values are applied again.
+    private void CheckLayoutChange()
+    {
+        var server = AudioBusSettingsServer.Singleton;
+        AudioBusLayout gameLayout = AudioServer.GenerateBusLayout();
+        AudioBusSettingsServer.SetBusVolumeDb("Music", -21.0f);
+        AudioBusSettingsServer.SetBusMute("Music", true);
+        AudioBusSettingsServer.SetBusSolo("Sfx", true);
+        AudioServer.SetBusLayout(gameLayout);
+        Expect(Mathf.IsEqualApprox(BusVolumeDb("Music"), -21.0f), "#122: SetBusLayout() keeps the stored volume");
+        Expect(AudioServer.IsBusMute(AudioServer.GetBusIndex("Music")), "#122: SetBusLayout() keeps the stored mute");
+        Expect(AudioServer.IsBusSolo(AudioServer.GetBusIndex("Sfx")), "#122: SetBusLayout() keeps the stored solo");
+        Expect(!server.IsDirty(), "#122: the re-apply changes no setting");
+
+        // A layout with only Master: with CreateMissingBuses, the stored buses are added again, once each.
+        AudioBusSettingsServer.CreateMissingBuses = true;
+        AudioServer.SetBusLayout(new AudioBusLayout());
+        int bus = AudioServer.GetBusIndex("Music");
+        Expect(bus >= 0 && Mathf.IsEqualApprox(AudioServer.GetBusVolumeDb(bus), -21.0f), "#122: CreateMissingBuses adds a stored bus after SetBusLayout()");
+        ExpectEqual(AudioServer.GetBusCount(), 3, "#122: each stored bus is created once");
+        AudioBusSettingsServer.CreateMissingBuses = false;
+
+        // In manual mode, the applied values come back, not the pending ones.
+        server.ApplyMode = SettingsServer.ApplyModeEnum.Manual;
+        AudioBusSettingsServer.SetBusVolumeDb("Music", -40.0f);
+        AudioServer.SetBusLayout(gameLayout);
+        Expect(Mathf.IsEqualApprox(BusVolumeDb("Music"), -21.0f), "#122: manual mode: the applied volume comes back, the pending one waits");
+        server.Revert();
+        server.ApplyMode = SettingsServer.ApplyModeEnum.Immediate;
+        server.ResetToDefaults();
+        Expect(Mathf.IsEqualApprox(BusVolumeDb("Music"), -6.0f), "#122: ResetToDefaults() after the layout change");
     }
 
     private void CheckDevices()

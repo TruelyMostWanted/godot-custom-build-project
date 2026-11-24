@@ -32,6 +32,7 @@ func _run_checks() -> void:
 	_check_manual_mode()
 	_check_csv()
 	_check_missing_bus()
+	_check_layout_change()
 	_check_devices()
 	await _check_restart()
 
@@ -142,6 +143,37 @@ func _check_missing_bus() -> void:
 	if bus >= 0:
 		AudioServer.remove_bus(bus)
 	AudioBusSettingsServer.apply_mode = SettingsServer.APPLY_MODE_IMMEDIATE
+
+
+# Issue #122: a new bus layout at runtime resets the bus values; the stored values are applied again.
+func _check_layout_change() -> void:
+	var game_layout := AudioServer.generate_bus_layout()
+	AudioBusSettingsServer.set_bus_volume_db(&"Music", -21.0)
+	AudioBusSettingsServer.set_bus_mute(&"Music", true)
+	AudioBusSettingsServer.set_bus_solo(&"Sfx", true)
+	AudioServer.set_bus_layout(game_layout)
+	expect(is_equal_approx(_bus_volume_db(&"Music"), -21.0), "#122: set_bus_layout() keeps the stored volume")
+	expect(AudioServer.is_bus_mute(AudioServer.get_bus_index(&"Music")), "#122: set_bus_layout() keeps the stored mute")
+	expect(AudioServer.is_bus_solo(AudioServer.get_bus_index(&"Sfx")), "#122: set_bus_layout() keeps the stored solo")
+	expect(not AudioBusSettingsServer.is_dirty(), "#122: the re-apply changes no setting")
+
+	# A layout with only Master: with create_missing_buses, the stored buses are added again, once each.
+	AudioBusSettingsServer.create_missing_buses = true
+	AudioServer.set_bus_layout(AudioBusLayout.new())
+	var bus := AudioServer.get_bus_index(&"Music")
+	expect(bus >= 0 and is_equal_approx(AudioServer.get_bus_volume_db(bus), -21.0), "#122: create_missing_buses adds a stored bus after set_bus_layout()")
+	expect_equal(AudioServer.get_bus_count(), 3, "#122: each stored bus is created once")
+	AudioBusSettingsServer.create_missing_buses = false
+
+	# In manual mode, the applied values come back, not the pending ones.
+	AudioBusSettingsServer.apply_mode = SettingsServer.APPLY_MODE_MANUAL
+	AudioBusSettingsServer.set_bus_volume_db(&"Music", -40.0)
+	AudioServer.set_bus_layout(game_layout)
+	expect(is_equal_approx(_bus_volume_db(&"Music"), -21.0), "#122: manual mode: the applied volume comes back, the pending one waits")
+	AudioBusSettingsServer.revert()
+	AudioBusSettingsServer.apply_mode = SettingsServer.APPLY_MODE_IMMEDIATE
+	AudioBusSettingsServer.reset_to_defaults()
+	expect(is_equal_approx(_bus_volume_db(&"Music"), -6.0), "#122: reset_to_defaults() after the layout change")
 
 
 func _check_devices() -> void:
