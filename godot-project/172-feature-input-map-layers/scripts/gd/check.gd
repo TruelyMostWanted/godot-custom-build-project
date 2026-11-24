@@ -16,6 +16,7 @@ func _get_check_name() -> String:
 func _run_checks() -> void:
 	_check_input_action()
 	_check_input_actions()
+	_check_resource_files()
 	_check_layers()
 	_check_set_input_action()
 	_check_parse_cost()
@@ -41,11 +42,11 @@ func _check_input_action() -> void:
 	expect_equal(action.action, &"l172_demo", "action name")
 	expect(is_equal_approx(action.deadzone, 0.4), "deadzone")
 
-	action.bindings = "Key:Ctrl+S; JoypadButton:A"
-	expect_equal(action.get_event_count(), 2, "bindings text gives two events")
+	action.events = InputMapSettingsServer.text_to_events("Key:Ctrl+S; JoypadButton:A")
+	expect_equal(action.get_event_count(), 2, "the text form gives two events")
 	expect(action.events[0] is InputEventKey, "the first event is a key")
 	expect(action.events[1] is InputEventJoypadButton, "the second event is a joypad button")
-	expect_equal(action.bindings, "Key:Ctrl+S; JoypadButton:A", "bindings round trip")
+	expect_equal(InputMapSettingsServer.events_to_text(action.events), "Key:Ctrl+S; JoypadButton:A", "bindings round trip")
 	expect_equal(action.get_device_events(InputAction.INPUT_DEVICE_KEYBOARD).size(), 1, "one keyboard event")
 	expect_equal(action.get_device_events(InputAction.INPUT_DEVICE_GAMEPAD).size(), 1, "one gamepad event")
 	expect_equal(action.get_device_events(InputAction.INPUT_DEVICE_MOUSE).size(), 0, "no mouse event")
@@ -59,16 +60,16 @@ func _check_input_action() -> void:
 	expect(action.remove_event(mouse), "remove_event() finds the event")
 	expect(not action.remove_event(mouse), "remove_event() of a missing event is false")
 	action.events = [pressed_key(KEY_W)]
-	expect_equal(action.bindings, "PhysicalKey:W", "setting events updates the bindings text")
+	expect_equal(InputMapSettingsServer.events_to_text(action.events), "PhysicalKey:W", "setting events updates the bindings text")
 	action.clear_events()
 	expect_equal(action.get_event_count(), 0, "clear_events()")
-	expect_equal(action.bindings, "", "no events, no bindings text")
+	expect_equal(InputMapSettingsServer.events_to_text(action.events), "", "no events, no bindings text")
 
 	# Touch has no text form: kept in events, left out of bindings.
 	action.add_event(InputEventScreenTouch.new())
 	action.add_event(InputAction.text_to_event("Key:Space"))
 	expect_equal(action.get_event_count(), 2, "touch and key are both events")
-	expect_equal(action.bindings, "Key:Space", "touch is not part of the bindings text")
+	expect_equal(InputMapSettingsServer.events_to_text(action.events), "Key:Space", "touch is not part of the bindings text")
 
 	for text in ["Key:Ctrl+S", "PhysicalKey:W", "MouseButton:Ctrl+WheelUp", "JoypadButton:LeftShoulder", "JoypadMotion:LeftX+"]:
 		var event := InputAction.text_to_event(text)
@@ -88,10 +89,10 @@ func _check_input_actions() -> void:
 	expect_equal(list.get_action_count(), 0, "a new InputActions is empty")
 	var jump := InputAction.new()
 	jump.action = &"l172_jump"
-	jump.bindings = "Key:Space"
+	jump.events = InputMapSettingsServer.text_to_events("Key:Space")
 	var fire := InputAction.new()
 	fire.action = &"l172_fire"
-	fire.bindings = "MouseButton:Left"
+	fire.events = InputMapSettingsServer.text_to_events("MouseButton:Left")
 	list.add_action(jump)
 	list.add_action(fire)
 	expect_equal(list.get_action_count(), 2, "two actions")
@@ -103,7 +104,7 @@ func _check_input_actions() -> void:
 
 	var jump2 := InputAction.new()
 	jump2.action = &"l172_jump"
-	jump2.bindings = "Key:W"
+	jump2.events = InputMapSettingsServer.text_to_events("Key:W")
 	list.add_action(jump2)
 	expect_equal(list.get_action_count(), 2, "adding a name again replaces the action")
 	expect_equal(list.get_action(&"l172_jump"), jump2, "the new action replaced the old one")
@@ -122,6 +123,51 @@ func _check_input_actions() -> void:
 	expect_equal(list.get_action_count(), 1, "set_actions(): the later action of a name wins")
 	expect_equal(list.get_action(&"l172_jump"), jump2, "set_actions(): the later one is kept")
 
+
+func _check_resource_files() -> void:
+	# `events` is a stored property: .tres and .res keep the events as sub-resources.
+	var stored := false
+	for property in InputAction.new().get_property_list():
+		if property.name == "events":
+			stored = (property.usage & PROPERTY_USAGE_STORAGE) != 0 and (property.usage & PROPERTY_USAGE_EDITOR) != 0
+		expect(property.name != "bindings", "InputAction has no bindings property")
+	expect(stored, "events is stored and shown in the Inspector")
+
+	var list := InputActions.new()
+	var jump := InputAction.new()
+	jump.action = &"l172_file_jump"
+	jump.deadzone = 0.5
+	jump.events = InputMapSettingsServer.text_to_events("Key:Space; PhysicalKey:Ctrl+W; MouseButton:Right; JoypadButton:A@1; JoypadMotion:LeftY-")
+	var touch := InputEventScreenTouch.new()
+	touch.index = 2
+	jump.add_event(touch)
+	list.add_action(jump)
+	var empty := InputAction.new()
+	empty.action = &"l172_file_empty"
+	list.add_action(empty)
+	for path in ["user://l172_actions.tres", "user://l172_actions.res"]:
+		expect_equal(ResourceSaver.save(list, path), OK, "save %s" % path)
+		var loaded := ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE) as InputActions
+		expect(loaded != null and loaded != list, "load %s" % path)
+		if loaded == null:
+			continue
+		expect_equal(loaded.get_action_names(), [&"l172_file_jump", &"l172_file_empty"], "%s: action names" % path)
+		var read := loaded.get_action(&"l172_file_jump")
+		expect(is_equal_approx(read.deadzone, 0.5), "%s: deadzone" % path)
+		expect_equal(read.get_event_count(), 6, "%s: all events, touch too" % path)
+		expect_equal(InputMapSettingsServer.events_to_text(read.events), InputMapSettingsServer.events_to_text(jump.events), "%s: the same events" % path)
+		var read_touch := read.events[5] as InputEventScreenTouch
+		expect(read_touch != null and read_touch.index == 2, "%s: the touch event" % path)
+		expect_equal(loaded.get_action(&"l172_file_empty").get_event_count(), 0, "%s: an action without events" % path)
+	var text := FileAccess.get_file_as_string("user://l172_actions.tres")
+	expect(text.contains("events = Array[InputEvent]([SubResource("), ".tres: events as sub-resources")
+	expect(text.contains("deadzone = 0.5"), ".tres: the deadzone that is not the default")
+	expect(not text.contains("bindings"), ".tres: no text form")
+
+	# The text form of InputMapSettingsServer: one pad with @<device>, events without text left out.
+	expect_equal(InputMapSettingsServer.events_to_text(jump.events), "Key:Space; PhysicalKey:Ctrl+W; MouseButton:Right; JoypadButton:A@1; JoypadMotion:LeftY-", "events_to_text()")
+	expect_equal(InputMapSettingsServer.text_to_events("Key:Space; NotAType:X").size(), 1, "text_to_events() skips invalid items")
+	expect_equal(InputMapSettingsServer.text_to_events("JoypadButton:A@1")[0].device, 1, "text_to_events(): the pad")
 
 func _check_layers() -> void:
 	expect(InputMap.is_builtin_input_action(&"ui_accept"), "ui_accept is built-in")
@@ -150,7 +196,7 @@ func _check_layers() -> void:
 	var attack := InputMap.get_input_action(ATTACK)
 	expect_equal(attack.action, ATTACK, "get_input_action() name")
 	expect(is_equal_approx(attack.deadzone, 0.3), "get_input_action() deadzone from the project")
-	expect_equal(attack.bindings, "Key:F", "get_input_action() events as text")
+	expect_equal(InputMapSettingsServer.events_to_text(attack.events), "Key:F", "get_input_action() events as text")
 	expect(attack == custom.get_action(ATTACK), "get_input_action() is the action of the custom layer")
 	var key_h := InputAction.text_to_event("Key:H")
 	attack.add_event(key_h)
@@ -162,7 +208,7 @@ func _check_layers() -> void:
 	# Direct edits of a layer reach the InputMap.
 	var direct := InputAction.new()
 	direct.action = &"l172_direct"
-	direct.bindings = "Key:F9"
+	direct.events = InputMapSettingsServer.text_to_events("Key:F9")
 	custom.add_action(direct)
 	expect(InputMap.has_action(&"l172_direct"), "an action added to the custom layer is in the InputMap")
 	expect(InputMap.event_is_action(pressed_key(KEY_F9), &"l172_direct"), "its key works")
@@ -175,7 +221,7 @@ func _check_set_input_action() -> void:
 	var changed := InputAction.new()
 	changed.action = ATTACK
 	changed.deadzone = 0.6
-	changed.bindings = "Key:G"
+	changed.events = InputMapSettingsServer.text_to_events("Key:G")
 	InputMap.set_input_action(changed)
 	expect(InputMap.event_is_action(pressed_key(KEY_G), ATTACK), "set_input_action(): the new key works")
 	expect(not InputMap.event_is_action(pressed_key(KEY_F), ATTACK), "set_input_action(): the old key no longer works")
@@ -189,7 +235,7 @@ func _check_set_input_action() -> void:
 	for n in 2:
 		var action := InputAction.new()
 		action.action = StringName("l172_extra_%d" % n)
-		action.bindings = "Key:F%d" % (n + 5)
+		action.events = InputMapSettingsServer.text_to_events("Key:F%d" % (n + 5))
 		extra.add_action(action)
 	InputMap.set_input_actions(extra)
 	expect(InputMap.has_action(&"l172_extra_0") and InputMap.has_action(&"l172_extra_1"), "set_input_actions() adds new actions")
@@ -248,7 +294,7 @@ func _check_settings_server() -> void:
 	expect(not InputMap.event_is_action(pressed_key(KEY_F), ATTACK), "the old key no longer works")
 	expect_equal(InputMapSettingsServer.rebind(ATTACK, pressed_key(KEY_Y), 1), OK, "rebind() slot 1")
 	expect_equal(InputMapSettingsServer.get_slot_count(ATTACK, InputAction.INPUT_DEVICE_KEYBOARD), 2, "two keyboard slots")
-	expect(InputMapSettingsServer.get_input_action(ATTACK).bindings.contains("PhysicalKey:Y"), "get_input_action() shows both keys")
+	expect(InputMapSettingsServer.events_to_text(InputMapSettingsServer.get_input_action(ATTACK).events).contains("PhysicalKey:Y"), "get_input_action() shows both keys")
 
 	InputMapSettingsServer.clear_event(ATTACK, InputAction.INPUT_DEVICE_KEYBOARD, 0)
 	expect_equal(InputMapSettingsServer.get_slot_count(ATTACK, InputAction.INPUT_DEVICE_KEYBOARD), 1, "clear_event() removes the slot")
@@ -259,7 +305,7 @@ func _check_settings_server() -> void:
 	InputMapSettingsServer.reset_action(ATTACK)
 	expect(InputMap.event_is_action(pressed_key(KEY_F), ATTACK), "reset_action(): F works again")
 	expect(not InputMap.event_is_action(pressed_key(KEY_Y), ATTACK), "reset_action(): Y no longer works")
-	expect_equal(InputMapSettingsServer.get_input_action(ATTACK).bindings, "Key:F", "reset_action(): the project bindings")
+	expect_equal(InputMapSettingsServer.events_to_text(InputMapSettingsServer.get_input_action(ATTACK).events), "Key:F", "reset_action(): the project bindings")
 
 	InputMapSettingsServer.rebind(ATTACK, pressed_key(KEY_X))
 	InputMapSettingsServer.reset_all()
