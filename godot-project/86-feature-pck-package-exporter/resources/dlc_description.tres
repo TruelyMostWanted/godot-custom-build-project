@@ -1,0 +1,5 @@
+[gd_resource type="PCKPackage" format=3]
+
+[resource]
+files = [{"path": "icon.svg", "source": "res://icon.svg"}, {"path": "dlc/readme.txt", "data": PackedByteArray(104, 105)}, {"path": "dlc/settings.cfg", "source": "user://dlc_settings.cfg"}]
+removals = PackedStringArray("old/unused.png")
