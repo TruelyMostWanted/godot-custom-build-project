@@ -22,6 +22,8 @@ public partial class Issue16FeatureAudioSettingsCheck : FeatureCheckCs
 
     protected override async Task RunChecks()
     {
+        await CheckTypedSignals();
+
         DirAccess.MakeDirRecursiveAbsolute(Dir);
         Expect(Engine.HasSingleton("AudioBusSettingsServer"), "AudioBusSettingsServer is a registered singleton");
         Expect(Engine.HasSingleton("AudioDeviceSettingsServer"), "AudioDeviceSettingsServer is a registered singleton");
@@ -276,5 +278,62 @@ public partial class Issue16FeatureAudioSettingsCheck : FeatureCheckCs
         }
         Expect(false, "restart: the probe printed its result");
         return new Godot.Collections.Dictionary();
+    }
+
+    /// <summary>Issue #173: the typed bus signals fire once per applied change, not for pending changes in manual mode.</summary>
+    private async Task CheckTypedSignals()
+    {
+        if (!Engine.HasSingleton("AudioBusSettingsServer") || !Engine.HasSingleton("AudioDeviceSettingsServer"))
+        {
+            return;
+        }
+        var devices = (SettingsServer)Engine.GetSingleton("AudioDeviceSettingsServer");
+        Expect(devices.HasSignal("output_device_changed"), "AudioDeviceSettingsServer has output_device_changed");
+        Expect(devices.HasSignal("input_device_changed"), "AudioDeviceSettingsServer has input_device_changed");
+        var s = (SettingsServer)Engine.GetSingleton("AudioBusSettingsServer");
+        foreach (string sig in new[] { "bus_volume_changed", "bus_mute_changed", "bus_solo_changed", "bus_layout_changed" })
+        {
+            Expect(s.HasSignal(sig), $"AudioBusSettingsServer has {sig}");
+        }
+        string filePath = s.GetFilePath();
+        bool hadFile = FileAccess.FileExists(filePath);
+        var previousMode = s.ApplyMode;
+        s.ApplyMode = SettingsServer.ApplyModeEnum.Immediate;
+        s.ResetToDefaults();
+        var volumes = new System.Collections.Generic.List<(StringName Bus, float VolumeDb)>();
+        int mutes = 0;
+        var onVolume = Callable.From((StringName busName, double volumeDb) => volumes.Add((busName, (float)volumeDb)));
+        var onMute = Callable.From((StringName busName, bool muted) => mutes++);
+        s.Connect("bus_volume_changed", onVolume);
+        s.Connect("bus_mute_changed", onMute);
+
+        s.ApplyMode = SettingsServer.ApplyModeEnum.Manual;
+        float volume = (float)s.Call("get_bus_volume_db", "Master").AsDouble() != -6.0f ? -6.0f : -12.0f;
+        s.Call("set_bus_volume_db", "Master", volume);
+        ExpectEqual(volumes.Count, 0, "bus_volume_changed does not fire for a pending change in manual mode");
+        s.Apply();
+        ExpectEqual(volumes.Count, 1, "bus_volume_changed fires once on Apply()");
+        if (volumes.Count > 0)
+        {
+            ExpectEqual(volumes[0].Bus.ToString(), "Master", "bus_volume_changed passes the bus name");
+            ExpectEqual(volumes[0].VolumeDb, (float)volume, "bus_volume_changed passes the volume");
+        }
+        ExpectEqual(mutes, 0, "bus_mute_changed does not fire for an unchanged mute state");
+        s.Call("set_bus_mute", "Master", !s.Call("is_bus_mute", "Master").AsBool());
+        s.Apply();
+        ExpectEqual(mutes, 1, "bus_mute_changed fires once on Apply()");
+        s.ResetToDefaults();
+        s.Apply();
+        ExpectEqual(volumes.Count, 2, "bus_volume_changed fires again when the default is applied");
+        ExpectEqual(mutes, 2, "bus_mute_changed fires again when the default is applied");
+
+        s.Disconnect("bus_volume_changed", onVolume);
+        s.Disconnect("bus_mute_changed", onMute);
+        s.ApplyMode = previousMode;
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        if (!hadFile)
+        {
+            DirAccess.RemoveAbsolute(filePath);
+        }
     }
 }
