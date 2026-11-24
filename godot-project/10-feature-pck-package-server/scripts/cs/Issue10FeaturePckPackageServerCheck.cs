@@ -109,8 +109,95 @@ public partial class Issue10FeaturePckPackageServerCheck : FeatureCheckCs
         ExpectEqual(PckPackageServer.ReadFile(encrypted, "res://pck10cs/secret.txt").GetStringFromUtf8(), "Hidden", "ReadFile() decrypts");
         Expect(PckPackageServer.Open(secret, KeyB) == null, "Open() with a wrong key returns null");
 
+        CheckResource();
+
         PckPackageServer.PackMounted -= OnMounted;
         PckPackageServer.PackUnmounted -= OnUnmounted;
         return Task.CompletedTask;
+    }
+
+    private static void WriteText(string path, string text)
+    {
+        FileAccess f = FileAccess.Open(path, FileAccess.ModeFlags.Write);
+        f.StoreString(text);
+        f.Close();
+    }
+
+    /// <summary>#83: PckPackage is a Resource. .pck files load and save through ResourceLoader and ResourceSaver,
+    /// and a description is saved as .tres. The missing-source check prints an engine error on purpose.</summary>
+    private void CheckResource()
+    {
+        string pack = Root + "resource.pck";
+        WritePack(pack, new Dictionary<string, string> { { "pck83cs/a.txt", "Alpha" }, { "pck83cs/b.txt", "Beta" } });
+
+        Expect(ClassDB.IsParentClass("PckPackage", "Resource"), "PckPackage is a Resource");
+        Expect(ResourceLoader.Exists(pack, "PckPackage"), "ResourceLoader knows .pck files");
+        PckPackage loaded = GD.Load<PckPackage>(pack);
+        Expect(loaded != null, "Load() of a .pck returns a PckPackage");
+        ExpectEqual(loaded.PackPath, pack, "PackPath is the loaded pack");
+        Expect(!loaded.IsDescription(), "a loaded .pck is not a description");
+        Expect(!PckPackageServer.IsMounted(pack), "Load() does not mount");
+        Expect(ReferenceEquals(GD.Load<PckPackage>(pack), loaded), "Load() twice returns the same object");
+        ExpectEqual(PckPackageServer.ReadFile(loaded, "res://pck83cs/b.txt").GetStringFromUtf8(), "Beta", "ReadFile() on a loaded pack");
+
+        // CacheMode.Replace after a rebuild: the cached object shows the new entries.
+        WritePack(pack, new Dictionary<string, string> { { "pck83cs/a.txt", "Alpha 2" }, { "pck83cs/c.txt", "Gamma" } });
+        Resource replaced = ResourceLoader.Load(pack, "", ResourceLoader.CacheMode.Replace);
+        Expect(ReferenceEquals(replaced, loaded), "CacheMode.Replace keeps the cached object");
+        ExpectEqual(string.Join(",", loaded.GetPaths()), "res://pck83cs/a.txt,res://pck83cs/c.txt", "CacheMode.Replace sees the new entries");
+        ExpectEqual(PckPackageServer.ReadFile(loaded, "res://pck83cs/a.txt").GetStringFromUtf8(), "Alpha 2", "CacheMode.Replace sees the new data");
+
+        // Duplicate() keeps the entries.
+        var copy = (PckPackage)loaded.Duplicate();
+        Expect(!ReferenceEquals(copy, loaded) && string.Join(",", copy.GetPaths()) == string.Join(",", loaded.GetPaths()), "Duplicate() keeps the entries");
+        ExpectEqual(PckPackageServer.ReadFile(copy, "res://pck83cs/c.txt").GetStringFromUtf8(), "Gamma", "Duplicate() can read the files");
+
+        // A description saved as .tres: no key, and loaded again it is the same.
+        string source = Root + "source.txt";
+        WriteText(source, "Source");
+        string later = Root + "later.txt";
+        DirAccess.RemoveAbsolute(later);
+        var description = new PckPackage();
+        Expect(description.IsDescription(), "new PckPackage() is a description");
+        ExpectEqual(description.SetKey(KeyA), Error.Ok, "SetKey()");
+        description.BasePack = pack;
+        description.Alignment = 64;
+        ExpectEqual(description.AddFile("res://pck83cs/source.txt", source, true), Error.Ok, "AddFile()");
+        ExpectEqual(description.AddFile("res://pck83cs/later.txt", later), Error.Ok, "AddFile() with a missing source");
+        description.AddFileFromBuffer("res://pck83cs/data.txt", "Data".ToUtf8Buffer());
+        Godot.Collections.Array files = description.Get("files").AsGodotArray();
+        files.Add(new Godot.Collections.Dictionary { { "path", "pck83cs/from_base.txt" }, { "from_pack", "pck83cs/c.txt" } });
+        description.Set("files", files);
+        description.MarkRemoval("res://pck83cs/old.txt");
+        Godot.Collections.Array<Godot.Collections.Dictionary> entries = description.GetEntries();
+        Expect(entries.Count == 5
+                && entries[0]["source_type"].AsInt32() == (int)PckPackage.SourceType.File
+                && entries[2]["source_type"].AsInt32() == (int)PckPackage.SourceType.Data
+                && entries[3]["source_type"].AsInt32() == (int)PckPackage.SourceType.Pack, "GetEntries() has source_type");
+        ExpectEqual(entries[3]["source"].AsString(), "res://pck83cs/c.txt", "GetEntries() has source");
+
+        string tres = Root + "description.tres";
+        ExpectEqual(ResourceSaver.Save(description, tres), Error.Ok, "ResourceSaver.Save() as .tres");
+        string text = FileAccess.GetFileAsString(tres);
+        Expect(!text.Contains(KeyA), "the key is not in the .tres");
+        Expect(text.Contains("base_pack") && text.Contains("from_pack") && text.Contains("removals"), "the .tres has base_pack, files and removals");
+        var reloaded = ResourceLoader.Load(tres, "", ResourceLoader.CacheMode.Ignore) as PckPackage;
+        Expect(reloaded != null && reloaded.IsDescription(), "the .tres loads as a description");
+        ExpectEqual(GD.VarToStr(reloaded.Get("files")), GD.VarToStr(description.Get("files")), "files are identical after the round trip");
+        ExpectEqual(string.Join(",", reloaded.Get("removals").AsStringArray()), "pck83cs/old.txt", "removals are identical after the round trip");
+        ExpectEqual(reloaded.BasePack, pack, "BasePack after the round trip");
+        ExpectEqual(reloaded.Alignment, 64, "Alignment after the round trip");
+        ExpectEqual(PckPackageServer.ReadFile(reloaded, "res://pck83cs/from_base.txt").GetStringFromUtf8(), "Gamma", "from_pack reads the base pack");
+
+        // Saving to .pck builds the pack; missing sources are reported by the build.
+        string built = Root + "built.pck";
+        ExpectEqual(ResourceSaver.Save(reloaded, built), Error.FileNotFound, "ResourceSaver.Save() as .pck fails for a missing source");
+        WriteText(later, "Later");
+        ExpectEqual(ResourceSaver.Save(reloaded, built), Error.Ok, "ResourceSaver.Save() as .pck builds the pack");
+        PckPackage opened = PckPackageServer.Open(built);
+        Expect(opened != null && string.Join(",", opened.GetPaths()) == "res://pck83cs/source.txt,res://pck83cs/later.txt,res://pck83cs/data.txt,res://pck83cs/from_base.txt", "the built pack has all files");
+        Expect(opened != null && opened.HasFile("res://pck83cs/old.txt"), "the built pack has the removal entry");
+        ExpectEqual(PckPackageServer.ReadFile(opened, "res://pck83cs/source.txt").GetStringFromUtf8(), "Source", "encrypted file reads back");
+        ExpectEqual(PckPackageServer.Verify(opened), Error.Ok, "Verify() of the built pack");
     }
 }
