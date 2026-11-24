@@ -51,7 +51,6 @@ public partial class Issue29FeatureTtsPersonaSettingsCheck : FeatureCheckCs
         server.ResetToDefaults();
         TtsServer.ClearPersonas();
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        server.FlushAutosave();
         DirAccess.RemoveAbsolute(PersonasFile);
         foreach (string fileName in DirAccess.GetFilesAt(Dir))
         {
