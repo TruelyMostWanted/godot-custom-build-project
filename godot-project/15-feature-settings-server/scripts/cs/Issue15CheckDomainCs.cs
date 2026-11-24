@@ -11,7 +11,7 @@ public partial class Issue15CheckDomainCs : SettingsServer
 {
     public override StringName _GetDomain() => "check15_cs";
 
-    public override int _GetApplyPhase() => (int)ApplyPhase.Scene;
+    public override ApplyPhase _GetApplyPhase() => ApplyPhase.Scene;
 
     public override Resource _CreateSettings() => new Issue15CheckSettingsCs();
 

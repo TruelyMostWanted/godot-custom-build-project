@@ -23,6 +23,8 @@ func _run_checks() -> void:
 	expect(ClassDB.is_parent_class("ListSettingsServer", "SettingsServer"), "ListSettingsServer extends SettingsServer")
 	expect_equal(SettingsServerManager.get_startup_phase(), SettingsServer.APPLY_PHASE_SCENE, "all startup phases ran before the main scene")
 	expect_equal(SettingsServerManager.get_storage_folder(), "user://settings", "default storage folder")
+	expect_equal(SettingsServerManager.get_storage_format(), ResourceTextSerializer.FORMAT_INI, "default storage format is the enum value FORMAT_INI")
+	expect(not SettingsServerManager.has_dirty_servers(), "has_dirty_servers() is false after startup")
 	expect(SettingsServerManager.has_server(&"check15_cs"), "the C# domain from settings/startup/custom_servers is registered")
 
 	var server: SettingsServer = SettingsServerManager.get_server(&"check15_gd")
@@ -67,6 +69,7 @@ func _check_revert() -> void:
 	domain.set_value(&"volume", 0.2)
 	domain.set_value(&"quality", 2)
 	expect(domain.is_dirty(), "set_value() in manual mode makes the domain dirty")
+	expect_equal(domain.get_dirty_setting_names(), PackedStringArray(["volume", "quality"]), "get_dirty_setting_names() lists the changed settings")
 	domain.revert()
 	expect(not domain.is_dirty(), "revert() clears the dirty state")
 	expect(is_equal_approx(domain.get_value(&"volume"), 0.8), "revert() gives back the last applied volume")
@@ -162,12 +165,23 @@ func _check_confirmation() -> void:
 	expect_equal(domain.get_applied_value(&"quality"), 2, "the new value is applied while waiting")
 	await get_tree().create_timer(0.6).timeout
 	expect(not domain.is_confirmation_pending(), "the confirmation timed out")
-	expect_equal(domain.get_value(&"quality"), 1, "without confirm_pending() the old value comes back")
+	expect_equal(domain.get_value(&"quality"), 1, "without confirm_changes() the old value comes back")
 
 	domain.set_value(&"quality", 0)
 	domain.apply_with_confirmation(5.0)
-	domain.confirm_pending()
-	expect_equal(domain.get_applied_value(&"quality"), 0, "confirm_pending() keeps the new value")
+	domain.confirm_changes()
+	expect_equal(domain.get_applied_value(&"quality"), 0, "confirm_changes() keeps the new value")
+
+	domain.set_value(&"quality", 2)
+	domain.apply_with_confirmation(5.0)
+	domain.cancel_confirmation()
+	expect(not domain.is_confirmation_pending(), "cancel_confirmation() ends the confirmation")
+	expect_equal(domain.get_applied_value(&"quality"), 0, "cancel_confirmation() gives back the confirmed value")
+
+	var finished := [false]
+	domain.read_from_engine_finished.connect(func() -> void: finished[0] = true)
+	domain.read_from_engine()
+	expect(finished[0], "read_from_engine() emits read_from_engine_finished")
 	domain.free()
 
 
