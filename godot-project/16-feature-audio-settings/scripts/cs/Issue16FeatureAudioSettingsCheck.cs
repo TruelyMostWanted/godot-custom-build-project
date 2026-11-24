@@ -24,18 +24,18 @@ public partial class Issue16FeatureAudioSettingsCheck : FeatureCheckCs
     {
         DirAccess.MakeDirRecursiveAbsolute(Dir);
         Expect(Engine.HasSingleton("AudioBusSettingsServer"), "AudioBusSettingsServer is a registered singleton");
-        Expect(Engine.HasSingleton("AudioSettingsServer"), "AudioSettingsServer is a registered singleton");
+        Expect(Engine.HasSingleton("AudioDeviceSettingsServer"), "AudioDeviceSettingsServer is a registered singleton");
         // First C++ domain singleton: the generated static class and the instance type.
         Expect(AudioBusSettingsServer.Singleton is AudioBusSettingsServerInstance, "AudioBusSettingsServer.Singleton is the instance type");
         Expect(AudioBusSettingsServer.Singleton is ListSettingsServer, "AudioBusSettingsServerInstance derives from ListSettingsServer");
-        Expect(AudioSettingsServer.Singleton is AudioSettingsServerInstance, "AudioSettingsServer.Singleton is the instance type");
-        Expect(AudioSettingsServer.Singleton is SettingsServer, "AudioSettingsServerInstance derives from SettingsServer");
+        Expect(AudioDeviceSettingsServer.Singleton is AudioDeviceSettingsServerInstance, "AudioDeviceSettingsServer.Singleton is the instance type");
+        Expect(AudioDeviceSettingsServer.Singleton is SettingsServer, "AudioDeviceSettingsServerInstance derives from SettingsServer");
         Expect(SettingsServerManager.GetServer("audio_buses") == AudioBusSettingsServer.Singleton, "the bus domain is registered as \"audio_buses\"");
-        Expect(SettingsServerManager.GetServer("audio") == AudioSettingsServer.Singleton, "the device domain is registered as \"audio\"");
+        Expect(SettingsServerManager.GetServer("audio") == AudioDeviceSettingsServer.Singleton, "the device domain is registered as \"audio\"");
         Expect(AudioBusSettingsServer.Singleton.IsStarted(), "the bus domain was started before the main scene");
-        Expect(AudioSettingsServer.Singleton.IsStarted(), "the device domain was started before the main scene");
+        Expect(AudioDeviceSettingsServer.Singleton.IsStarted(), "the device domain was started before the main scene");
         ExpectEqual(AudioBusSettingsServer.Singleton.GetFilePath(), BusesFile, "bus file path");
-        ExpectEqual(AudioSettingsServer.Singleton.GetFilePath(), DevicesFile, "device file path");
+        ExpectEqual(AudioDeviceSettingsServer.Singleton.GetFilePath(), DevicesFile, "device file path");
 
         CheckBuses();
         CheckManualMode();
@@ -46,7 +46,7 @@ public partial class Issue16FeatureAudioSettingsCheck : FeatureCheckCs
 
         // Leave no player files behind for later runs.
         AudioBusSettingsServer.Singleton.ResetToDefaults();
-        AudioSettingsServer.Singleton.ResetToDefaults();
+        AudioDeviceSettingsServer.Singleton.ResetToDefaults();
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         DirAccess.RemoveAbsolute(BusesFile);
         DirAccess.RemoveAbsolute(DevicesFile);
@@ -106,10 +106,10 @@ public partial class Issue16FeatureAudioSettingsCheck : FeatureCheckCs
     private void CheckCsv()
     {
         var server = AudioBusSettingsServer.Singleton;
-        ProjectSettings.SetSetting("settings/storage/format", "csv");
+        ProjectSettings.SetSetting("settings/storage/format", (int)ResourceTextSerializer.Format.Csv);
         ExpectEqual(server.GetFilePath(), "user://settings/audio_buses.csv", "the bus list can be stored as CSV");
-        ExpectEqual(AudioSettingsServer.Singleton.GetFilePath(), DevicesFile, "the devices stay INI (a warning is printed once)");
-        ProjectSettings.SetSetting("settings/storage/format", "ini");
+        ExpectEqual(AudioDeviceSettingsServer.Singleton.GetFilePath(), DevicesFile, "the devices stay INI (a warning is printed once)");
+        ProjectSettings.SetSetting("settings/storage/format", (int)ResourceTextSerializer.Format.Ini);
 
         string path = Dir.PathJoin("buses.csv");
         AudioBusSettingsServer.SetBusVolumeDb("Music", -20.0f);
@@ -165,14 +165,14 @@ public partial class Issue16FeatureAudioSettingsCheck : FeatureCheckCs
 
     private void CheckDevices()
     {
-        var server = AudioSettingsServer.Singleton;
+        var server = AudioDeviceSettingsServer.Singleton;
         ExpectEqual(string.Join(",", server.GetSettingNames()), "output_device,input_device", "device setting names");
-        ExpectEqual(server.IsValueSupported("output_device"), AudioSettingsServer.IsDeviceSelectionSupported(), "IsValueSupported() follows the driver");
-        AudioSettingsServer.SetOutputDevice("Check16 device that does not exist");
-        ExpectEqual(AudioSettingsServer.GetOutputDevice(), "Default", "an unknown output device falls back to \"Default\"");
+        ExpectEqual(server.IsValueSupported("output_device"), AudioDeviceSettingsServer.IsDeviceSelectionSupported(), "IsValueSupported() follows the driver");
+        AudioDeviceSettingsServer.SetOutputDevice("Check16 device that does not exist");
+        ExpectEqual(AudioDeviceSettingsServer.GetOutputDevice(), "Default", "an unknown output device falls back to \"Default\"");
         ExpectEqual(AudioServer.OutputDevice, "Default", "AudioServer keeps \"Default\"");
-        AudioSettingsServer.SetInputDevice("");
-        ExpectEqual(AudioSettingsServer.GetInputDevice(), "Default", "an empty input device is \"Default\"");
+        AudioDeviceSettingsServer.SetInputDevice("");
+        ExpectEqual(AudioDeviceSettingsServer.GetInputDevice(), "Default", "an empty input device is \"Default\"");
 
         string path = Dir.PathJoin("devices.json");
         using (var file = FileAccess.Open(path, FileAccess.ModeFlags.Write))
@@ -181,17 +181,17 @@ public partial class Issue16FeatureAudioSettingsCheck : FeatureCheckCs
         }
         server.FilePath = path;
         ExpectEqual(server.Load(), Error.Ok, "a file with devices of another machine loads without an error");
-        ExpectEqual(AudioSettingsServer.GetOutputDevice(), "Default", "a stored output device that no longer exists becomes \"Default\"");
-        ExpectEqual(AudioSettingsServer.GetInputDevice(), "Default", "a stored input device that no longer exists becomes \"Default\"");
+        ExpectEqual(AudioDeviceSettingsServer.GetOutputDevice(), "Default", "a stored output device that no longer exists becomes \"Default\"");
+        ExpectEqual(AudioDeviceSettingsServer.GetInputDevice(), "Default", "a stored input device that no longer exists becomes \"Default\"");
         server.FilePath = "";
         server.Apply();
 
         string[] devices = AudioServer.GetOutputDeviceList();
-        if (AudioSettingsServer.IsDeviceSelectionSupported() && devices.Length > 1)
+        if (AudioDeviceSettingsServer.IsDeviceSelectionSupported() && devices.Length > 1)
         {
-            AudioSettingsServer.SetOutputDevice(devices[1]);
-            ExpectEqual(AudioSettingsServer.GetOutputDevice(), devices[1], "a listed output device is kept");
-            AudioSettingsServer.SetOutputDevice("Default");
+            AudioDeviceSettingsServer.SetOutputDevice(devices[1]);
+            ExpectEqual(AudioDeviceSettingsServer.GetOutputDevice(), devices[1], "a listed output device is kept");
+            AudioDeviceSettingsServer.SetOutputDevice("Default");
         }
         else
         {

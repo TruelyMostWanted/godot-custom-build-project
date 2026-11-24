@@ -8,7 +8,7 @@ func _ready() -> void:
 	var probe := {
 		"ready_frame": Engine.get_process_frames(),
 		"buses_started": AudioBusSettingsServer.is_started(),
-		"devices_started": AudioSettingsServer.is_started(),
+		"devices_started": AudioDeviceSettingsServer.is_started(),
 		"music_volume_db": AudioServer.get_bus_volume_db(music) if music >= 0 else 1000.0,
 		"music_mute": AudioServer.is_bus_mute(music) if music >= 0 else false,
 		"output_device": AudioServer.output_device,
