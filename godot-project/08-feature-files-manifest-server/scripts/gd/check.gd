@@ -37,7 +37,7 @@ func _run_checks() -> void:
 	expect_equal(server.add_folder(NAME, ROOT + "mods"), OK, "add_folder()")
 	expect_equal(server.add_folder(NAME, ROOT + "mods"), ERR_ALREADY_EXISTS, "add_folder() twice: ERR_ALREADY_EXISTS")
 	expect_equal(server.add_extension(NAME, "TRES"), OK, "add_extension()")
-	expect_equal(server.get_paths(NAME).size(), 1, "get_paths(): one file")
+	expect_equal(server.get_file_paths(NAME).size(), 1, "get_file_paths(): one file")
 	expect_equal(server.save_manifest(NAME, ROOT + "manifest.tres"), OK, "save_manifest()")
 	var loaded := ResourceLoader.load(ROOT + "manifest.tres", "", ResourceLoader.CACHE_MODE_IGNORE) as FilesManifest
 	expect(loaded != null and loaded.extensions == PackedStringArray([".tres"]) and loaded.folder_paths.size() == 1, "saved manifest has the changes")
@@ -45,9 +45,11 @@ func _run_checks() -> void:
 	# Validate.
 	server.add_folder(NAME, ROOT + "missing")
 	server.add_extension(NAME, "nosuchext")
-	var result: Dictionary = server.validate(NAME)
+	var result: FilesManifestValidation = server.validate(NAME)
 	expect(not result.valid and result.missing_folders.size() == 1, "validate() reports a missing folder")
+	expect(result.missing_files.is_empty(), "validate() reports no missing file")
 	expect(result.unknown_extensions == PackedStringArray([".nosuchext"]), "validate() reports an unknown extension")
+	expect_equal(result.error, ERR_FILE_NOT_FOUND, "validate() error is ERR_FILE_NOT_FOUND for a missing folder")
 	expect_equal(server.create_missing_folders(NAME), OK, "create_missing_folders()")
 	expect(DirAccess.dir_exists_absolute(ROOT + "missing"), "missing folder created")
 
