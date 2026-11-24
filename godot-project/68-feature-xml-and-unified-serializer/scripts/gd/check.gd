@@ -53,7 +53,7 @@ func _check_api() -> void:
 	for f in [ResourceTextSerializer.FORMAT_JSON, ResourceTextSerializer.FORMAT_INI, ResourceTextSerializer.FORMAT_CSV, ResourceTextSerializer.FORMAT_XML]:
 		expect(formats.has(f), "get_available_formats() lists %s" % ResourceTextSerializer.get_format_extension(f))
 	expect(formats.has(ResourceTextSerializer.FORMAT_TOML) == ClassDB.class_exists("TOML"), "get_available_formats() lists FORMAT_TOML exactly when the TOML module is built")
-	expect(ResourceTextSerializer.is_format_available(ResourceTextSerializer.FORMAT_XML) and not ResourceTextSerializer.is_format_available(ResourceTextSerializer.FORMAT_YAML), "is_format_available()")
+	expect(ResourceTextSerializer.is_format_available(ResourceTextSerializer.FORMAT_XML) and ResourceTextSerializer.is_format_available(ResourceTextSerializer.FORMAT_YAML), "is_format_available() (YAML module since #155)")
 	expect_equal(ResourceTextSerializer.get_format_from_extension(".JSON"), ResourceTextSerializer.FORMAT_JSON, "get_format_from_extension() ignores case and dot")
 	expect(not ClassDB.class_has_method("ResourceTextSerializer", "resource_to_json") and not ClassDB.class_has_method("ResourceTextSerializer", "resource_to_xml"), "per-format methods are replaced by serialize()/deserialize()")
 	if ClassDB.class_exists("TOML"):

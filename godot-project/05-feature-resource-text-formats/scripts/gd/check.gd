@@ -86,7 +86,7 @@ func _check_string_api() -> void:
 	expect(json.contains("Cleo"), "serialize(FORMAT_JSON) returns text")
 	_check_settings(ResourceTextSerializer.deserialize(json, ResourceTextSerializer.FORMAT_JSON), "deserialize(FORMAT_JSON)")
 	_check_settings(ResourceTextSerializer.deserialize(ResourceTextSerializer.serialize(_make_settings(), ResourceTextSerializer.FORMAT_INI), ResourceTextSerializer.FORMAT_INI), "deserialize(FORMAT_INI)")
-	expect(ResourceTextSerializer.is_format_available(ResourceTextSerializer.FORMAT_JSON) and not ResourceTextSerializer.is_format_available(ResourceTextSerializer.FORMAT_YAML), "is_format_available(): JSON yes, YAML no")
+	expect(ResourceTextSerializer.is_format_available(ResourceTextSerializer.FORMAT_JSON) and ResourceTextSerializer.is_format_available(ResourceTextSerializer.FORMAT_YAML), "is_format_available(): JSON yes, YAML yes (module since #155)")
 	expect(ResourceTextSerializer.get_available_formats().has(ResourceTextSerializer.FORMAT_CSV), "get_available_formats() lists FORMAT_CSV")
 	expect_equal(ResourceTextSerializer.get_format_from_extension(".INI"), ResourceTextSerializer.FORMAT_INI, "get_format_from_extension(\".INI\")")
 	expect_equal(ResourceTextSerializer.get_format_extension(ResourceTextSerializer.FORMAT_CSV), "csv", "get_format_extension(FORMAT_CSV)")
