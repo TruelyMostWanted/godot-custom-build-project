@@ -266,7 +266,7 @@ public partial class Issue18FeatureKeyBindingsCheck : FeatureCheckCs
             ExpectEqual(server.Load(), Error.Ok, $"{extension}: Load()");
             server.Apply();
             Expect(IsAction(PressedKey(Key.W), Jump), $"{extension}: Keyboard:W survives");
-            ExpectEqual(InputMapSettingsServer.EventsToText(InputMapSettingsServer.GetEvents(Fire)), "Mouse:Ctrl+Right", $"{extension}: the mouse event survives");
+            ExpectEqual(InputMapSettingsServer.EventsToText(InputMapSettingsServer.GetEvents(Fire)), "Mouse:Ctrl+Right; GamepadAxis:RightTrigger", $"{extension}: the mouse event replaces the mouse slot, the trigger stays");
             DirAccess.RemoveAbsolute(path);
         }
 

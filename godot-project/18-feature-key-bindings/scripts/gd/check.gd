@@ -232,7 +232,7 @@ func _check_file_layout() -> void:
 		expect_equal(InputMapSettingsServer.load(), OK, "%s: load()" % extension)
 		InputMapSettingsServer.apply()
 		expect(InputMap.event_is_action(pressed_key(KEY_W), JUMP), "%s: Keyboard:W survives" % extension)
-		expect_equal(InputMapSettingsServer.events_to_text(InputMapSettingsServer.get_events(FIRE)), "Mouse:Ctrl+Right", "%s: the mouse event survives" % extension)
+		expect_equal(InputMapSettingsServer.events_to_text(InputMapSettingsServer.get_events(FIRE)), "Mouse:Ctrl+Right; GamepadAxis:RightTrigger", "%s: the mouse event replaces the mouse slot, the trigger stays" % extension)
 		DirAccess.remove_absolute(path)
 
 	# A file of version 2: one text cell per action.
