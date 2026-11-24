@@ -49,15 +49,16 @@ func _make_quiz() -> Issue35GdQuizSet:
 
 
 func _check_api() -> void:
-	for method in ["register_extension", "unregister_extension", "is_extension_registered"]:
+	for method in ["register_extension_loader", "unregister_extension_loader", "has_extension_loader"]:
 		expect(ClassDB.class_has_method("ResourceLoader", method), "ResourceLoader.%s() is bound" % method)
+	for method in ["register_extension_saver", "unregister_extension_saver", "has_extension_saver"]:
 		expect(ClassDB.class_has_method("ResourceSaver", method), "ResourceSaver.%s() is bound" % method)
 
 
 func _check_save_and_load() -> void:
-	expect_equal(ResourceLoader.register_extension(EXT, _load_quiz, &"Issue35GdQuizSet"), OK, "register a load function with one call")
-	expect_equal(ResourceSaver.register_extension(EXT, _save_quiz, &"Issue35GdQuizSet"), OK, "register a save function with one call")
-	expect(ResourceLoader.is_extension_registered(EXT) and ResourceSaver.is_extension_registered("." + EXT.to_upper()), "is_extension_registered() ignores the dot and the case")
+	expect_equal(ResourceLoader.register_extension_loader(EXT, _load_quiz, &"Issue35GdQuizSet"), OK, "register a load function with one call")
+	expect_equal(ResourceSaver.register_extension_saver(EXT, _save_quiz, &"Issue35GdQuizSet"), OK, "register a save function with one call")
+	expect(ResourceLoader.has_extension_loader(EXT) and ResourceSaver.has_extension_saver("." + EXT.to_upper()), "has_extension_loader()/has_extension_saver() ignore the dot and the case")
 
 	var path := ROOT + "questions." + EXT
 	expect_equal(ResourceSaver.save(_make_quiz(), path), OK, "ResourceSaver.save() writes the file through the save function")
@@ -98,31 +99,31 @@ func _check_type_rules() -> void:
 	var plain := Resource.new()
 	expect_equal(ResourceSaver.save(plain, ROOT + "plain." + EXT), ERR_FILE_UNRECOGNIZED, "resources of another type are not saved with the format")
 
-	expect_equal(ResourceLoader.register_extension("gdquizbad", _load_quiz, &"Node"), ERR_INVALID_PARAMETER, "a type that is not a Resource is rejected")
-	expect_equal(ResourceLoader.register_extension("", _load_quiz), ERR_INVALID_PARAMETER, "an empty extension is rejected")
-	expect_equal(ResourceSaver.register_extension("gdquizbad", Callable()), ERR_INVALID_PARAMETER, "an invalid callable is rejected")
-	expect(not ResourceLoader.is_extension_registered("gdquizbad") and not ResourceSaver.is_extension_registered("gdquizbad"), "rejected registrations leave nothing behind")
+	expect_equal(ResourceLoader.register_extension_loader("gdquizbad", _load_quiz, &"Node"), ERR_INVALID_PARAMETER, "a type that is not a Resource is rejected")
+	expect_equal(ResourceLoader.register_extension_loader("", _load_quiz), ERR_INVALID_PARAMETER, "an empty extension is rejected")
+	expect_equal(ResourceSaver.register_extension_saver("gdquizbad", Callable()), ERR_INVALID_PARAMETER, "an invalid callable is rejected")
+	expect(not ResourceLoader.has_extension_loader("gdquizbad") and not ResourceSaver.has_extension_saver("gdquizbad"), "rejected registrations leave nothing behind")
 
 
 func _check_errors() -> void:
 	var path := ROOT + "broken.gdquizerr"
 	FileAccess.open(path, FileAccess.WRITE).store_string("x")
-	expect_equal(ResourceLoader.register_extension("gdquizerr", _load_corrupt), OK, "register a load function that fails")
+	expect_equal(ResourceLoader.register_extension_loader("gdquizerr", _load_corrupt), OK, "register a load function that fails")
 	expect(ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE) == null, "an Error returned by the load function makes load() fail (one error message expected)")
 
 	# Registering again replaces the function.
-	expect_equal(ResourceLoader.register_extension("gdquizerr", func(p: String) -> Variant: return _load_quiz(p)), OK, "register the extension again with a lambda")
+	expect_equal(ResourceLoader.register_extension_loader("gdquizerr", func(p: String) -> Variant: return _load_quiz(p)), OK, "register the extension again with a lambda")
 	var loaded = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE)
 	expect(loaded is Issue35GdQuizSet and loaded.questions == PackedStringArray(["x"]), "the second registration replaces the first")
-	expect_equal(ResourceLoader.unregister_extension("gdquizerr"), OK, "unregister the replaced extension")
+	expect_equal(ResourceLoader.unregister_extension_loader("gdquizerr"), OK, "unregister the replaced extension")
 
 
 func _check_unregister() -> void:
 	var path := ROOT + "questions." + EXT
-	expect_equal(ResourceLoader.unregister_extension(EXT), OK, "ResourceLoader.unregister_extension() removes the format")
-	expect_equal(ResourceSaver.unregister_extension(EXT), OK, "ResourceSaver.unregister_extension() removes the format")
-	expect(not ResourceLoader.is_extension_registered(EXT) and not ResourceSaver.is_extension_registered(EXT), "is_extension_registered() is false afterwards")
-	expect_equal(ResourceLoader.unregister_extension(EXT), ERR_DOES_NOT_EXIST, "unregistering twice returns ERR_DOES_NOT_EXIST")
+	expect_equal(ResourceLoader.unregister_extension_loader(EXT), OK, "ResourceLoader.unregister_extension_loader() removes the format")
+	expect_equal(ResourceSaver.unregister_extension_saver(EXT), OK, "ResourceSaver.unregister_extension_saver() removes the format")
+	expect(not ResourceLoader.has_extension_loader(EXT) and not ResourceSaver.has_extension_saver(EXT), "has_extension_loader()/has_extension_saver() are false afterwards")
+	expect_equal(ResourceLoader.unregister_extension_loader(EXT), ERR_DOES_NOT_EXIST, "unregistering twice returns ERR_DOES_NOT_EXIST")
 	expect(ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE) == null, "loading fails after unregistering (one 'No loader found' error expected)")
 	expect_equal(ResourceSaver.save(_make_quiz(), ROOT + "after." + EXT), ERR_FILE_UNRECOGNIZED, "saving fails after unregistering")
 
