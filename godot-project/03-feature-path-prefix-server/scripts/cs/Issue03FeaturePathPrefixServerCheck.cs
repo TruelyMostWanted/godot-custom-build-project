@@ -168,7 +168,7 @@ public partial class Issue03FeaturePathPrefixServerCheck : FeatureCheckCs
         }
         Expect(PathPrefixServer.RegisterPrefixFolder("appdata://", "user://pp_appdata") == Error.Ok, "appdata:// can be replaced");
         Expect(PathPrefixServer.Globalize("appdata://a") == ProjectSettings.GlobalizePath("user://pp_appdata/a"), "the replacement is used");
-        PathPrefixServer.RegisterPrefix("appdata://", PathPrefixServer.CreateOsPathLogic(PathPrefixServer.OSPath.Data));
+        PathPrefixServer.RegisterPrefix("appdata://", PathPrefixServer.CreateOsPathPrefix(PathPrefixServer.OSPath.Data));
     }
 
     private void CheckResolve()
@@ -186,11 +186,11 @@ public partial class Issue03FeaturePathPrefixServerCheck : FeatureCheckCs
 
     private void CheckResolveSafe()
     {
-        Expect(PathPrefixServer.ResolveSafe("user://saves/a.json", true).Valid, "ResolveSafe(user://saves/a.json) is valid");
-        Expect(PathPrefixServer.ResolveSafe("user://saves/../../x", false).Error == Error.FileBadPath, "ResolveSafe rejects user://saves/../../x");
-        Expect(PathPrefixServer.ResolveSafe("/etc/passwd", false).Error == Error.FileBadPath, "ResolveSafe rejects /etc/passwd");
-        Expect(PathPrefixServer.ResolveSafe("user://other/a.json", true, ["user://saves/"]).Error == Error.FileBadPath, "ResolveSafe rejects paths outside allowed roots");
-        Expect(PathPrefixServer.ResolveSafe("user://saves/a.json", true, ["user://saves/"]).Valid, "ResolveSafe accepts paths inside allowed roots");
+        Expect(PathPrefixServer.ResolveSafe("user://saves/a.json", PathPrefixServer.AccessMode.Write).Valid, "ResolveSafe(user://saves/a.json) is valid");
+        Expect(PathPrefixServer.ResolveSafe("user://saves/../../x", PathPrefixServer.AccessMode.Read).Error == Error.FileBadPath, "ResolveSafe rejects user://saves/../../x");
+        Expect(PathPrefixServer.ResolveSafe("/etc/passwd", PathPrefixServer.AccessMode.Read).Error == Error.FileBadPath, "ResolveSafe rejects /etc/passwd");
+        Expect(PathPrefixServer.ResolveSafe("user://other/a.json", PathPrefixServer.AccessMode.Write, ["user://saves/"]).Error == Error.FileBadPath, "ResolveSafe rejects paths outside allowed roots");
+        Expect(PathPrefixServer.ResolveSafe("user://saves/a.json", PathPrefixServer.AccessMode.Write, ["user://saves/"]).Valid, "ResolveSafe accepts paths inside allowed roots");
     }
 
     private void CheckPerformance()
