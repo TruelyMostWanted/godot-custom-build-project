@@ -1,0 +1,23 @@
+WEBVTT - Interview, exported from a video editor
+
+NOTE Speakers are marked with voice tags.
+
+STYLE
+::cue(v[voice="Host"]) { color: yellow }
+
+1
+00:00:01.000 --> 00:00:03.500 align:center line:90%
+<v Host>Welcome to the show
+&amp; thanks for coming.
+
+2
+00:04.000 --> 00:05.000 line:0
+[Applause]
+
+3
+00:00:06.000 --> 00:00:07.500
+<v Guest><i>Hello from far away.</i>
+
+4
+00:00:08.000 --> 00:00:09.000
+♪ calm music ♪
