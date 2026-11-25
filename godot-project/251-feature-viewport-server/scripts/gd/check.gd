@@ -3,6 +3,8 @@ extends FeatureCheck
 
 var _added: Array[Viewport] = []
 var _removed: Array[Viewport] = []
+# Instance IDs: a freed Window cannot be passed to Array.has().
+var _removed_ids: Array[int] = []
 
 
 func _get_check_name() -> String:
@@ -15,6 +17,7 @@ func _on_viewport_added(viewport: Viewport) -> void:
 
 func _on_viewport_removed(viewport: Viewport) -> void:
 	_removed.append(viewport)
+	_removed_ids.append(viewport.get_instance_id())
 
 
 func _run_checks() -> void:
@@ -35,7 +38,7 @@ func _run_checks() -> void:
 
 	var windows: Array[Window] = ViewportServer.get_windows()
 	expect(windows.has(root), "get_windows() has the root window")
-	expect(not windows.has(early), "get_windows() has no SubViewport")
+	expect(not windows.any(func(w: Window) -> bool: return w == early), "get_windows() has no SubViewport")
 
 	# Lookups.
 	expect(ViewportServer.get_viewport_by_rid(early.get_viewport_rid()) == early, "get_viewport_by_rid() finds the SubViewport")
@@ -77,8 +80,9 @@ func _run_checks() -> void:
 	expect(not ViewportServer.has_viewport(nested), "has_viewport() is false after removal")
 	holder.free()
 
+	var window_id := window.get_instance_id()
 	window.free()
-	expect(_removed.has(window), "viewport_removed when the Window is freed")
+	expect(_removed_ids.has(window_id), "viewport_removed when the Window is freed")
 	early.free()
 	expect_equal(ViewportServer.get_viewport_count(), count - 1, "count after freeing the Window and the early viewport")
 
