@@ -1,0 +1,6 @@
+[gd_resource type="VideoEffectSettings" format=3]
+
+[resource]
+allow_volumetric_fog = false
+contrast = 1.1
+saturation = 1.15

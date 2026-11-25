@@ -34,6 +34,8 @@ Der vollständige Ablauf steht in der Engine unter `truely/FEATURE-WORKFLOW.md`.
    - C#: `scripts/cs/<Name>Check.cs` erbt von `FeatureCheckCs` und überschreibt `RunChecks()`.
    - Beide prüfen **dasselbe** über die API des Features, einmal in GDScript, einmal in C#.
    - Testdaten in `resources/`, wiederverwendbare Szenen in `packed-scenes/`.
+   - Jede neue Ressourcen-Klasse des Features liegt als Beispiel-Datei (`.tres`, sprechender Name, sinnvolle Werte) in `resources/`,
+     damit man sie im Editor anklicken und im Inspector ansehen kann. Instanzen nur im Skript reichen nicht.
 4. Ausführen: `./godot-project/checks/run-checks.ps1 -Godot <pfad zur Mono-Engine> -Feature <feature-branch>`.
 5. Ergebnis als Kommentar in das Issue der Engine schreiben. Den Abnahmepunkt
    „Tested in the test project … in GDScript and in C#“ erst abhaken, wenn beide Checks bestanden haben.
