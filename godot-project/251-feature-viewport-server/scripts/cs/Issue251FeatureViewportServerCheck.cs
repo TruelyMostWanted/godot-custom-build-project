@@ -11,12 +11,18 @@ public partial class Issue251FeatureViewportServerCheck : FeatureCheckCs
 {
     private readonly List<Viewport> _added = new();
     private readonly List<Viewport> _removed = new();
+    // Instance IDs: a freed Window's C# wrapper is no longer the same object as the signal argument.
+    private readonly List<ulong> _removedIds = new();
 
     protected override string CheckName => "251-feature-viewport-server";
 
     private void OnViewportAdded(Viewport viewport) => _added.Add(viewport);
 
-    private void OnViewportRemoved(Viewport viewport) => _removed.Add(viewport);
+    private void OnViewportRemoved(Viewport viewport)
+    {
+        _removed.Add(viewport);
+        _removedIds.Add(viewport.GetInstanceId());
+    }
 
     protected override Task RunChecks()
     {
@@ -81,8 +87,9 @@ public partial class Issue251FeatureViewportServerCheck : FeatureCheckCs
         Expect(!ViewportServer.HasViewport(nested), "HasViewport() is false after removal");
         holder.Free();
 
+        ulong windowId = window.GetInstanceId();
         window.Free();
-        Expect(_removed.Contains(window), "ViewportRemoved when the Window is freed");
+        Expect(_removedIds.Contains(windowId), "ViewportRemoved when the Window is freed");
         early.Free();
         ExpectEqual(ViewportServer.GetViewportCount(), count - 1, "count after freeing the Window and the early viewport");
 
