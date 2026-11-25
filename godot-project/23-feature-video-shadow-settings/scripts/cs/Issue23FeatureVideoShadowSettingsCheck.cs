@@ -12,7 +12,7 @@ namespace TruelyInteractive.Issue23FeatureVideoShadowSettings;
 /// </summary>
 public partial class Issue23FeatureVideoShadowSettingsCheck : FeatureCheckCs
 {
-    private const string ShadowFile = "user://settings/video_shadow.ini";
+    private const string ShadowFile = "user://settings/shadow.ini";
 
     private static readonly string[] Names =
     {
@@ -33,15 +33,15 @@ public partial class Issue23FeatureVideoShadowSettingsCheck : FeatureCheckCs
     {
         await CheckTypedSignals();
 
-        var server = VideoShadowSettingsServer.Singleton;
-        Expect(Engine.HasSingleton("VideoShadowSettingsServer"), "VideoShadowSettingsServer is a registered singleton");
-        Expect(server is VideoShadowSettingsServerInstance, "VideoShadowSettingsServer.Singleton is the instance type");
-        Expect(Engine.GetSingleton("VideoShadowSettingsServer") is SettingsServer, "VideoShadowSettingsServerInstance derives from SettingsServer");
-        Expect(SettingsServerManager.GetServer("video_shadow") == server, "the domain is registered as \"video_shadow\"");
+        var server = ShadowSettingsServer.Singleton;
+        Expect(Engine.HasSingleton("ShadowSettingsServer"), "ShadowSettingsServer is a registered singleton");
+        Expect(server is ShadowSettingsServerInstance, "ShadowSettingsServer.Singleton is the instance type");
+        Expect(Engine.GetSingleton("ShadowSettingsServer") is SettingsServer, "ShadowSettingsServerInstance derives from SettingsServer");
+        Expect(SettingsServerManager.GetServer("shadow") == server, "the domain is registered as \"shadow\"");
         Expect(server.IsStarted(), "the domain was started before the main scene");
         ExpectEqual(server.GetApplyPhase(), SettingsServer.ApplyPhase.Scene, "applied after the root viewport exists");
         ExpectEqual(server.GetFilePath(), ShadowFile, "file path");
-        Expect(server.GetSettings() is VideoShadowSettings, "the settings resource is a VideoShadowSettings");
+        Expect(server.GetSettings() is ShadowSettings, "the settings resource is a ShadowSettings");
         var names = server.GetSettingNames();
         ExpectEqual(names.Length, Names.Length, "10 values");
         foreach (string setting in Names)
@@ -70,58 +70,58 @@ public partial class Issue23FeatureVideoShadowSettingsCheck : FeatureCheckCs
 
     private void CheckDefaults()
     {
-        var server = VideoShadowSettingsServer.Singleton;
+        var server = ShadowSettingsServer.Singleton;
         var root = GetTree().Root;
         ExpectEqual(server.GetDefaultValue("directional_shadow_atlas_size").AsInt32(), Project("rendering/lights_and_shadows/directional_shadow/size").AsInt32(), "default directional size is the project setting");
         ExpectEqual(server.GetDefaultValue("directional_soft_shadow_filter_quality").AsInt32(), Project("rendering/lights_and_shadows/directional_shadow/soft_shadow_filter_quality").AsInt32(), "default directional quality is the project setting");
         ExpectEqual(server.GetDefaultValue("positional_shadow_atlas_size").AsInt32(), Project("rendering/lights_and_shadows/positional_shadow/atlas_size").AsInt32(), "default positional size is the project setting");
         ExpectEqual(server.GetDefaultValue("positional_shadow_atlas_quad_3").AsInt32(), Project("rendering/lights_and_shadows/positional_shadow/atlas_quadrant_3_subdiv").AsInt32(), "default quadrant 3 is the project setting");
-        ExpectEqual(root.PositionalShadowAtlasSize, VideoShadowSettingsServer.GetPositionalShadowAtlasSize(), "the root viewport has the default positional size");
-        ExpectEqual(root.PositionalShadowAtlasQuad0, VideoShadowSettingsServer.GetPositionalShadowAtlasQuadrantSubdiv(0), "the root viewport has the default quadrant 0");
+        ExpectEqual(root.PositionalShadowAtlasSize, ShadowSettingsServer.GetPositionalShadowAtlasSize(), "the root viewport has the default positional size");
+        ExpectEqual(root.PositionalShadowAtlasQuad0, ShadowSettingsServer.GetPositionalShadowAtlasQuadrantSubdiv(0), "the root viewport has the default quadrant 0");
     }
 
     private void CheckSupport()
     {
         string method = RenderingServer.GetCurrentRenderingMethod();
-        var unsupported = VideoShadowSettingsServer.GetUnsupportedSettingNames();
+        var unsupported = ShadowSettingsServer.GetUnsupportedSettingNames();
         ExpectEqual(unsupported.Length, 0, "every renderer uses every value");
         foreach (string setting in Names)
         {
-            Expect(VideoShadowSettingsServer.Singleton.IsValueSupported(setting), $"\"{setting}\" is supported");
-            Expect(VideoShadowSettingsServer.IsRendererSupported(setting), $"IsRendererSupported(\"{setting}\")");
+            Expect(ShadowSettingsServer.Singleton.IsValueSupported(setting), $"\"{setting}\" is supported");
+            Expect(ShadowSettingsServer.IsRendererSupported(setting), $"IsRendererSupported(\"{setting}\")");
         }
         GD.Print($"    renderer: {method}, unsupported: [{string.Join(", ", unsupported)}]");
     }
 
     private void CheckApply()
     {
-        var server = VideoShadowSettingsServer.Singleton;
+        var server = ShadowSettingsServer.Singleton;
         var root = GetTree().Root;
-        VideoShadowSettingsServer.SetPositionalShadowAtlasSize(2048);
+        ShadowSettingsServer.SetPositionalShadowAtlasSize(2048);
         ExpectEqual(root.PositionalShadowAtlasSize, 2048, "positional_shadow_atlas_size reaches the root at once");
-        VideoShadowSettingsServer.SetPositionalShadowAtlas16Bits(false);
+        ShadowSettingsServer.SetPositionalShadowAtlas16Bits(false);
         Expect(!root.PositionalShadowAtlas16Bits, "positional_shadow_atlas_16_bits reaches the root at once");
         for (int i = 0; i < 4; i++)
         {
-            VideoShadowSettingsServer.SetPositionalShadowAtlasQuadrantSubdiv(i, Subdiv16);
+            ShadowSettingsServer.SetPositionalShadowAtlasQuadrantSubdiv(i, Subdiv16);
             ExpectEqual(root.GetPositionalShadowAtlasQuadrantSubdiv(i), Subdiv16, $"quadrant {i} reaches the root at once");
         }
 
         // Global values: no getter on RenderingServer, the domain keeps them.
-        VideoShadowSettingsServer.SetDirectionalShadowAtlasSize(2048);
-        ExpectEqual(VideoShadowSettingsServer.GetDirectionalShadowAtlasSize(), 2048, "directional_shadow_atlas_size is kept");
-        VideoShadowSettingsServer.SetDirectionalShadow16Bits(false);
-        Expect(!VideoShadowSettingsServer.IsDirectionalShadow16BitsEnabled(), "directional_shadow_16_bits is kept");
-        VideoShadowSettingsServer.SetDirectionalSoftShadowFilterQuality(RenderingServer.ShadowQuality.SoftHigh);
-        ExpectEqual(VideoShadowSettingsServer.GetDirectionalSoftShadowFilterQuality(), RenderingServer.ShadowQuality.SoftHigh, "directional quality is kept");
-        VideoShadowSettingsServer.SetPositionalSoftShadowFilterQuality(RenderingServer.ShadowQuality.Hard);
-        ExpectEqual(VideoShadowSettingsServer.GetPositionalSoftShadowFilterQuality(), RenderingServer.ShadowQuality.Hard, "positional quality is kept");
+        ShadowSettingsServer.SetDirectionalShadowAtlasSize(2048);
+        ExpectEqual(ShadowSettingsServer.GetDirectionalShadowAtlasSize(), 2048, "directional_shadow_atlas_size is kept");
+        ShadowSettingsServer.SetDirectionalShadow16Bits(false);
+        Expect(!ShadowSettingsServer.IsDirectionalShadow16BitsEnabled(), "directional_shadow_16_bits is kept");
+        ShadowSettingsServer.SetDirectionalSoftShadowFilterQuality(RenderingServer.ShadowQuality.SoftHigh);
+        ExpectEqual(ShadowSettingsServer.GetDirectionalSoftShadowFilterQuality(), RenderingServer.ShadowQuality.SoftHigh, "directional quality is kept");
+        ShadowSettingsServer.SetPositionalSoftShadowFilterQuality(RenderingServer.ShadowQuality.Hard);
+        ExpectEqual(ShadowSettingsServer.GetPositionalSoftShadowFilterQuality(), RenderingServer.ShadowQuality.Hard, "positional quality is kept");
 
         // Changed on the root directly, read back.
         root.PositionalShadowAtlasSize = 1024;
         server.ReadFromEngine();
-        ExpectEqual(VideoShadowSettingsServer.GetPositionalShadowAtlasSize(), 1024, "ReadFromEngine() reads the root back");
-        ExpectEqual(VideoShadowSettingsServer.GetDirectionalShadowAtlasSize(), 2048, "ReadFromEngine() keeps the global values");
+        ExpectEqual(ShadowSettingsServer.GetPositionalShadowAtlasSize(), 1024, "ReadFromEngine() reads the root back");
+        ExpectEqual(ShadowSettingsServer.GetDirectionalShadowAtlasSize(), 2048, "ReadFromEngine() keeps the global values");
 
         server.ResetToDefaults();
         ExpectEqual(root.PositionalShadowAtlasSize, Project("rendering/lights_and_shadows/positional_shadow/atlas_size").AsInt32(), "ResetToDefaults() gives back the positional size");
@@ -131,29 +131,29 @@ public partial class Issue23FeatureVideoShadowSettingsCheck : FeatureCheckCs
     private void CheckViewports()
     {
         var added = new SubViewport();
-        VideoShadowSettingsServer.SetPositionalShadowAtlasSize(1024);
-        VideoShadowSettingsServer.AddViewport(added);
-        Expect(VideoShadowSettingsServer.HasViewport(added), "HasViewport()");
+        ShadowSettingsServer.SetPositionalShadowAtlasSize(1024);
+        ShadowSettingsServer.AddViewport(added);
+        Expect(ShadowSettingsServer.HasViewport(added), "HasViewport()");
         ExpectEqual(added.PositionalShadowAtlasSize, 1024, "an added viewport gets the values at once");
-        VideoShadowSettingsServer.SetPositionalShadowAtlasQuadrantSubdiv(2, Subdiv1);
+        ShadowSettingsServer.SetPositionalShadowAtlasQuadrantSubdiv(2, Subdiv1);
         ExpectEqual(added.PositionalShadowAtlasQuad2, Subdiv1, "an added viewport gets later changes");
-        VideoShadowSettingsServer.RemoveViewport(added);
-        Expect(!VideoShadowSettingsServer.HasViewport(added), "RemoveViewport()");
-        VideoShadowSettingsServer.SetPositionalShadowAtlasSize(512);
+        ShadowSettingsServer.RemoveViewport(added);
+        Expect(!ShadowSettingsServer.HasViewport(added), "RemoveViewport()");
+        ShadowSettingsServer.SetPositionalShadowAtlasSize(512);
         ExpectEqual(added.PositionalShadowAtlasSize, 1024, "a removed viewport keeps its values");
         added.Free();
-        VideoShadowSettingsServer.Singleton.ResetToDefaults();
+        ShadowSettingsServer.Singleton.ResetToDefaults();
     }
 
     private async Task CheckGroup()
     {
-        ExpectEqual(VideoShadowSettingsServer.GetViewportGroup(), new StringName("video_shadow_settings"), "GetViewportGroup()");
-        VideoShadowSettingsServer.SetPositionalShadowAtlasSize(1024);
+        ExpectEqual(ShadowSettingsServer.GetViewportGroup(), new StringName("shadow_settings"), "GetViewportGroup()");
+        ShadowSettingsServer.SetPositionalShadowAtlasSize(1024);
         var grouped = new SubViewport();
-        grouped.AddToGroup(VideoShadowSettingsServer.GetViewportGroup());
+        grouped.AddToGroup(ShadowSettingsServer.GetViewportGroup());
         AddChild(grouped);
         ExpectEqual(grouped.PositionalShadowAtlasSize, 1024, "a viewport in the group gets the values when it enters the tree");
-        VideoShadowSettingsServer.SetPositionalShadowAtlas16Bits(false);
+        ShadowSettingsServer.SetPositionalShadowAtlas16Bits(false);
         Expect(!grouped.PositionalShadowAtlas16Bits, "a viewport in the group gets later changes");
         var other = new SubViewport();
         AddChild(other);
@@ -161,20 +161,20 @@ public partial class Issue23FeatureVideoShadowSettingsCheck : FeatureCheckCs
         grouped.QueueFree();
         other.QueueFree();
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        VideoShadowSettingsServer.Singleton.ResetToDefaults();
+        ShadowSettingsServer.Singleton.ResetToDefaults();
     }
 
     private void CheckValidation()
     {
-        var server = VideoShadowSettingsServer.Singleton;
-        VideoShadowSettingsServer.SetDirectionalShadowAtlasSize(3000);
-        ExpectEqual(VideoShadowSettingsServer.GetDirectionalShadowAtlasSize(), 4096, "sizes are rounded up to a power of two");
-        VideoShadowSettingsServer.SetDirectionalShadowAtlasSize(16);
-        ExpectEqual(VideoShadowSettingsServer.GetDirectionalShadowAtlasSize(), 256, "the directional size is clamped to 256");
-        VideoShadowSettingsServer.SetPositionalShadowAtlasSize(100000);
-        ExpectEqual(VideoShadowSettingsServer.GetPositionalShadowAtlasSize(), 16384, "the positional size is clamped to 16384");
-        VideoShadowSettingsServer.SetPositionalShadowAtlasSize(0);
-        ExpectEqual(VideoShadowSettingsServer.GetPositionalShadowAtlasSize(), 0, "0 disables positional shadows");
+        var server = ShadowSettingsServer.Singleton;
+        ShadowSettingsServer.SetDirectionalShadowAtlasSize(3000);
+        ExpectEqual(ShadowSettingsServer.GetDirectionalShadowAtlasSize(), 4096, "sizes are rounded up to a power of two");
+        ShadowSettingsServer.SetDirectionalShadowAtlasSize(16);
+        ExpectEqual(ShadowSettingsServer.GetDirectionalShadowAtlasSize(), 256, "the directional size is clamped to 256");
+        ShadowSettingsServer.SetPositionalShadowAtlasSize(100000);
+        ExpectEqual(ShadowSettingsServer.GetPositionalShadowAtlasSize(), 16384, "the positional size is clamped to 16384");
+        ShadowSettingsServer.SetPositionalShadowAtlasSize(0);
+        ExpectEqual(ShadowSettingsServer.GetPositionalShadowAtlasSize(), 0, "0 disables positional shadows");
         ExpectEqual(GetTree().Root.PositionalShadowAtlasSize, 0, "0 reaches the root");
         server.SetValue("directional_soft_shadow_filter_quality", 9.0);
         ExpectEqual(server.GetValue("directional_soft_shadow_filter_quality").AsInt32(), server.GetDefaultValue("directional_soft_shadow_filter_quality").AsInt32(), "an invalid quality falls back to the default");
@@ -183,18 +183,18 @@ public partial class Issue23FeatureVideoShadowSettingsCheck : FeatureCheckCs
 
     private void CheckStorage()
     {
-        var server = VideoShadowSettingsServer.Singleton;
-        VideoShadowSettingsServer.SetDirectionalShadowAtlasSize(2048);
-        VideoShadowSettingsServer.SetPositionalSoftShadowFilterQuality(RenderingServer.ShadowQuality.SoftUltra);
-        VideoShadowSettingsServer.SetPositionalShadowAtlasQuadrantSubdiv(1, Subdiv64);
+        var server = ShadowSettingsServer.Singleton;
+        ShadowSettingsServer.SetDirectionalShadowAtlasSize(2048);
+        ShadowSettingsServer.SetPositionalSoftShadowFilterQuality(RenderingServer.ShadowQuality.SoftUltra);
+        ShadowSettingsServer.SetPositionalShadowAtlasQuadrantSubdiv(1, Subdiv64);
         ExpectEqual(server.Save(), Error.Ok, "Save()");
         Expect(FileAccess.FileExists(ShadowFile), "the file exists");
         Expect(FileAccess.GetFileAsString(ShadowFile).Contains("directional_shadow_atlas_size"), "the INI file has directional_shadow_atlas_size");
         server.ResetToDefaults();
         ExpectEqual(server.Load(), Error.Ok, "Load()");
-        ExpectEqual(VideoShadowSettingsServer.GetDirectionalShadowAtlasSize(), 2048, "the directional size is loaded");
-        ExpectEqual(VideoShadowSettingsServer.GetPositionalSoftShadowFilterQuality(), RenderingServer.ShadowQuality.SoftUltra, "the positional quality is loaded");
-        ExpectEqual(VideoShadowSettingsServer.GetPositionalShadowAtlasQuadrantSubdiv(1), Subdiv64, "quadrant 1 is loaded");
+        ExpectEqual(ShadowSettingsServer.GetDirectionalShadowAtlasSize(), 2048, "the directional size is loaded");
+        ExpectEqual(ShadowSettingsServer.GetPositionalSoftShadowFilterQuality(), RenderingServer.ShadowQuality.SoftUltra, "the positional quality is loaded");
+        ExpectEqual(ShadowSettingsServer.GetPositionalShadowAtlasQuadrantSubdiv(1), Subdiv64, "quadrant 1 is loaded");
         server.Apply();
         ExpectEqual(GetTree().Root.PositionalShadowAtlasQuad1, Subdiv64, "the loaded value reaches the root after Apply()");
         server.ResetToDefaults();
@@ -247,24 +247,24 @@ public partial class Issue23FeatureVideoShadowSettingsCheck : FeatureCheckCs
         string method = RenderingServer.GetCurrentRenderingMethod();
 
         byte[] before = await FrameData();
-        double ms = await Measure(() => VideoShadowSettingsServer.SetDirectionalShadowAtlasSize(256));
+        double ms = await Measure(() => ShadowSettingsServer.SetDirectionalShadowAtlasSize(256));
         byte[] after = await FrameData();
         Expect(!before.AsSpan().SequenceEqual(after), "the directional shadow changes at once (4096 -> 256)");
         GD.Print($"    [{method}] directional atlas 256: {ms:F2} ms");
-        ms = await Measure(() => VideoShadowSettingsServer.SetDirectionalShadowAtlasSize(8192));
+        ms = await Measure(() => ShadowSettingsServer.SetDirectionalShadowAtlasSize(8192));
         GD.Print($"    [{method}] directional atlas 8192: {ms:F2} ms");
 
         before = await FrameData();
-        ms = await Measure(() => VideoShadowSettingsServer.SetPositionalShadowAtlasSize(0));
+        ms = await Measure(() => ShadowSettingsServer.SetPositionalShadowAtlasSize(0));
         after = await FrameData();
         Expect(!before.AsSpan().SequenceEqual(after), "the omni shadow disappears at once (positional atlas 0)");
         GD.Print($"    [{method}] positional atlas 0: {ms:F2} ms");
 
-        VideoShadowSettingsServer.SetDirectionalSoftShadowFilterQuality(RenderingServer.ShadowQuality.Hard);
-        VideoShadowSettingsServer.SetPositionalSoftShadowFilterQuality(RenderingServer.ShadowQuality.Hard);
+        ShadowSettingsServer.SetDirectionalSoftShadowFilterQuality(RenderingServer.ShadowQuality.Hard);
+        ShadowSettingsServer.SetPositionalSoftShadowFilterQuality(RenderingServer.ShadowQuality.Hard);
         byte[] hard = await FrameData();
-        VideoShadowSettingsServer.SetDirectionalSoftShadowFilterQuality(RenderingServer.ShadowQuality.SoftUltra);
-        VideoShadowSettingsServer.SetPositionalSoftShadowFilterQuality(RenderingServer.ShadowQuality.SoftUltra);
+        ShadowSettingsServer.SetDirectionalSoftShadowFilterQuality(RenderingServer.ShadowQuality.SoftUltra);
+        ShadowSettingsServer.SetPositionalSoftShadowFilterQuality(RenderingServer.ShadowQuality.SoftUltra);
         byte[] ultra = await FrameData();
         Expect(!hard.AsSpan().SequenceEqual(ultra), "the soft shadow quality changes the shadows at once (Hard -> Ultra)");
 
@@ -275,12 +275,12 @@ public partial class Issue23FeatureVideoShadowSettingsCheck : FeatureCheckCs
     /// <summary>Issue #173: the typed signal fires once per applied change, not for pending changes in manual mode.</summary>
     private async Task CheckTypedSignals()
     {
-        if (!Engine.HasSingleton("VideoShadowSettingsServer"))
+        if (!Engine.HasSingleton("ShadowSettingsServer"))
         {
             return;
         }
-        var s = (SettingsServer)Engine.GetSingleton("VideoShadowSettingsServer");
-        Expect(s.HasSignal("directional_shadow_atlas_size_changed"), "VideoShadowSettingsServer has the typed signal directional_shadow_atlas_size_changed");
+        var s = (SettingsServer)Engine.GetSingleton("ShadowSettingsServer");
+        Expect(s.HasSignal("directional_shadow_atlas_size_changed"), "ShadowSettingsServer has the typed signal directional_shadow_atlas_size_changed");
         string filePath = s.GetFilePath();
         bool hadFile = FileAccess.FileExists(filePath);
         var previousMode = s.ApplyMode;
