@@ -43,8 +43,8 @@ public partial class Issue251FeatureViewportServerCheck : FeatureCheckCs
         Expect(ViewportServer.GetViewportByRid(early.GetViewportRid()) == early, "GetViewportByRid() finds the SubViewport");
         Expect(ViewportServer.GetViewportByRid(root.GetViewportRid()) == root, "GetViewportByRid() finds the root");
         Expect(ViewportServer.GetViewportByRid(new Rid()) == null, "GetViewportByRid(new Rid()) is null");
-        Expect(ViewportServer.GetWindowById(DisplayServer.MainWindowId) == root, "GetWindowById(MainWindowId) is the root");
-        Expect(ViewportServer.GetWindowById(DisplayServer.InvalidWindowId) == null, "GetWindowById(InvalidWindowId) is null");
+        Expect(ViewportServer.GetWindowById((int)DisplayServer.MainWindowId) == root, "GetWindowById(MainWindowId) is the root");
+        Expect(ViewportServer.GetWindowById((int)DisplayServer.InvalidWindowId) == null, "GetWindowById(InvalidWindowId) is null");
         Expect(ViewportServer.GetWindowById(123456) == null, "GetWindowById() of an unknown ID is null");
 
         // Signals.
