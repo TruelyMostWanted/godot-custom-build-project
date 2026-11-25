@@ -1,0 +1,124 @@
+{
+ "window_size": [
+  1600,
+  1000
+ ],
+ "startup_frames": 60,
+ "settle_frames": 10,
+ "right_dock_width": 420,
+ "timeout_sec": 240,
+ "shots": [
+  {
+   "name": "inspector-000",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_000.tres",
+   "properties": {
+    "tile_shape": 0,
+    "swap_x_and_y_axis": false,
+    "flip_x": false,
+    "flip_y": false
+   },
+   "expand_all": true,
+   "max_height": 330
+  },
+  {
+   "name": "inspector-001",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_001.tres",
+   "properties": {
+    "tile_shape": 0,
+    "swap_x_and_y_axis": false,
+    "flip_x": false,
+    "flip_y": true
+   },
+   "expand_all": true,
+   "max_height": 330
+  },
+  {
+   "name": "inspector-010",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_010.tres",
+   "properties": {
+    "tile_shape": 0,
+    "swap_x_and_y_axis": false,
+    "flip_x": true,
+    "flip_y": false
+   },
+   "expand_all": true,
+   "max_height": 330
+  },
+  {
+   "name": "inspector-011",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_011.tres",
+   "properties": {
+    "tile_shape": 0,
+    "swap_x_and_y_axis": false,
+    "flip_x": true,
+    "flip_y": true
+   },
+   "expand_all": true,
+   "max_height": 330
+  },
+  {
+   "name": "inspector-100",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_100.tres",
+   "properties": {
+    "tile_shape": 0,
+    "swap_x_and_y_axis": true,
+    "flip_x": false,
+    "flip_y": false
+   },
+   "expand_all": true,
+   "max_height": 330
+  },
+  {
+   "name": "inspector-101",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_101.tres",
+   "properties": {
+    "tile_shape": 0,
+    "swap_x_and_y_axis": true,
+    "flip_x": false,
+    "flip_y": true
+   },
+   "expand_all": true,
+   "max_height": 330
+  },
+  {
+   "name": "inspector-110",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_110.tres",
+   "properties": {
+    "tile_shape": 0,
+    "swap_x_and_y_axis": true,
+    "flip_x": true,
+    "flip_y": false
+   },
+   "expand_all": true,
+   "max_height": 330
+  },
+  {
+   "name": "inspector-111",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_111.tres",
+   "properties": {
+    "tile_shape": 0,
+    "swap_x_and_y_axis": true,
+    "flip_x": true,
+    "flip_y": true
+   },
+   "expand_all": true,
+   "max_height": 330
+  }
+ ]
+}

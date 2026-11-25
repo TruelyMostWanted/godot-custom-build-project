@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://228-feature-tile-coordinate-axes/wiki_shots/coordinate_shots.gd" id="1"]
+
+[node name="CoordinateShots" type="Node"]
+script = ExtResource("1")
