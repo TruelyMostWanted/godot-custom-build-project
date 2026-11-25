@@ -3,10 +3,10 @@
 [sub_resource type="RenderQualitySettings" id="RenderQualitySettings_potato"]
 scaling_3d_scale = 0.5
 
-[sub_resource type="VideoTextureSettings" id="VideoTextureSettings_potato"]
+[sub_resource type="TextureSettings" id="TextureSettings_potato"]
 anisotropic_filtering_level = 0
 
 [resource]
 preset_name = "Potato"
 render_quality = SubResource("RenderQualitySettings_potato")
-video_texture = SubResource("VideoTextureSettings_potato")
+texture = SubResource("TextureSettings_potato")

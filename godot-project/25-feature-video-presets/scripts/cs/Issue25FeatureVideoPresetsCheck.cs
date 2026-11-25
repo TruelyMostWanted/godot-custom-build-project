@@ -18,7 +18,7 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
     private const string ProjectHigh = "res://25-feature-video-presets/resources/project_high_preset.tres";
     private const string ProjectPotato = "res://25-feature-video-presets/resources/project_potato_preset.tres";
 
-    private static readonly string[] Domains = { "render_quality", "video_texture", "video_shadow", "video_effect" };
+    private static readonly string[] Domains = { "render_quality", "texture", "video_shadow", "video_effect" };
     private static readonly string[] Builtin = { "Low", "Medium", "High", "Ultra" };
 
     private readonly List<string> _changedNames = new();
@@ -142,9 +142,9 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
                 Expect(Domain(domain).HasSetting(setting), $"\"{domain}/{setting}\" exists in the domain");
             }
         }
-        Expect(low.RenderQuality != null && low.VideoTexture != null && low.VideoShadow != null && low.VideoEffect != null, "typed domain resources");
+        Expect(low.RenderQuality != null && low.Texture != null && low.VideoShadow != null && low.VideoEffect != null, "typed domain resources");
         Expect(low.VideoShadow.DirectionalShadowAtlasSize < ultra.VideoShadow.DirectionalShadowAtlasSize, "Ultra has larger shadow maps than Low");
-        Expect(low.VideoTexture.AnisotropicFilteringLevel < ultra.VideoTexture.AnisotropicFilteringLevel, "Ultra has more anisotropic filtering than Low");
+        Expect(low.Texture.AnisotropicFilteringLevel < ultra.Texture.AnisotropicFilteringLevel, "Ultra has more anisotropic filtering than Low");
         Expect(Mathf.IsEqualApprox((float)low.RenderQuality.Scaling3DScale, 0.75f), "Low renders at 75%");
         string suggestion = VideoPresetSettingsServer.SuggestPreset();
         Expect(VideoPresetSettingsServer.HasPreset(suggestion), $"SuggestPreset() names a preset: {suggestion}");
@@ -256,12 +256,12 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
         ExpectEqual(VideoPresetSettingsServer.ApplyPreset("Potato"), Error.Ok, "ApplyPreset(\"Potato\")");
         ConfirmAll();
         ExpectEqual(VideoPresetSettingsServer.GetCurrentPreset(), "Potato", "Potato is current");
-        ExpectEqual(Domain("video_texture").GetValue("anisotropic_filtering_level").AsInt32(), 0, "Potato's anisotropic filtering");
+        ExpectEqual(Domain("texture").GetValue("anisotropic_filtering_level").AsInt32(), 0, "Potato's anisotropic filtering");
         Expect(Mathf.IsEqualApprox((float)Domain("render_quality").GetValue("scaling_3d_scale").AsDouble(), 0.5f), "Potato's resolution scale");
         ExpectEqual(shadow.GetValue("directional_shadow_atlas_size").AsInt32(), 1024, "Potato leaves video_shadow as it is");
         shadow.SetValue("directional_shadow_atlas_size", 2048);
         ExpectEqual(VideoPresetSettingsServer.GetCurrentPreset(), "Potato", "a change in a domain Potato doesn't touch keeps Potato");
-        Domain("video_texture").SetValue("anisotropic_filtering_level", 4); // Viewport.ANISOTROPY_16X
+        Domain("texture").SetValue("anisotropic_filtering_level", 4); // Viewport.ANISOTROPY_16X
         ExpectEqual(VideoPresetSettingsServer.GetCurrentPreset(), "Custom", "a change in a domain Potato sets gives Custom");
 
         ProjectSettings.SetSetting("settings/video_preset/use_builtin_presets", false);
