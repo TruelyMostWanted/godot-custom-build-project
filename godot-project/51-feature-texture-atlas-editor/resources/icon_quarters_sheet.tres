@@ -1,0 +1,13 @@
+[gd_resource type="SpriteSheet" format=3]
+
+[ext_resource type="Texture2D" path="res://icon.svg" id="1_832u0"]
+
+[resource]
+texture = ExtResource("1_832u0")
+regions = Dictionary[StringName, Rect2i]({
+&"bottom_left": Rect2i(0, 64, 64, 64),
+&"bottom_right": Rect2i(64, 64, 64, 64),
+&"top_left": Rect2i(0, 0, 64, 64),
+&"top_right": Rect2i(64, 0, 64, 64)
+})
+region_order = PackedStringArray("top_left", "top_right", "bottom_left", "bottom_right")

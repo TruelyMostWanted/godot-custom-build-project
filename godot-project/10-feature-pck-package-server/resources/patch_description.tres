@@ -1,0 +1,12 @@
+[gd_resource type="PCKPackage" format=3]
+
+[resource]
+alignment = 64
+files = [{
+"path": "patch/icon.svg",
+"source": "res://icon.svg"
+}, {
+"data": PackedByteArray(80, 97, 116, 99, 104, 32, 49, 46, 49),
+"path": "patch/readme.txt"
+}]
+removals = PackedStringArray("old/unused.png")
