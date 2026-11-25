@@ -23,14 +23,20 @@ $projectDir = Split-Path -Parent $PSScriptRoot
 if (-not (Test-Path $Godot)) { throw "Godot executable not found: $Godot" }
 
 # On Windows, the editor executable is a GUI program: PowerShell neither waits for it nor sets $LASTEXITCODE.
-# Use the console wrapper next to it (godot.<...>.console.exe), which waits and passes the exit code through.
-if ($Godot -match '\.exe$' -and $Godot -notmatch '\.console\.exe$') {
-    $console = $Godot -replace '\.exe$', '.console.exe'
-    if (-not (Test-Path $console)) { throw "Console executable not found next to the editor: $console" }
+# Use the console wrapper next to it, which waits and passes the exit code through. Its name differs:
+# local builds have godot.<...>.console.exe, the release zips Truely_Godot<...>_console.exe.
+if ($Godot -match '\.exe$' -and $Godot -notmatch '[._]console\.exe$') {
+    $candidates = @(($Godot -replace '\.exe$', '.console.exe'), ($Godot -replace '\.exe$', '_console.exe'))
+    $console = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+    if (-not $console) { throw "Console executable not found next to the editor: $($candidates -join ' or ')" }
     $Godot = $console
 }
 
 if (-not $NoBuild) {
+    # the .NET packages of this engine to nuget-local and its SDK version into the csproj
+    Write-Host '==> use-engine' -ForegroundColor Cyan
+    & (Join-Path $PSScriptRoot 'use-engine.ps1') -Godot $Godot
+
     Write-Host '==> dotnet build' -ForegroundColor Cyan
     Push-Location $projectDir
     try {
