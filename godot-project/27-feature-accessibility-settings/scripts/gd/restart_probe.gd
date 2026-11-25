@@ -18,7 +18,7 @@ func _ready() -> void:
 		"started": server.is_started(),
 		"ui_scale": server.get_ui_scale(),
 		"root_factor": get_tree().root.content_scale_factor,
-		"video_factor": Engine.get_singleton("VideoWindowSettingsServer").get_content_scale_factor(),
+		"video_factor": Engine.get_singleton("WindowSettingsServer").get_content_scale_factor(),
 		"color_scheme": server.get_color_scheme(),
 		"overlay_on_root": overlay_on_root,
 		"button_font_white": button.get_theme_color(&"font_color") == Color.WHITE,
