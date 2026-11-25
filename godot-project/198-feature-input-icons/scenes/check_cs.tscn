@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://7gdeh3rqpukm"]
 
-[ext_resource type="Script" path="res://198-feature-input-icons/scripts/cs/Issue198FeatureInputIconsCheck.cs" id="1"]
+[ext_resource type="Script" uid="uid://l5l14h6nfdou" path="res://198-feature-input-icons/scripts/cs/Issue198FeatureInputIconsCheck.cs" id="1"]
 
-[node name="CheckCs" type="Node"]
+[node name="CheckCs" type="Node" unique_id=1150869410]
 script = ExtResource("1")
