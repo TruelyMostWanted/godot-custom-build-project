@@ -1,0 +1,18 @@
+[gd_resource type="TTSPersonaListSettings" format=3]
+
+[sub_resource type="TTSPersonaSettings" id="TTSPersonaSettings_k5p1t"]
+persona_name = &"narrator"
+language = "en"
+volume = 80
+rate = 0.9
+default = true
+
+[sub_resource type="TTSPersonaSettings" id="TTSPersonaSettings_gpy2h"]
+persona_name = &"guard"
+language = "de"
+volume = 70
+pitch = 0.9
+rate = 0.8
+
+[resource]
+personas = Array[TTSPersonaSettings]([SubResource("TTSPersonaSettings_k5p1t"), SubResource("TTSPersonaSettings_gpy2h")])
