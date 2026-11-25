@@ -27,8 +27,10 @@ $engineDir = if (Test-Path $Godot -PathType Container) { $Godot } else { Split-P
 $nupkgs = Join-Path $engineDir 'GodotSharp/Tools/nupkgs'
 if (-not (Test-Path $nupkgs)) { throw "No GodotSharp/Tools/nupkgs next to the engine: $engineDir (not a Mono build?)" }
 
-$sdk = Get-ChildItem $nupkgs -Filter 'Godot.NET.Sdk.*.nupkg' | Sort-Object LastWriteTime -Descending
-if ($sdk.Count -ne 1) { throw "Expected exactly one Godot.NET.Sdk package in ${nupkgs}, found $($sdk.Count): $($sdk.Name -join ', ')" }
+# Local build folders can keep packages of older versions: the newest one belongs to the engine.
+$sdk = @(Get-ChildItem $nupkgs -Filter 'Godot.NET.Sdk.*.nupkg' | Sort-Object LastWriteTime -Descending)
+if ($sdk.Count -eq 0) { throw "No Godot.NET.Sdk package in $nupkgs" }
+if ($sdk.Count -gt 1) { Write-Host "  several SDK packages, using the newest: $($sdk[0].Name)" }
 $version = $sdk[0].Name -replace '^Godot\.NET\.Sdk\.(.+)\.nupkg$', '$1'
 Write-Host "Engine packages $version from $nupkgs" -ForegroundColor Cyan
 
