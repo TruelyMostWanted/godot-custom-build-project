@@ -1,0 +1,8 @@
+[gd_scene format=4]
+
+[ext_resource type="TileSet" path="res://228-feature-tile-coordinate-axes/resources/square_y_up.tres" id="1_m5xnn"]
+
+[node name="SquareYUp" type="TileMapLayer" unique_id=62302393]
+position = Vector2(160, 300)
+tile_map_data = PackedByteArray("AAAAAAAAAAAAAAAAAAABAAAAAAABAAAAAAAAAAEAAAACAAAAAAACAAAAAAABAAAAAAAAAAIAAAACAAAAAAADAAAAAAABAAAAAAAAAAMAAAACAAAAAAAEAAAAAAABAAAAAAAAAAQAAAACAAAAAAA=")
+tile_set = ExtResource("1_m5xnn")
