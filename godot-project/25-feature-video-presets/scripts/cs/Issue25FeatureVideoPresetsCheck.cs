@@ -18,7 +18,7 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
     private const string ProjectHigh = "res://25-feature-video-presets/resources/project_high_preset.tres";
     private const string ProjectPotato = "res://25-feature-video-presets/resources/project_potato_preset.tres";
 
-    private static readonly string[] Domains = { "video_quality", "video_texture", "video_shadow", "video_effect" };
+    private static readonly string[] Domains = { "render_quality", "video_texture", "video_shadow", "video_effect" };
     private static readonly string[] Builtin = { "Low", "Medium", "High", "Ultra" };
 
     private readonly List<string> _changedNames = new();
@@ -142,10 +142,10 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
                 Expect(Domain(domain).HasSetting(setting), $"\"{domain}/{setting}\" exists in the domain");
             }
         }
-        Expect(low.VideoQuality != null && low.VideoTexture != null && low.VideoShadow != null && low.VideoEffect != null, "typed domain resources");
+        Expect(low.RenderQuality != null && low.VideoTexture != null && low.VideoShadow != null && low.VideoEffect != null, "typed domain resources");
         Expect(low.VideoShadow.DirectionalShadowAtlasSize < ultra.VideoShadow.DirectionalShadowAtlasSize, "Ultra has larger shadow maps than Low");
         Expect(low.VideoTexture.AnisotropicFilteringLevel < ultra.VideoTexture.AnisotropicFilteringLevel, "Ultra has more anisotropic filtering than Low");
-        Expect(Mathf.IsEqualApprox((float)low.VideoQuality.Scaling3DScale, 0.75f), "Low renders at 75%");
+        Expect(Mathf.IsEqualApprox((float)low.RenderQuality.Scaling3DScale, 0.75f), "Low renders at 75%");
         string suggestion = VideoPresetSettingsServer.SuggestPreset();
         Expect(VideoPresetSettingsServer.HasPreset(suggestion), $"SuggestPreset() names a preset: {suggestion}");
     }
@@ -257,7 +257,7 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
         ConfirmAll();
         ExpectEqual(VideoPresetSettingsServer.GetCurrentPreset(), "Potato", "Potato is current");
         ExpectEqual(Domain("video_texture").GetValue("anisotropic_filtering_level").AsInt32(), 0, "Potato's anisotropic filtering");
-        Expect(Mathf.IsEqualApprox((float)Domain("video_quality").GetValue("scaling_3d_scale").AsDouble(), 0.5f), "Potato's resolution scale");
+        Expect(Mathf.IsEqualApprox((float)Domain("render_quality").GetValue("scaling_3d_scale").AsDouble(), 0.5f), "Potato's resolution scale");
         ExpectEqual(shadow.GetValue("directional_shadow_atlas_size").AsInt32(), 1024, "Potato leaves video_shadow as it is");
         shadow.SetValue("directional_shadow_atlas_size", 2048);
         ExpectEqual(VideoPresetSettingsServer.GetCurrentPreset(), "Potato", "a change in a domain Potato doesn't touch keeps Potato");

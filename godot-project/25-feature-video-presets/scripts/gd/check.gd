@@ -2,11 +2,11 @@ extends FeatureCheck
 ## GDScript checks of 25-feature-video-presets. Check the same things as scripts/cs/Issue25FeatureVideoPresetsCheck.cs.
 ##
 ## VideoPresetSettingsServer: apply_preset() sets all values of the typed domain resources of a VideoPreset
-## (VideoQualitySettings, ...) in the video domains and skips null ones, a single change gives "Custom", the name is
+## (RenderQualitySettings, ...) in the video domains and skips null ones, a single change gives "Custom", the name is
 ## stored in the domain "video_preset", projects replace and add presets.
 
 const FILE := "user://settings/video_preset.ini"
-const DOMAINS := ["video_quality", "video_texture", "video_shadow", "video_effect"]
+const DOMAINS := ["render_quality", "video_texture", "video_shadow", "video_effect"]
 const BUILTIN := ["Low", "Medium", "High", "Ultra"]
 const PROJECT_HIGH := "res://25-feature-video-presets/resources/project_high_preset.tres"
 const PROJECT_POTATO := "res://25-feature-video-presets/resources/project_potato_preset.tres"
@@ -99,10 +99,10 @@ func _check_builtin() -> void:
 		expect_equal(low.get_domain_settings(domain).get_class(), server.get_settings().get_class(), "Low's \"%s\" has the class of the domain" % domain)
 		for setting in _preset_values(ultra, domain):
 			expect(server.has_setting(setting), "\"%s/%s\" exists in the domain" % [domain, setting])
-	expect(low.video_quality is VideoQualitySettings and low.video_texture is VideoTextureSettings and low.video_shadow is VideoShadowSettings and low.video_effect is VideoEffectSettings, "typed domain resources")
+	expect(low.render_quality is RenderQualitySettings and low.video_texture is VideoTextureSettings and low.video_shadow is VideoShadowSettings and low.video_effect is VideoEffectSettings, "typed domain resources")
 	expect(low.video_shadow.directional_shadow_atlas_size < ultra.video_shadow.directional_shadow_atlas_size, "Ultra has larger shadow maps than Low")
 	expect(low.video_texture.anisotropic_filtering_level < ultra.video_texture.anisotropic_filtering_level, "Ultra has more anisotropic filtering than Low")
-	expect(is_equal_approx(low.video_quality.scaling_3d_scale, 0.75), "Low renders at 75%")
+	expect(is_equal_approx(low.render_quality.scaling_3d_scale, 0.75), "Low renders at 75%")
 	expect(VideoPresetSettingsServer.has_preset(VideoPresetSettingsServer.suggest_preset()), "suggest_preset() names a preset: %s" % VideoPresetSettingsServer.suggest_preset())
 
 
@@ -189,7 +189,7 @@ func _check_project_presets() -> void:
 	_confirm_all()
 	expect_equal(VideoPresetSettingsServer.get_current_preset(), "Potato", "Potato is current")
 	expect_equal(int(SettingsServerManager.get_server("video_texture").get_value("anisotropic_filtering_level")), 0, "Potato's anisotropic filtering")
-	expect(is_equal_approx(float(SettingsServerManager.get_server("video_quality").get_value("scaling_3d_scale")), 0.5), "Potato's resolution scale")
+	expect(is_equal_approx(float(SettingsServerManager.get_server("render_quality").get_value("scaling_3d_scale")), 0.5), "Potato's resolution scale")
 	expect_equal(int(shadow.get_value("directional_shadow_atlas_size")), 1024, "Potato leaves video_shadow as it is")
 	shadow.set_value("directional_shadow_atlas_size", 2048)
 	expect_equal(VideoPresetSettingsServer.get_current_preset(), "Potato", "a change in a domain Potato doesn't touch keeps Potato")
