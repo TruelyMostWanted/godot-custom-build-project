@@ -1,11 +1,11 @@
 extends FeatureCheck
 ## GDScript checks of 24-feature-video-effect-settings. Check the same things as scripts/cs/Issue24FeatureVideoEffectSettingsCheck.cs.
 ##
-## VideoEffectSettingsServer: the effect quality goes to RenderingServer globals, the environment overrides
+## RenderEffectSettingsServer: the effect quality goes to RenderingServer globals, the environment overrides
 ## (allow_*, brightness, contrast, saturation) are applied at render time: the Environment resources keep the
 ## authored values. The server is reached through Engine.get_singleton().
 
-const FILE := "user://settings/video_effect.ini"
+const FILE := "user://settings/render_effect.ini"
 const NAMES := [
 	"ssao_quality", "ssao_half_size", "ssao_adaptive_target", "ssao_blur_passes", "ssao_fadeout_from", "ssao_fadeout_to",
 	"ssil_quality", "ssil_half_size", "ssil_adaptive_target", "ssil_blur_passes", "ssil_fadeout_from", "ssil_fadeout_to",
@@ -27,17 +27,17 @@ func _get_check_name() -> String:
 
 func _run_checks() -> void:
 	await _check_typed_signals()
-	expect(Engine.has_singleton("VideoEffectSettingsServer"), "VideoEffectSettingsServer is a registered singleton")
-	server = Engine.get_singleton("VideoEffectSettingsServer")
+	expect(Engine.has_singleton("RenderEffectSettingsServer"), "RenderEffectSettingsServer is a registered singleton")
+	server = Engine.get_singleton("RenderEffectSettingsServer")
 	expect(server != null, "Engine.get_singleton() returns the server")
 	if server == null:
 		return
-	expect(server.is_class("VideoEffectSettingsServer"), "the singleton is a VideoEffectSettingsServer")
-	expect_equal(SettingsServerManager.get_server(&"video_effect"), server, "the domain is registered as \"video_effect\"")
+	expect(server.is_class("RenderEffectSettingsServer"), "the singleton is a RenderEffectSettingsServer")
+	expect_equal(SettingsServerManager.get_server(&"render_effect"), server, "the domain is registered as \"render_effect\"")
 	expect(server.is_started(), "the domain was started before the main scene")
 	expect_equal(server.get_apply_phase(), SettingsServer.APPLY_PHASE_SERVERS, "applied after the renderer has read the project settings")
 	expect_equal(server.get_file_path(), FILE, "file path")
-	expect(server.get_settings().is_class("VideoEffectSettings"), "the settings resource is a VideoEffectSettings")
+	expect(server.get_settings().is_class("RenderEffectSettings"), "the settings resource is a RenderEffectSettings")
 	var names: PackedStringArray = server.get_setting_names()
 	expect_equal(names.size(), NAMES.size(), "34 values")
 	for setting in NAMES:
@@ -224,10 +224,10 @@ func _check_storage() -> void:
 
 ## Issue #173: the typed signal fires once per applied change, not for pending changes in manual mode.
 func _check_typed_signals() -> void:
-	if not Engine.has_singleton("VideoEffectSettingsServer"):
+	if not Engine.has_singleton("RenderEffectSettingsServer"):
 		return
-	var s: SettingsServer = Engine.get_singleton("VideoEffectSettingsServer")
-	expect(s.has_signal(&"brightness_changed"), "VideoEffectSettingsServer has the typed signal brightness_changed")
+	var s: SettingsServer = Engine.get_singleton("RenderEffectSettingsServer")
+	expect(s.has_signal(&"brightness_changed"), "RenderEffectSettingsServer has the typed signal brightness_changed")
 	var arg_info: Dictionary = {}
 	for info: Dictionary in s.get_signal_list():
 		if info.name == "brightness_changed":

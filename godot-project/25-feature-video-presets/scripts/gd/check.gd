@@ -6,7 +6,7 @@ extends FeatureCheck
 ## stored in the domain "video_preset", projects replace and add presets.
 
 const FILE := "user://settings/video_preset.ini"
-const DOMAINS := ["render_quality", "texture", "shadow", "video_effect"]
+const DOMAINS := ["render_quality", "texture", "shadow", "render_effect"]
 const BUILTIN := ["Low", "Medium", "High", "Ultra"]
 const PROJECT_HIGH := "res://25-feature-video-presets/resources/project_high_preset.tres"
 const PROJECT_POTATO := "res://25-feature-video-presets/resources/project_potato_preset.tres"
@@ -99,7 +99,7 @@ func _check_builtin() -> void:
 		expect_equal(low.get_domain_settings(domain).get_class(), server.get_settings().get_class(), "Low's \"%s\" has the class of the domain" % domain)
 		for setting in _preset_values(ultra, domain):
 			expect(server.has_setting(setting), "\"%s/%s\" exists in the domain" % [domain, setting])
-	expect(low.render_quality is RenderQualitySettings and low.texture is TextureSettings and low.shadow is ShadowSettings and low.video_effect is VideoEffectSettings, "typed domain resources")
+	expect(low.render_quality is RenderQualitySettings and low.texture is TextureSettings and low.shadow is ShadowSettings and low.render_effect is RenderEffectSettings, "typed domain resources")
 	expect(low.shadow.directional_shadow_atlas_size < ultra.shadow.directional_shadow_atlas_size, "Ultra has larger shadow maps than Low")
 	expect(low.texture.anisotropic_filtering_level < ultra.texture.anisotropic_filtering_level, "Ultra has more anisotropic filtering than Low")
 	expect(is_equal_approx(low.render_quality.scaling_3d_scale, 0.75), "Low renders at 75%")
@@ -182,7 +182,7 @@ func _check_project_presets() -> void:
 	var high: VideoPreset = VideoPresetSettingsServer.get_preset("High")
 	expect(high.shadow is ShadowSettings, "the project's High loads a typed ShadowSettings")
 	expect_equal(high.shadow.directional_shadow_atlas_size, 2048, "the project's High")
-	expect(high.video_effect == null and not high.has_domain_settings("video_effect"), "the project's High leaves video_effect alone")
+	expect(high.render_effect == null and not high.has_domain_settings("render_effect"), "the project's High leaves render_effect alone")
 	var shadow: SettingsServer = SettingsServerManager.get_server("shadow")
 	shadow.set_value("directional_shadow_atlas_size", 1024)
 	expect_equal(VideoPresetSettingsServer.apply_preset("Potato"), OK, "apply_preset(\"Potato\")")
@@ -209,8 +209,8 @@ func _check_project_presets() -> void:
 func _check_runtime_presets() -> void:
 	var cinematic := VideoPresetSettingsServer.create_builtin_preset("Ultra")
 	cinematic.preset_name = "Cinematic"
-	cinematic.video_effect.dof_blur_quality = RenderingServer.DOF_BLUR_QUALITY_HIGH
-	expect(cinematic.video_effect != VideoPresetSettingsServer.get_preset("Ultra").video_effect, "create_builtin_preset() returns new domain resources")
+	cinematic.render_effect.dof_blur_quality = RenderingServer.DOF_BLUR_QUALITY_HIGH
+	expect(cinematic.render_effect != VideoPresetSettingsServer.get_preset("Ultra").render_effect, "create_builtin_preset() returns new domain resources")
 	VideoPresetSettingsServer.add_preset(cinematic)
 	expect(VideoPresetSettingsServer.has_preset("Cinematic"), "add_preset()")
 	expect_equal(VideoPresetSettingsServer.get_preset("Cinematic"), cinematic, "get_preset()")

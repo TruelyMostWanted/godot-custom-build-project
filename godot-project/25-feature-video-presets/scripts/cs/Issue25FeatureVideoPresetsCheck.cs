@@ -18,7 +18,7 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
     private const string ProjectHigh = "res://25-feature-video-presets/resources/project_high_preset.tres";
     private const string ProjectPotato = "res://25-feature-video-presets/resources/project_potato_preset.tres";
 
-    private static readonly string[] Domains = { "render_quality", "texture", "shadow", "video_effect" };
+    private static readonly string[] Domains = { "render_quality", "texture", "shadow", "render_effect" };
     private static readonly string[] Builtin = { "Low", "Medium", "High", "Ultra" };
 
     private readonly List<string> _changedNames = new();
@@ -142,7 +142,7 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
                 Expect(Domain(domain).HasSetting(setting), $"\"{domain}/{setting}\" exists in the domain");
             }
         }
-        Expect(low.RenderQuality != null && low.Texture != null && low.Shadow != null && low.VideoEffect != null, "typed domain resources");
+        Expect(low.RenderQuality != null && low.Texture != null && low.Shadow != null && low.RenderEffect != null, "typed domain resources");
         Expect(low.Shadow.DirectionalShadowAtlasSize < ultra.Shadow.DirectionalShadowAtlasSize, "Ultra has larger shadow maps than Low");
         Expect(low.Texture.AnisotropicFilteringLevel < ultra.Texture.AnisotropicFilteringLevel, "Ultra has more anisotropic filtering than Low");
         Expect(Mathf.IsEqualApprox((float)low.RenderQuality.Scaling3DScale, 0.75f), "Low renders at 75%");
@@ -250,7 +250,7 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
         VideoPreset high = VideoPresetSettingsServer.GetPreset("High");
         Expect(high.Shadow != null, "the project's High loads a typed ShadowSettings");
         ExpectEqual(high.Shadow.DirectionalShadowAtlasSize, 2048, "the project's High");
-        Expect(high.VideoEffect == null && !high.HasDomainSettings("video_effect"), "the project's High leaves video_effect alone");
+        Expect(high.RenderEffect == null && !high.HasDomainSettings("render_effect"), "the project's High leaves render_effect alone");
         SettingsServer shadow = Domain("shadow");
         shadow.SetValue("directional_shadow_atlas_size", 1024);
         ExpectEqual(VideoPresetSettingsServer.ApplyPreset("Potato"), Error.Ok, "ApplyPreset(\"Potato\")");
@@ -278,8 +278,8 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
     {
         VideoPreset cinematic = VideoPresetSettingsServer.CreateBuiltinPreset("Ultra");
         cinematic.PresetName = "Cinematic";
-        cinematic.VideoEffect.DofBlurQuality = RenderingServer.DofBlurQuality.High;
-        Expect(cinematic.VideoEffect != VideoPresetSettingsServer.GetPreset("Ultra").VideoEffect, "CreateBuiltinPreset() returns new domain resources");
+        cinematic.RenderEffect.DofBlurQuality = RenderingServer.DofBlurQuality.High;
+        Expect(cinematic.RenderEffect != VideoPresetSettingsServer.GetPreset("Ultra").RenderEffect, "CreateBuiltinPreset() returns new domain resources");
         VideoPresetSettingsServer.AddPreset(cinematic);
         Expect(VideoPresetSettingsServer.HasPreset("Cinematic"), "AddPreset()");
         Expect(VideoPresetSettingsServer.GetPreset("Cinematic") == cinematic, "GetPreset()");

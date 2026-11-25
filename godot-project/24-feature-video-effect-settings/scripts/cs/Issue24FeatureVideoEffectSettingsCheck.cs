@@ -13,7 +13,7 @@ namespace TruelyInteractive.Issue24FeatureVideoEffectSettings;
 /// </summary>
 public partial class Issue24FeatureVideoEffectSettingsCheck : FeatureCheckCs
 {
-    private const string FilePath = "user://settings/video_effect.ini";
+    private const string FilePath = "user://settings/render_effect.ini";
 
     private static readonly string[] Names =
     {
@@ -37,15 +37,15 @@ public partial class Issue24FeatureVideoEffectSettingsCheck : FeatureCheckCs
     {
         await CheckTypedSignals();
 
-        var server = VideoEffectSettingsServer.Singleton;
-        Expect(Engine.HasSingleton("VideoEffectSettingsServer"), "VideoEffectSettingsServer is a registered singleton");
-        Expect(server is VideoEffectSettingsServerInstance, "VideoEffectSettingsServer.Singleton is the instance type");
-        Expect(Engine.GetSingleton("VideoEffectSettingsServer") is SettingsServer, "VideoEffectSettingsServerInstance derives from SettingsServer");
-        Expect(SettingsServerManager.GetServer("video_effect") == server, "the domain is registered as \"video_effect\"");
+        var server = RenderEffectSettingsServer.Singleton;
+        Expect(Engine.HasSingleton("RenderEffectSettingsServer"), "RenderEffectSettingsServer is a registered singleton");
+        Expect(server is RenderEffectSettingsServerInstance, "RenderEffectSettingsServer.Singleton is the instance type");
+        Expect(Engine.GetSingleton("RenderEffectSettingsServer") is SettingsServer, "RenderEffectSettingsServerInstance derives from SettingsServer");
+        Expect(SettingsServerManager.GetServer("render_effect") == server, "the domain is registered as \"render_effect\"");
         Expect(server.IsStarted(), "the domain was started before the main scene");
         ExpectEqual(server.GetApplyPhase(), SettingsServer.ApplyPhase.Servers, "applied after the renderer has read the project settings");
         ExpectEqual(server.GetFilePath(), FilePath, "file path");
-        Expect(server.GetSettings() is VideoEffectSettings, "the settings resource is a VideoEffectSettings");
+        Expect(server.GetSettings() is RenderEffectSettings, "the settings resource is a RenderEffectSettings");
         var names = server.GetSettingNames();
         ExpectEqual(names.Length, Names.Length, "34 values");
         foreach (string setting in Names)
@@ -68,23 +68,23 @@ public partial class Issue24FeatureVideoEffectSettingsCheck : FeatureCheckCs
         DirAccess.RemoveAbsolute(FilePath);
     }
 
-    private void CheckDefaults(VideoEffectSettingsServerInstance server)
+    private void CheckDefaults(RenderEffectSettingsServerInstance server)
     {
         ExpectEqual((int)server.GetDefaultValue("ssao_quality"), (int)ProjectSettings.GetSetting("rendering/environment/ssao/quality"), "default SSAO quality is the project setting");
         ExpectEqual((int)server.GetDefaultValue("volumetric_fog_volume_size"), (int)ProjectSettings.GetSetting("rendering/environment/volumetric_fog/volume_size"), "default fog volume size is the project setting");
         ExpectEqual((int)server.GetDefaultValue("dof_blur_quality"), (int)ProjectSettings.GetSetting("rendering/camera/depth_of_field/depth_of_field_bokeh_quality"), "default DoF quality is the project setting");
-        Expect(VideoEffectSettingsServer.IsSsrAllowed() && VideoEffectSettingsServer.IsGlowAllowed(), "the effects are allowed by default");
-        Expect(Mathf.IsEqualApprox(VideoEffectSettingsServer.GetBrightness(), 1.0f), "brightness is 1.0 by default");
+        Expect(RenderEffectSettingsServer.IsSsrAllowed() && RenderEffectSettingsServer.IsGlowAllowed(), "the effects are allowed by default");
+        Expect(Mathf.IsEqualApprox(RenderEffectSettingsServer.GetBrightness(), 1.0f), "brightness is 1.0 by default");
     }
 
-    private void CheckSupport(VideoEffectSettingsServerInstance server)
+    private void CheckSupport(RenderEffectSettingsServerInstance server)
     {
         string method = RenderingServer.GetCurrentRenderingMethod();
-        var unsupported = VideoEffectSettingsServer.GetUnsupportedSettingNames();
+        var unsupported = RenderEffectSettingsServer.GetUnsupportedSettingNames();
         foreach (string setting in Names)
         {
             ExpectEqual(Array.IndexOf(unsupported, setting) >= 0, !server.IsValueSupported(setting), $"GetUnsupportedSettingNames() matches IsValueSupported(\"{setting}\")");
-            ExpectEqual(server.IsValueSupported(setting), VideoEffectSettingsServer.IsRendererSupported(setting), $"IsRendererSupported(\"{setting}\")");
+            ExpectEqual(server.IsValueSupported(setting), RenderEffectSettingsServer.IsRendererSupported(setting), $"IsRendererSupported(\"{setting}\")");
         }
         foreach (string setting in EveryRenderer)
         {
@@ -95,44 +95,44 @@ public partial class Issue24FeatureVideoEffectSettingsCheck : FeatureCheckCs
         GD.Print($"    renderer: {method}, unsupported: {string.Join(", ", unsupported)}");
     }
 
-    private void CheckQuality(VideoEffectSettingsServerInstance server)
+    private void CheckQuality(RenderEffectSettingsServerInstance server)
     {
-        VideoEffectSettingsServer.SetSsaoQuality(RenderingServer.EnvironmentSsaoQuality.High);
-        ExpectEqual(VideoEffectSettingsServer.GetSsaoQuality(), RenderingServer.EnvironmentSsaoQuality.High, "SSAO quality");
-        VideoEffectSettingsServer.SetSsaoHalfSize(false);
-        Expect(!VideoEffectSettingsServer.IsSsaoHalfSizeEnabled(), "SSAO half size");
-        VideoEffectSettingsServer.SetSdfgiRayCount(RayCount32);
-        ExpectEqual(VideoEffectSettingsServer.GetSdfgiRayCount(), RayCount32, "SDFGI ray count");
-        VideoEffectSettingsServer.SetVolumetricFogVolumeSize(96);
-        ExpectEqual(VideoEffectSettingsServer.GetVolumetricFogVolumeSize(), 96, "volumetric fog volume size");
-        VideoEffectSettingsServer.SetSssQuality(RenderingServer.SubSurfaceScatteringQuality.High);
-        ExpectEqual(VideoEffectSettingsServer.GetSssQuality(), RenderingServer.SubSurfaceScatteringQuality.High, "SSS quality");
-        VideoEffectSettingsServer.SetDofBlurQuality(RenderingServer.DofBlurQuality.High);
-        ExpectEqual(VideoEffectSettingsServer.GetDofBlurQuality(), RenderingServer.DofBlurQuality.High, "DoF blur quality");
+        RenderEffectSettingsServer.SetSsaoQuality(RenderingServer.EnvironmentSsaoQuality.High);
+        ExpectEqual(RenderEffectSettingsServer.GetSsaoQuality(), RenderingServer.EnvironmentSsaoQuality.High, "SSAO quality");
+        RenderEffectSettingsServer.SetSsaoHalfSize(false);
+        Expect(!RenderEffectSettingsServer.IsSsaoHalfSizeEnabled(), "SSAO half size");
+        RenderEffectSettingsServer.SetSdfgiRayCount(RayCount32);
+        ExpectEqual(RenderEffectSettingsServer.GetSdfgiRayCount(), RayCount32, "SDFGI ray count");
+        RenderEffectSettingsServer.SetVolumetricFogVolumeSize(96);
+        ExpectEqual(RenderEffectSettingsServer.GetVolumetricFogVolumeSize(), 96, "volumetric fog volume size");
+        RenderEffectSettingsServer.SetSssQuality(RenderingServer.SubSurfaceScatteringQuality.High);
+        ExpectEqual(RenderEffectSettingsServer.GetSssQuality(), RenderingServer.SubSurfaceScatteringQuality.High, "SSS quality");
+        RenderEffectSettingsServer.SetDofBlurQuality(RenderingServer.DofBlurQuality.High);
+        ExpectEqual(RenderEffectSettingsServer.GetDofBlurQuality(), RenderingServer.DofBlurQuality.High, "DoF blur quality");
         ExpectEqual((int)server.GetAppliedValue("ssao_quality"), (int)RenderingServer.EnvironmentSsaoQuality.High, "applied at once (APPLY_MODE_IMMEDIATE)");
         server.ResetToDefaults();
     }
 
-    private async Task CheckOverrides(VideoEffectSettingsServerInstance server)
+    private async Task CheckOverrides(RenderEffectSettingsServerInstance server)
     {
         var authored = new Godot.Environment { SsrEnabled = true, GlowEnabled = true };
-        VideoEffectSettingsServer.SetAllowSsr(false);
-        VideoEffectSettingsServer.SetAllowGlow(false);
-        Expect(!VideoEffectSettingsServer.IsSsrAllowed(), "SSR is turned off");
+        RenderEffectSettingsServer.SetAllowSsr(false);
+        RenderEffectSettingsServer.SetAllowGlow(false);
+        Expect(!RenderEffectSettingsServer.IsSsrAllowed(), "SSR is turned off");
         Expect(authored.SsrEnabled && authored.GlowEnabled, "the environment keeps its authored values");
 
         // A scene loaded after the change.
         var later = new WorldEnvironment { Environment = new Godot.Environment { SsrEnabled = true } };
         AddChild(later);
         Expect(later.Environment.SsrEnabled, "a later scene keeps its authored value (the override is applied at render time)");
-        Expect(!VideoEffectSettingsServer.IsEnvironmentIgnored(later.Environment), "a later scene is not excluded");
+        Expect(!RenderEffectSettingsServer.IsEnvironmentIgnored(later.Environment), "a later scene is not excluded");
 
-        VideoEffectSettingsServer.SetAllowSsr(true);
-        VideoEffectSettingsServer.SetAllowGlow(true);
-        Expect(VideoEffectSettingsServer.IsSsrAllowed(), "SSR is allowed again");
+        RenderEffectSettingsServer.SetAllowSsr(true);
+        RenderEffectSettingsServer.SetAllowGlow(true);
+        Expect(RenderEffectSettingsServer.IsSsrAllowed(), "SSR is allowed again");
 
-        VideoEffectSettingsServer.SetBrightness(1.3f);
-        Expect(Mathf.IsEqualApprox(VideoEffectSettingsServer.GetBrightness(), 1.3f), "brightness");
+        RenderEffectSettingsServer.SetBrightness(1.3f);
+        Expect(Mathf.IsEqualApprox(RenderEffectSettingsServer.GetBrightness(), 1.3f), "brightness");
         Expect(!authored.AdjustmentEnabled, "the global adjustment does not enable the environment's adjustment");
         later.QueueFree();
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
@@ -141,57 +141,57 @@ public partial class Issue24FeatureVideoEffectSettingsCheck : FeatureCheckCs
 
     private async Task CheckIgnoreGroup()
     {
-        ExpectEqual(VideoEffectSettingsServer.GetIgnoreGroup(), new StringName("ignore_quality_settings"), "GetIgnoreGroup()");
+        ExpectEqual(RenderEffectSettingsServer.GetIgnoreGroup(), new StringName("ignore_quality_settings"), "GetIgnoreGroup()");
         var menu = new WorldEnvironment { Environment = new Godot.Environment() };
-        menu.AddToGroup(VideoEffectSettingsServer.GetIgnoreGroup());
+        menu.AddToGroup(RenderEffectSettingsServer.GetIgnoreGroup());
         AddChild(menu);
-        Expect(VideoEffectSettingsServer.IsEnvironmentIgnored(menu.Environment), "an environment in the group is excluded when it enters the tree");
+        Expect(RenderEffectSettingsServer.IsEnvironmentIgnored(menu.Environment), "an environment in the group is excluded when it enters the tree");
         var freeEnvironment = new Godot.Environment();
-        VideoEffectSettingsServer.SetEnvironmentIgnored(freeEnvironment, true);
-        Expect(VideoEffectSettingsServer.IsEnvironmentIgnored(freeEnvironment), "SetEnvironmentIgnored(true)");
-        VideoEffectSettingsServer.SetEnvironmentIgnored(freeEnvironment, false);
-        Expect(!VideoEffectSettingsServer.IsEnvironmentIgnored(freeEnvironment), "SetEnvironmentIgnored(false)");
+        RenderEffectSettingsServer.SetEnvironmentIgnored(freeEnvironment, true);
+        Expect(RenderEffectSettingsServer.IsEnvironmentIgnored(freeEnvironment), "SetEnvironmentIgnored(true)");
+        RenderEffectSettingsServer.SetEnvironmentIgnored(freeEnvironment, false);
+        Expect(!RenderEffectSettingsServer.IsEnvironmentIgnored(freeEnvironment), "SetEnvironmentIgnored(false)");
         menu.QueueFree();
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
     }
 
-    private void CheckValidation(VideoEffectSettingsServerInstance server)
+    private void CheckValidation(RenderEffectSettingsServerInstance server)
     {
-        VideoEffectSettingsServer.SetSsaoAdaptiveTarget(2.0f);
-        Expect(Mathf.IsEqualApprox(VideoEffectSettingsServer.GetSsaoAdaptiveTarget(), 1.0f), "adaptive target is clamped to 1.0");
-        VideoEffectSettingsServer.SetVolumetricFogVolumeSize(4);
-        ExpectEqual(VideoEffectSettingsServer.GetVolumetricFogVolumeSize(), 16, "fog volume size is clamped to 16");
-        VideoEffectSettingsServer.SetBrightness(100.0f);
-        Expect(Mathf.IsEqualApprox(VideoEffectSettingsServer.GetBrightness(), 8.0f), "brightness is clamped to 8.0");
+        RenderEffectSettingsServer.SetSsaoAdaptiveTarget(2.0f);
+        Expect(Mathf.IsEqualApprox(RenderEffectSettingsServer.GetSsaoAdaptiveTarget(), 1.0f), "adaptive target is clamped to 1.0");
+        RenderEffectSettingsServer.SetVolumetricFogVolumeSize(4);
+        ExpectEqual(RenderEffectSettingsServer.GetVolumetricFogVolumeSize(), 16, "fog volume size is clamped to 16");
+        RenderEffectSettingsServer.SetBrightness(100.0f);
+        Expect(Mathf.IsEqualApprox(RenderEffectSettingsServer.GetBrightness(), 8.0f), "brightness is clamped to 8.0");
         server.SetValue("ssao_quality", 42);
-        ExpectEqual((int)VideoEffectSettingsServer.GetSsaoQuality(), (int)server.GetDefaultValue("ssao_quality"), "an invalid enum value becomes the default");
+        ExpectEqual((int)RenderEffectSettingsServer.GetSsaoQuality(), (int)server.GetDefaultValue("ssao_quality"), "an invalid enum value becomes the default");
         server.ResetToDefaults();
     }
 
-    private void CheckStorage(VideoEffectSettingsServerInstance server)
+    private void CheckStorage(RenderEffectSettingsServerInstance server)
     {
-        VideoEffectSettingsServer.SetSsilQuality(RenderingServer.EnvironmentSsilQuality.High);
-        VideoEffectSettingsServer.SetAllowVolumetricFog(false);
-        VideoEffectSettingsServer.SetContrast(1.2f);
+        RenderEffectSettingsServer.SetSsilQuality(RenderingServer.EnvironmentSsilQuality.High);
+        RenderEffectSettingsServer.SetAllowVolumetricFog(false);
+        RenderEffectSettingsServer.SetContrast(1.2f);
         ExpectEqual(server.Save(), Error.Ok, "Save()");
         Expect(FileAccess.FileExists(FilePath), "the file exists");
         Expect(FileAccess.GetFileAsString(FilePath).Contains("allow_volumetric_fog"), "the INI file has allow_volumetric_fog");
         server.ResetToDefaults();
         ExpectEqual(server.Load(), Error.Ok, "Load()");
-        ExpectEqual(VideoEffectSettingsServer.GetSsilQuality(), RenderingServer.EnvironmentSsilQuality.High, "the SSIL quality is loaded (also where the renderer ignores it)");
-        Expect(!VideoEffectSettingsServer.IsVolumetricFogAllowed(), "the fog switch is loaded");
-        Expect(Mathf.IsEqualApprox(VideoEffectSettingsServer.GetContrast(), 1.2f), "the contrast is loaded");
+        ExpectEqual(RenderEffectSettingsServer.GetSsilQuality(), RenderingServer.EnvironmentSsilQuality.High, "the SSIL quality is loaded (also where the renderer ignores it)");
+        Expect(!RenderEffectSettingsServer.IsVolumetricFogAllowed(), "the fog switch is loaded");
+        Expect(Mathf.IsEqualApprox(RenderEffectSettingsServer.GetContrast(), 1.2f), "the contrast is loaded");
     }
 
     /// <summary>Issue #173: the typed signal fires once per applied change, not for pending changes in manual mode.</summary>
     private async Task CheckTypedSignals()
     {
-        if (!Engine.HasSingleton("VideoEffectSettingsServer"))
+        if (!Engine.HasSingleton("RenderEffectSettingsServer"))
         {
             return;
         }
-        var s = (SettingsServer)Engine.GetSingleton("VideoEffectSettingsServer");
-        Expect(s.HasSignal("brightness_changed"), "VideoEffectSettingsServer has the typed signal brightness_changed");
+        var s = (SettingsServer)Engine.GetSingleton("RenderEffectSettingsServer");
+        Expect(s.HasSignal("brightness_changed"), "RenderEffectSettingsServer has the typed signal brightness_changed");
         string filePath = s.GetFilePath();
         bool hadFile = FileAccess.FileExists(filePath);
         var previousMode = s.ApplyMode;
