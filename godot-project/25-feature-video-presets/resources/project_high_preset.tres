@@ -1,4 +1,4 @@
-[gd_resource type="VideoPreset" load_steps=2 format=3]
+[gd_resource type="GraphicsPreset" load_steps=2 format=3]
 
 [sub_resource type="ShadowSettings" id="ShadowSettings_high"]
 directional_shadow_atlas_size = 2048

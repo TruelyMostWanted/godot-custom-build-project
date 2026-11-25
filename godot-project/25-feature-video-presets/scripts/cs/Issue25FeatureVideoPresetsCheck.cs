@@ -8,13 +8,13 @@ namespace TruelyInteractive.Issue25FeatureVideoPresets;
 
 /// <summary>
 /// C# checks of 25-feature-video-presets. Check the same things as scripts/gd/check.gd.
-/// A <see cref="VideoPreset"/> holds one typed resource per video domain (null: the domain is left alone).
+/// A <see cref="GraphicsPreset"/> holds one typed resource per video domain (null: the domain is left alone).
 /// Typed methods are called on the generated static class, the methods of the base class through
 /// <c>Singleton</c>. The video domains are reached through <see cref="SettingsServerManager"/>.
 /// </summary>
 public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
 {
-    private const string FilePath = "user://settings/video_preset.ini";
+    private const string FilePath = "user://settings/graphics_preset.ini";
     private const string ProjectHigh = "res://25-feature-video-presets/resources/project_high_preset.tres";
     private const string ProjectPotato = "res://25-feature-video-presets/resources/project_potato_preset.tres";
 
@@ -27,19 +27,19 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
 
     protected override Task RunChecks()
     {
-        var server = VideoPresetSettingsServer.Singleton;
-        Expect(Engine.HasSingleton("VideoPresetSettingsServer"), "VideoPresetSettingsServer is a registered singleton");
-        Expect(server is VideoPresetSettingsServerInstance, "VideoPresetSettingsServer.Singleton is the instance type");
-        Expect(Engine.GetSingleton("VideoPresetSettingsServer") is SettingsServer, "VideoPresetSettingsServerInstance derives from SettingsServer");
-        Expect(SettingsServerManager.GetServer("video_preset") == server, "the domain is registered as \"video_preset\"");
+        var server = GraphicsPresetSettingsServer.Singleton;
+        Expect(Engine.HasSingleton("GraphicsPresetSettingsServer"), "GraphicsPresetSettingsServer is a registered singleton");
+        Expect(server is GraphicsPresetSettingsServerInstance, "GraphicsPresetSettingsServer.Singleton is the instance type");
+        Expect(Engine.GetSingleton("GraphicsPresetSettingsServer") is SettingsServer, "GraphicsPresetSettingsServerInstance derives from SettingsServer");
+        Expect(SettingsServerManager.GetServer("graphics_preset") == server, "the domain is registered as \"graphics_preset\"");
         Expect(server.IsStarted(), "the domain was started before the main scene");
         ExpectEqual(server.GetApplyPhase(), SettingsServer.ApplyPhase.Scene, "apply phase");
         ExpectEqual(server.GetFilePath(), FilePath, "file path");
-        Expect(server.GetSettings() is VideoPresetSettings, "the settings resource is a VideoPresetSettings");
-        ExpectEqual(string.Join(",", VideoPreset.GetDomains()), string.Join(",", Domains), "a preset covers the four video domains");
+        Expect(server.GetSettings() is GraphicsPresetSettings, "the settings resource is a GraphicsPresetSettings");
+        ExpectEqual(string.Join(",", GraphicsPreset.GetDomains()), string.Join(",", Domains), "a preset covers the four video domains");
 
         var callable = Callable.From<string>(OnPresetChanged);
-        server.Connect(VideoPresetSettingsServerInstance.SignalName.PresetChanged, callable);
+        server.Connect(GraphicsPresetSettingsServerInstance.SignalName.PresetChanged, callable);
         Reset();
         CheckBuiltin();
         CheckApply("Low");
@@ -49,7 +49,7 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
         CheckStorage();
         CheckProjectPresets();
         CheckRuntimePresets();
-        server.Disconnect(VideoPresetSettingsServerInstance.SignalName.PresetChanged, callable);
+        server.Disconnect(GraphicsPresetSettingsServerInstance.SignalName.PresetChanged, callable);
 
         // Leave no player files behind.
         Reset();
@@ -72,7 +72,7 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
             Domain(domain).ResetToDefaults();
             Domain(domain).ConfirmChanges();
         }
-        VideoPresetSettingsServer.Singleton.ResetToDefaults();
+        GraphicsPresetSettingsServer.Singleton.ResetToDefaults();
     }
 
     private static void ConfirmAll()
@@ -102,7 +102,7 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
     private static string Join(string[] names) => string.Join(",", names);
 
     // The stored values of the domain resource of a preset: setting name to value (empty for a null resource).
-    private static Dictionary<string, Variant> PresetValues(VideoPreset preset, string domain)
+    private static Dictionary<string, Variant> PresetValues(GraphicsPreset preset, string domain)
     {
         var values = new Dictionary<string, Variant>();
         Resource domainSettings = preset.GetDomainSettings(domain);
@@ -125,12 +125,12 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
 
     private void CheckBuiltin()
     {
-        ExpectEqual(VideoPresetSettingsServer.GetCustomPresetName(), "Custom", "the custom name");
-        ExpectEqual(Join(VideoPresetSettingsServer.GetBuiltinPresetNames()), Join(Builtin), "built-in names");
-        ExpectEqual(Join(VideoPresetSettingsServer.GetPresetNames()), Join(Builtin), "the project uses the built-in presets");
-        ExpectEqual(VideoPresetSettingsServer.GetPresets().Count, 4, "four presets");
-        VideoPreset low = VideoPresetSettingsServer.CreateBuiltinPreset("Low");
-        VideoPreset ultra = VideoPresetSettingsServer.CreateBuiltinPreset("Ultra");
+        ExpectEqual(GraphicsPresetSettingsServer.GetCustomPresetName(), "Custom", "the custom name");
+        ExpectEqual(Join(GraphicsPresetSettingsServer.GetBuiltinPresetNames()), Join(Builtin), "built-in names");
+        ExpectEqual(Join(GraphicsPresetSettingsServer.GetPresetNames()), Join(Builtin), "the project uses the built-in presets");
+        ExpectEqual(GraphicsPresetSettingsServer.GetPresets().Count, 4, "four presets");
+        GraphicsPreset low = GraphicsPresetSettingsServer.CreateBuiltinPreset("Low");
+        GraphicsPreset ultra = GraphicsPresetSettingsServer.CreateBuiltinPreset("Ultra");
         Expect(low != null && ultra != null, "CreateBuiltinPreset()");
         ExpectEqual(low.PresetName, "Low", "PresetName");
         foreach (string domain in Domains)
@@ -146,16 +146,16 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
         Expect(low.Shadow.DirectionalShadowAtlasSize < ultra.Shadow.DirectionalShadowAtlasSize, "Ultra has larger shadow maps than Low");
         Expect(low.Texture.AnisotropicFilteringLevel < ultra.Texture.AnisotropicFilteringLevel, "Ultra has more anisotropic filtering than Low");
         Expect(Mathf.IsEqualApprox((float)low.RenderQuality.Scaling3DScale, 0.75f), "Low renders at 75%");
-        string suggestion = VideoPresetSettingsServer.SuggestPreset();
-        Expect(VideoPresetSettingsServer.HasPreset(suggestion), $"SuggestPreset() names a preset: {suggestion}");
+        string suggestion = GraphicsPresetSettingsServer.SuggestPreset();
+        Expect(GraphicsPresetSettingsServer.HasPreset(suggestion), $"SuggestPreset() names a preset: {suggestion}");
     }
 
     private void CheckApply(string presetName)
     {
         _changedNames.Clear();
-        ExpectEqual(VideoPresetSettingsServer.ApplyPreset(presetName), Error.Ok, $"ApplyPreset(\"{presetName}\")");
+        ExpectEqual(GraphicsPresetSettingsServer.ApplyPreset(presetName), Error.Ok, $"ApplyPreset(\"{presetName}\")");
         ConfirmAll();
-        VideoPreset preset = VideoPresetSettingsServer.GetPreset(presetName);
+        GraphicsPreset preset = GraphicsPresetSettingsServer.GetPreset(presetName);
         foreach (string domain in Domains)
         {
             SettingsServer server = Domain(domain);
@@ -169,16 +169,16 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
                 }
             }
         }
-        ExpectEqual(VideoPresetSettingsServer.GetCurrentPreset(), presetName, "the current preset");
-        Expect(!VideoPresetSettingsServer.IsCustom(), "not custom");
-        Expect(VideoPresetSettingsServer.MatchesPreset(presetName), "the values match the preset");
+        ExpectEqual(GraphicsPresetSettingsServer.GetCurrentPreset(), presetName, "the current preset");
+        Expect(!GraphicsPresetSettingsServer.IsCustom(), "not custom");
+        Expect(GraphicsPresetSettingsServer.MatchesPreset(presetName), "the values match the preset");
         Expect(_changedNames.Contains(presetName), "PresetChanged was emitted");
     }
 
     private void CheckUnsupported()
     {
         Reset();
-        VideoPreset low = VideoPresetSettingsServer.GetPreset("Low");
+        GraphicsPreset low = GraphicsPresetSettingsServer.GetPreset("Low");
         var before = new Dictionary<string, Variant>();
         foreach (string domain in Domains)
         {
@@ -187,7 +187,7 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
                 before[$"{domain}/{setting}"] = Domain(domain).GetValue(setting);
             }
         }
-        VideoPresetSettingsServer.ApplyPreset("Low");
+        GraphicsPresetSettingsServer.ApplyPreset("Low");
         ConfirmAll();
         int skipped = 0;
         foreach (string domain in Domains)
@@ -207,18 +207,18 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
     private void CheckCustom()
     {
         SettingsServer shadow = Domain("shadow");
-        VideoPresetSettingsServer.ApplyPreset("High");
+        GraphicsPresetSettingsServer.ApplyPreset("High");
         ConfirmAll();
-        ExpectEqual(VideoPresetSettingsServer.GetCurrentPreset(), "High", "High applied");
+        ExpectEqual(GraphicsPresetSettingsServer.GetCurrentPreset(), "High", "High applied");
         _changedNames.Clear();
         shadow.SetValue("directional_shadow_atlas_size", 2048);
-        ExpectEqual(VideoPresetSettingsServer.GetCurrentPreset(), "Custom", "a single change gives Custom");
-        Expect(VideoPresetSettingsServer.IsCustom(), "IsCustom()");
+        ExpectEqual(GraphicsPresetSettingsServer.GetCurrentPreset(), "Custom", "a single change gives Custom");
+        Expect(GraphicsPresetSettingsServer.IsCustom(), "IsCustom()");
         Expect(_changedNames.Contains("Custom"), "PresetChanged(\"Custom\")");
         shadow.SetValue("directional_shadow_atlas_size", 4096);
-        ExpectEqual(VideoPresetSettingsServer.GetCurrentPreset(), "High", "the preset value again gives the preset again");
+        ExpectEqual(GraphicsPresetSettingsServer.GetCurrentPreset(), "High", "the preset value again gives the preset again");
         shadow.SetValue("directional_shadow_atlas_size", 2048);
-        ExpectEqual(VideoPresetSettingsServer.GetCurrentPreset(), "Custom", "Custom again");
+        ExpectEqual(GraphicsPresetSettingsServer.GetCurrentPreset(), "Custom", "Custom again");
     }
 
     private void CheckStorage()
@@ -228,64 +228,64 @@ public partial class Issue25FeatureVideoPresetsCheck : FeatureCheckCs
         {
             ExpectEqual(Domain(domain).Save(), Error.Ok, $"Save() of \"{domain}\"");
         }
-        var server = VideoPresetSettingsServer.Singleton;
-        ExpectEqual(server.Save(), Error.Ok, "Save() of \"video_preset\"");
+        var server = GraphicsPresetSettingsServer.Singleton;
+        ExpectEqual(server.Save(), Error.Ok, "Save() of \"graphics_preset\"");
         Expect(FileAccess.GetFileAsString(FilePath).Contains("Custom"), "the file stores \"Custom\"");
         Reset();
-        ExpectEqual(((VideoPresetSettings)server.GetSettings()).Preset, "", "reset: no preset stored");
+        ExpectEqual(((GraphicsPresetSettings)server.GetSettings()).Preset, "", "reset: no preset stored");
         foreach (string domain in Domains)
         {
             Domain(domain).Load();
         }
         ExpectEqual(server.Load(), Error.Ok, "Load()");
-        ExpectEqual(VideoPresetSettingsServer.GetCurrentPreset(), "Custom", "Custom is loaded");
+        ExpectEqual(GraphicsPresetSettingsServer.GetCurrentPreset(), "Custom", "Custom is loaded");
         ExpectEqual(Domain("shadow").GetValue("directional_shadow_atlas_size").AsInt32(), 2048, "the changed value is loaded");
     }
 
     private void CheckProjectPresets()
     {
-        ProjectSettings.SetSetting("settings/video_preset/presets", new string[] { ProjectHigh, ProjectPotato });
-        VideoPresetSettingsServer.ReloadPresets();
-        ExpectEqual(Join(VideoPresetSettingsServer.GetPresetNames()), "Low,Medium,High,Ultra,Potato", "the project replaces High and adds Potato");
-        VideoPreset high = VideoPresetSettingsServer.GetPreset("High");
+        ProjectSettings.SetSetting("settings/graphics_preset/presets", new string[] { ProjectHigh, ProjectPotato });
+        GraphicsPresetSettingsServer.ReloadPresets();
+        ExpectEqual(Join(GraphicsPresetSettingsServer.GetPresetNames()), "Low,Medium,High,Ultra,Potato", "the project replaces High and adds Potato");
+        GraphicsPreset high = GraphicsPresetSettingsServer.GetPreset("High");
         Expect(high.Shadow != null, "the project's High loads a typed ShadowSettings");
         ExpectEqual(high.Shadow.DirectionalShadowAtlasSize, 2048, "the project's High");
         Expect(high.RenderEffect == null && !high.HasDomainSettings("render_effect"), "the project's High leaves render_effect alone");
         SettingsServer shadow = Domain("shadow");
         shadow.SetValue("directional_shadow_atlas_size", 1024);
-        ExpectEqual(VideoPresetSettingsServer.ApplyPreset("Potato"), Error.Ok, "ApplyPreset(\"Potato\")");
+        ExpectEqual(GraphicsPresetSettingsServer.ApplyPreset("Potato"), Error.Ok, "ApplyPreset(\"Potato\")");
         ConfirmAll();
-        ExpectEqual(VideoPresetSettingsServer.GetCurrentPreset(), "Potato", "Potato is current");
+        ExpectEqual(GraphicsPresetSettingsServer.GetCurrentPreset(), "Potato", "Potato is current");
         ExpectEqual(Domain("texture").GetValue("anisotropic_filtering_level").AsInt32(), 0, "Potato's anisotropic filtering");
         Expect(Mathf.IsEqualApprox((float)Domain("render_quality").GetValue("scaling_3d_scale").AsDouble(), 0.5f), "Potato's resolution scale");
         ExpectEqual(shadow.GetValue("directional_shadow_atlas_size").AsInt32(), 1024, "Potato leaves shadow as it is");
         shadow.SetValue("directional_shadow_atlas_size", 2048);
-        ExpectEqual(VideoPresetSettingsServer.GetCurrentPreset(), "Potato", "a change in a domain Potato doesn't touch keeps Potato");
+        ExpectEqual(GraphicsPresetSettingsServer.GetCurrentPreset(), "Potato", "a change in a domain Potato doesn't touch keeps Potato");
         Domain("texture").SetValue("anisotropic_filtering_level", 4); // Viewport.ANISOTROPY_16X
-        ExpectEqual(VideoPresetSettingsServer.GetCurrentPreset(), "Custom", "a change in a domain Potato sets gives Custom");
+        ExpectEqual(GraphicsPresetSettingsServer.GetCurrentPreset(), "Custom", "a change in a domain Potato sets gives Custom");
 
-        ProjectSettings.SetSetting("settings/video_preset/use_builtin_presets", false);
-        VideoPresetSettingsServer.ReloadPresets();
-        ExpectEqual(Join(VideoPresetSettingsServer.GetPresetNames()), "High,Potato", "without the built-in presets");
+        ProjectSettings.SetSetting("settings/graphics_preset/use_builtin_presets", false);
+        GraphicsPresetSettingsServer.ReloadPresets();
+        ExpectEqual(Join(GraphicsPresetSettingsServer.GetPresetNames()), "High,Potato", "without the built-in presets");
 
-        ProjectSettings.SetSetting("settings/video_preset/use_builtin_presets", true);
-        ProjectSettings.SetSetting("settings/video_preset/presets", Array.Empty<string>());
-        VideoPresetSettingsServer.ReloadPresets();
-        ExpectEqual(Join(VideoPresetSettingsServer.GetPresetNames()), Join(Builtin), "back to the built-in presets");
+        ProjectSettings.SetSetting("settings/graphics_preset/use_builtin_presets", true);
+        ProjectSettings.SetSetting("settings/graphics_preset/presets", Array.Empty<string>());
+        GraphicsPresetSettingsServer.ReloadPresets();
+        ExpectEqual(Join(GraphicsPresetSettingsServer.GetPresetNames()), Join(Builtin), "back to the built-in presets");
     }
 
     private void CheckRuntimePresets()
     {
-        VideoPreset cinematic = VideoPresetSettingsServer.CreateBuiltinPreset("Ultra");
+        GraphicsPreset cinematic = GraphicsPresetSettingsServer.CreateBuiltinPreset("Ultra");
         cinematic.PresetName = "Cinematic";
         cinematic.RenderEffect.DofBlurQuality = RenderingServer.DofBlurQuality.High;
-        Expect(cinematic.RenderEffect != VideoPresetSettingsServer.GetPreset("Ultra").RenderEffect, "CreateBuiltinPreset() returns new domain resources");
-        VideoPresetSettingsServer.AddPreset(cinematic);
-        Expect(VideoPresetSettingsServer.HasPreset("Cinematic"), "AddPreset()");
-        Expect(VideoPresetSettingsServer.GetPreset("Cinematic") == cinematic, "GetPreset()");
-        VideoPresetSettingsServer.RemovePreset("Cinematic");
-        Expect(!VideoPresetSettingsServer.HasPreset("Cinematic"), "RemovePreset()");
-        ExpectEqual(VideoPresetSettingsServer.ApplyPreset("Custom"), Error.InvalidParameter, "\"Custom\" can't be applied");
-        ExpectEqual(VideoPresetSettingsServer.ApplyPreset("Missing"), Error.DoesNotExist, "a missing preset");
+        Expect(cinematic.RenderEffect != GraphicsPresetSettingsServer.GetPreset("Ultra").RenderEffect, "CreateBuiltinPreset() returns new domain resources");
+        GraphicsPresetSettingsServer.AddPreset(cinematic);
+        Expect(GraphicsPresetSettingsServer.HasPreset("Cinematic"), "AddPreset()");
+        Expect(GraphicsPresetSettingsServer.GetPreset("Cinematic") == cinematic, "GetPreset()");
+        GraphicsPresetSettingsServer.RemovePreset("Cinematic");
+        Expect(!GraphicsPresetSettingsServer.HasPreset("Cinematic"), "RemovePreset()");
+        ExpectEqual(GraphicsPresetSettingsServer.ApplyPreset("Custom"), Error.InvalidParameter, "\"Custom\" can't be applied");
+        ExpectEqual(GraphicsPresetSettingsServer.ApplyPreset("Missing"), Error.DoesNotExist, "a missing preset");
     }
 }

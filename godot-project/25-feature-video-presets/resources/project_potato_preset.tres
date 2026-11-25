@@ -1,4 +1,4 @@
-[gd_resource type="VideoPreset" load_steps=3 format=3]
+[gd_resource type="GraphicsPreset" load_steps=3 format=3]
 
 [sub_resource type="RenderQualitySettings" id="RenderQualitySettings_potato"]
 scaling_3d_scale = 0.5
