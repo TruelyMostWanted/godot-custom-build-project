@@ -36,6 +36,7 @@ public partial class Issue37FeatureCachedPathsFiltersCheck : FeatureCheckCs
         CheckClassName();
         CheckExtension();
         CheckDirectory();
+        CheckCountsAndKinds();
         CheckFreed();
         await CheckThreads();
         CheckPerformance();
@@ -90,6 +91,48 @@ public partial class Issue37FeatureCachedPathsFiltersCheck : FeatureCheckCs
             Expect(ClassDB.ClassHasMethod("ResourceLoader", method), $"ResourceLoader has {method}()");
         }
         Expect(ResourceLoader.GetCachedPathsForType("Curve") is string[], "GetCachedPathsForType() returns string[]");
+    }
+
+    private void CheckCountsAndKinds()
+    {
+        // #235: counts without path arrays, kinds of cached resources, resources and counts per class.
+        string dir = P("a/");
+        var file = ResourceLoader.CachedResourceKind.File;
+        var builtIn = ResourceLoader.CachedResourceKind.BuiltIn;
+        var imported = ResourceLoader.CachedResourceKind.Imported;
+        var all = ResourceLoader.CachedResourceKind.All;
+        bool countsMatch = true;
+        foreach (var kinds in new[] { file, builtIn, file | builtIn, all })
+        {
+            countsMatch = countsMatch && ResourceLoader.GetCachedCountInDirectory(dir, true, kinds) == ResourceLoader.GetCachedPathsInDirectory(dir, true, kinds).Length;
+            countsMatch = countsMatch && ResourceLoader.GetCachedCountWithExtension("tres", kinds) == ResourceLoader.GetCachedPathsWithExtension("tres", kinds).Length;
+            countsMatch = countsMatch && ResourceLoader.GetCachedCountForType("Curve", false, kinds) == ResourceLoader.GetCachedPathsForType("Curve", false, kinds).Length;
+            countsMatch = countsMatch && ResourceLoader.GetCachedCount(kinds) == ResourceLoader.GetCachedPaths(kinds).Length;
+        }
+        Expect(countsMatch, "every count equals the size of the matching path list");
+        ExpectEqual(ResourceLoader.GetCachedCountInDirectory(dir, true, file), 6, "six resources in their own files under a/");
+        Expect(ResourceLoader.GetCachedPathsInDirectory(dir, true, builtIn).Contains(_texSubPath), "the built-in sub-resource of tex.tres has the kind BUILT_IN");
+        Expect(!ResourceLoader.GetCachedPathsInDirectory(dir, true, file).Contains(_texSubPath), "and not FILE");
+
+        using var icon = GD.Load<Resource>("res://icon.svg");
+        Expect(ResourceLoader.GetCachedPaths(imported).Contains("res://icon.svg"), "res://icon.svg has the kind IMPORTED");
+        Expect(!ResourceLoader.GetCachedPaths(file).Contains("res://icon.svg"), "and not FILE");
+
+        // The array keeps the resources alive: clear it after use (the wrappers are shared, so don't dispose them).
+        var cachedCurves = ResourceLoader.GetCachedResourcesForType("Curve", true, file);
+        int curves = 0;
+        foreach (Resource resource in cachedCurves)
+        {
+            if (resource.ResourcePath.StartsWith(Root, StringComparison.Ordinal))
+            {
+                curves++;
+            }
+        }
+        cachedCurves.Clear();
+        ExpectEqual(curves, 2, "get_cached_resources_for_type() returns the two curves themselves");
+        using var typeCounts = ResourceLoader.GetCachedTypeCounts(file);
+        Expect(typeCounts.ContainsKey(new StringName("Curve")) && (int)typeCounts[new StringName("Curve")] >= 2, "get_cached_type_counts() counts the curves");
+        Expect(typeCounts.ContainsKey(new StringName("Issue37CsWidget")) && (int)typeCounts[new StringName("Issue37CsWidget")] >= 1, "get_cached_type_counts() uses the script class name");
     }
 
     private void CheckType()
