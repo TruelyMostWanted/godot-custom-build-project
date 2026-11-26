@@ -1,0 +1,41 @@
+[gd_resource type="FlowGraph" format=3]
+
+[sub_resource type="FlowStartNode" id="FlowStartNode_inner"]
+
+[sub_resource type="FlowWaitNode" id="FlowWaitNode_inner"]
+editor_position = Vector2(220, 0)
+seconds = 1.5
+
+[sub_resource type="FlowEndNode" id="FlowEndNode_inner"]
+editor_position = Vector2(440, 0)
+
+[sub_resource type="FlowGraph" id="FlowGraph_inner"]
+start_node_id = 0
+node_ids = PackedInt32Array(0, 1, 2)
+nodes = Array[FlowNode]([SubResource("FlowStartNode_inner"), SubResource("FlowWaitNode_inner"), SubResource("FlowEndNode_inner")])
+connections = [0, &"out", 1, &"in", 1, &"out", 2, &"in"]
+next_node_id = 3
+
+[sub_resource type="FlowStartNode" id="FlowStartNode_start"]
+
+[sub_resource type="FlowWaitNode" id="FlowWaitNode_greet"]
+editor_position = Vector2(220, 0)
+seconds = 1.5
+
+[sub_resource type="FlowSubgraphNode" id="FlowSubgraphNode_inner"]
+editor_position = Vector2(440, 0)
+graph = SubResource("FlowGraph_inner")
+
+[sub_resource type="FlowWaitNode" id="FlowWaitNode_bye"]
+editor_position = Vector2(660, 0)
+seconds = 1.5
+
+[sub_resource type="FlowEndNode" id="FlowEndNode_done"]
+editor_position = Vector2(880, 0)
+
+[resource]
+start_node_id = 0
+node_ids = PackedInt32Array(0, 1, 2, 3, 4)
+nodes = Array[FlowNode]([SubResource("FlowStartNode_start"), SubResource("FlowWaitNode_greet"), SubResource("FlowSubgraphNode_inner"), SubResource("FlowWaitNode_bye"), SubResource("FlowEndNode_done")])
+connections = [0, &"out", 1, &"in", 1, &"out", 2, &"in", 2, &"out", 3, &"in", 3, &"out", 4, &"in"]
+next_node_id = 5
