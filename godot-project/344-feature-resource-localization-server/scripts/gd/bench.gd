@@ -53,7 +53,9 @@ func _write_files() -> Array[String]:
 	for locale in ["en", "de"]:
 		DirAccess.make_dir_recursive_absolute(OUT_DIR + "/" + locale)
 		for index in COUNT:
-			var image := Image.create(TEXTURE_SIZE, TEXTURE_SIZE, false, Image.FORMAT_RGBA8)
+			# Size per locale: the headless dummy RenderingServer keeps no pixels, but the size is kept.
+			var size := TEXTURE_SIZE if locale == "en" else TEXTURE_SIZE * 2
+			var image := Image.create(size, size, false, Image.FORMAT_RGBA8)
 			image.fill(Color.RED if locale == "en" else Color.BLUE)
 			ResourceSaver.save(ImageTexture.create_from_image(image), OUT_DIR + "/%s/texture_%d.res" % [locale, index])
 			var audio := AudioStreamWAV.new()
@@ -112,7 +114,7 @@ func _bench_relocalization() -> void:
 		_report("relocalize_async_max_frame_run%d" % run, max_frame_ms, "ms")
 		_report("relocalize_async_frames_run%d" % run, frames, "frames")
 		var texture: ImageTexture = cached[0]
-		expect_equal(texture.get_image().get_pixel(0, 0), Color.RED if locale == "en" else Color.BLUE, "texture follows %s" % locale)
+		expect_equal(texture.get_width(), TEXTURE_SIZE if locale == "en" else TEXTURE_SIZE * 2, "texture follows %s" % locale)
 	_report("processor_count", OS.get_processor_count(), "cores")
 	server.clear_catalogs()
 
