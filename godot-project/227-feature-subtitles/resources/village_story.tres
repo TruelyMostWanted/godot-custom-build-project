@@ -1,0 +1,56 @@
+[gd_resource type="Subtitle" format=3]
+
+[sub_resource type="SubtitleSegment" id="SubtitleSegment_b0q1u"]
+start_time = 0.5
+end_time = 3.0
+text = "Es war einmal ein kleines Dorf."
+kind = 1
+
+[sub_resource type="SubtitleSegment" id="SubtitleSegment_do5rw"]
+start_time = 3.5
+end_time = 5.0
+text = "Wer ist da?"
+speaker = &"guard"
+
+[sub_resource type="SubtitleSegment" id="SubtitleSegment_5xj2w"]
+start_time = 5.5
+end_time = 7.0
+text = "Tür knarrt"
+kind = 2
+
+[sub_resource type="SubtitleSegment" id="SubtitleSegment_tpkd7"]
+start_time = 6.0
+end_time = 8.0
+text = "lacht"
+kind = 3
+
+[sub_resource type="SubtitleSegment" id="SubtitleSegment_b5dqe"]
+start_time = 8.5
+end_time = 11.0
+text = "spannende Musik"
+kind = 4
+
+[sub_resource type="SubtitleSegment" id="SubtitleSegment_idemh"]
+start_time = 11.5
+end_time = 14.0
+text = "Lalala, im Wald
+da singt ein Vogel"
+kind = 5
+
+[sub_resource type="SubtitleSegment" id="SubtitleSegment_cypfb"]
+start_time = 14.5
+end_time = 16.0
+text = "Hier ist es gefährlich!"
+speaker = &"guard"
+off_screen = true
+
+[sub_resource type="SubtitleSegment" id="SubtitleSegment_lmknr"]
+start_time = 16.5
+end_time = 18.0
+text = "Zum Schloss"
+kind = 6
+placement = 2
+
+[resource]
+segments = Array[SubtitleSegment]([SubResource("SubtitleSegment_b0q1u"), SubResource("SubtitleSegment_do5rw"), SubResource("SubtitleSegment_5xj2w"), SubResource("SubtitleSegment_tpkd7"), SubResource("SubtitleSegment_b5dqe"), SubResource("SubtitleSegment_idemh"), SubResource("SubtitleSegment_cypfb"), SubResource("SubtitleSegment_lmknr")])
+language = "de"

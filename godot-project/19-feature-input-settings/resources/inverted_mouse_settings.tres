@@ -1,0 +1,7 @@
+[gd_resource type="InputSettings" format=3]
+
+[resource]
+mouse_sensitivity = 1.5
+mouse_y_inverted = true
+gamepad_deadzone = 0.25
+vibration_strength = 0.5

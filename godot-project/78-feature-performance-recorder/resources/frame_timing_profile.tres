@@ -1,0 +1,4 @@
+[gd_resource type="PerformanceRecordingProfile" format=3]
+
+[resource]
+output_path = "user://performance/frames_{date}_{time}.csv"

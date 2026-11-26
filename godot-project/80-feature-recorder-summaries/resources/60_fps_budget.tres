@@ -1,0 +1,14 @@
+[gd_resource type="PerformanceBudget" format=3]
+
+[sub_resource type="PerformanceBudgetRule" id="PerformanceBudgetRule_xlkiu"]
+
+[sub_resource type="PerformanceBudgetRule" id="PerformanceBudgetRule_c7olh"]
+statistic = 1
+limit = 50000.0
+
+[sub_resource type="PerformanceBudgetRule" id="PerformanceBudgetRule_q3j70"]
+statistic = 4
+limit = 3.0
+
+[resource]
+rules = Array[PerformanceBudgetRule]([SubResource("PerformanceBudgetRule_xlkiu"), SubResource("PerformanceBudgetRule_c7olh"), SubResource("PerformanceBudgetRule_q3j70")])

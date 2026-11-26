@@ -1,0 +1,19 @@
+[gd_resource type="InputIconSet" format=3]
+
+[ext_resource type="Texture2D" path="res://icon.svg" id="1_fsoko"]
+
+[resource]
+key_icons = {
+"Escape": ExtResource("1_fsoko"),
+"Space": ExtResource("1_fsoko")
+}
+mouse_button_icons = {
+"Left": ExtResource("1_fsoko")
+}
+joy_button_icons = {
+"A": ExtResource("1_fsoko")
+}
+joy_axis_icons = {
+"LeftStickUp": ExtResource("1_fsoko")
+}
+fallback_key_icon = ExtResource("1_fsoko")
