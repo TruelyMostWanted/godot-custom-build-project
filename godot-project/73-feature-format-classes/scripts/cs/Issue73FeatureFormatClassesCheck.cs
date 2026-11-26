@@ -59,7 +59,7 @@ public partial class Issue73FeatureFormatClassesCheck : FeatureCheckCs
         const string text = "<?xml version=\"1.0\"?>\n<!-- comment -->\n<book id=\"7\" lang=\"en\">\n\t<title>Fish &amp; Chips</title>\n\t<p>Hello <b>big</b> world</p>\n\t<code><![CDATA[a < b]]></code>\n\t<empty/>\n</book>\n";
         var xml = new Xml();
         ExpectEqual(xml.Parse(text), Error.Ok, "Xml.Parse() of a document");
-        Dictionary root = xml.GetData();
+        Dictionary root = xml.GetData().AsGodotDictionary();
         ExpectEqual((string)root["name"], "book", "XML root name");
         var attributes = (Dictionary)root["attributes"];
         Expect(attributes.Count == 2 && (string)attributes["id"] == "7" && (string)attributes["lang"] == "en", "XML attributes");
@@ -92,7 +92,7 @@ public partial class Issue73FeatureFormatClassesCheck : FeatureCheckCs
         ExpectEqual(xml.GetErrorLine(), 1, "XML error line of the unclosed element");
         ExpectEqual(xml.Parse("<a/>\n<b/>"), Error.ParseError, "XML second root fails");
         ExpectEqual(xml.GetErrorLine(), 2, "XML error line of the second root");
-        Expect(xml.GetData().Count == 0, "XML GetData() is empty after an error");
+        Expect(xml.GetData().AsGodotDictionary().Count == 0, "XML GetData() is empty after an error");
         ExpectEqual(xml.Parse("<a/>\r\n"), Error.Ok, "XML trailing line break is no second root");
     }
 
@@ -101,7 +101,7 @@ public partial class Issue73FeatureFormatClassesCheck : FeatureCheckCs
         var ini = new Ini();
         const string text = "; comment\ntop=1\n\n[player]\nname=\"Ann\"\npos=Vector2(1, 2)\nplain=just text\nflags=[1, 2]\n\n[player]\nlevel=3\n";
         ExpectEqual(ini.Parse(text), Error.Ok, "Ini.Parse()");
-        Dictionary parsed = ini.GetData();
+        Dictionary parsed = ini.GetData().AsGodotDictionary();
         ExpectEqual((int)((Dictionary)parsed[""])["top"], 1, "INI keys before the first section are in section \"\"");
         var player = (Dictionary)parsed["player"];
         Expect((string)player["name"] == "Ann" && (Vector2)player["pos"] == new Vector2(1, 2) && (string)player["plain"] == "just text"
@@ -130,15 +130,14 @@ public partial class Issue73FeatureFormatClassesCheck : FeatureCheckCs
     private void CheckCsv()
     {
         var headers = new SerializerOptions { CsvHeaders = true };
-        var csv = new Csv();
+        var csv = new Csv { Options = headers };
         const string text = "name,note\nAnn,\"a, b\"\r\nBob,\"line\nbreak \"\"quoted\"\"\"\nCleo\n";
-        ExpectEqual(csv.Parse(text, headers), Error.Ok, "Csv.Parse() with headers");
-        Array records = csv.GetData();
-        ExpectEqual(records.Count, 3, "CSV records");
-        if (records.Count == 3)
+        ExpectEqual(csv.Parse(text), Error.Ok, "Csv.Parse() with headers");
+        ExpectEqual(csv.GetRowCount(), 3, "CSV records");
+        if (csv.GetRowCount() == 3)
         {
-            Expect((string)((Dictionary)records[0])["note"] == "a, b" && (string)((Dictionary)records[1])["note"] == "line\nbreak \"quoted\"", "CSV quoted cells");
-            Expect((string)((Dictionary)records[2])["name"] == "Cleo" && (string)((Dictionary)records[2])["note"] == "", "CSV missing cells are empty");
+            Expect((string)csv.GetRowAsDictionary(0)["note"] == "a, b" && (string)csv.GetRowAsDictionary(1)["note"] == "line\nbreak \"quoted\"", "CSV quoted cells");
+            Expect((string)csv.GetRowAsDictionary(2)["name"] == "Cleo" && (string)csv.GetRowAsDictionary(2)["note"] == "", "CSV missing cells are empty");
         }
 
         var rowsOnly = new SerializerOptions { CsvHeaders = false, CsvDelimiter = ";" };
@@ -160,9 +159,9 @@ public partial class Issue73FeatureFormatClassesCheck : FeatureCheckCs
         ExpectEqual(tabbed, "a\tb c\t\n1\t2\t3\n", "Csv.Stringify() rows with tab delimiter");
         Expect(Csv.ParseString(tabbed, tabs).RecursiveEqual(table), "CSV rows stringify and parse again");
 
-        ExpectEqual(csv.Parse("a,b\n1,2\n3,\"open\n", headers), Error.ParseError, "CSV unclosed quote fails");
+        ExpectEqual(csv.Parse("a,b\n1,2\n3,\"open\n"), Error.ParseError, "CSV unclosed quote fails");
         ExpectEqual(csv.GetErrorLine(), 3, "CSV error line of the unclosed quote");
-        ExpectEqual(csv.Parse("a,b\n1,2,3\n", headers), Error.ParseError, "CSV too many cells fails");
+        ExpectEqual(csv.Parse("a,b\n1,2,3\n"), Error.ParseError, "CSV too many cells fails");
         Expect(csv.GetErrorLine() == 2 && csv.GetErrorMessage().Length > 0, "CSV error line and message of the long row");
     }
 
