@@ -11,8 +11,8 @@ func _get_check_name() -> String:
 	return "343-feature-text-localization-server"
 
 
-func _on_locale_changed(locale: String, previous_locale: String) -> void:
-	_locale_changes.append([locale, previous_locale])
+func _on_locale_changed(channel: StringName, locale: String, previous_locale: String) -> void:
+	_locale_changes.append([channel, locale, previous_locale])
 
 
 func _on_catalogs_changed() -> void:
@@ -43,15 +43,15 @@ func _run_checks() -> void:
 	var server := TextLocalizationServer
 	expect(Engine.has_singleton("TextLocalizationServer"), "TextLocalizationServer is a registered singleton")
 	expect(ClassDB.class_exists("LocalizationServer") and not ClassDB.can_instantiate("LocalizationServer"), "LocalizationServer is abstract")
-	var previous_locale := LocalizationServer.get_locale()
+	var previous_locale := TranslationServer.get_locale()
 	server.clear_catalogs()
-	LocalizationServer.set_locale("en")
-	server.locale_changed.connect(_on_locale_changed)
+	TranslationServer.set_locale("en")
+	TranslationServer.locale_changed.connect(_on_locale_changed)
 	server.catalogs_changed.connect(_on_catalogs_changed)
 
-	# Locale and chain, forwarded to TranslationServer.
-	var fallback := LocalizationServer.get_fallback_locale()
-	expect_equal(LocalizationServer.get_locale_chain("de_DE"), PackedStringArray(["de_DE", "de", fallback]), "chain de_DE -> de -> fallback")
+	# Locale (TranslationServer) and chain (the closest other locale comes before the fallback).
+	var fallback := str(ProjectSettings.get_setting("internationalization/locale/fallback", "en"))
+	expect_equal(server.get_locale_chain("de_DE"), PackedStringArray(["de_DE", "de", fallback]), "chain de_DE -> de -> fallback")
 
 	# Game and mod layers: the mod (priority 100) overrides the game.
 	var game := _game_catalog()
@@ -59,9 +59,9 @@ func _run_checks() -> void:
 	server.add_catalog(game)
 	server.add_catalog(mod, 100)
 	expect_equal(_catalogs_changed, 2, "catalogs_changed per add_catalog")
-	LocalizationServer.set_locale("de_DE")
-	expect_equal(TranslationServer.get_locale(), "de_DE", "set_locale forwards to TranslationServer")
-	expect_equal(_locale_changes.back(), ["de_DE", "en"], "locale_changed(locale, previous_locale)")
+	TranslationServer.set_locale("de_DE")
+	expect_equal(TranslationServer.get_locale(), "de_DE", "TranslationServer is the locale source")
+	expect_equal(_locale_changes.back(), [&"", "de_DE", "en"], "TranslationServer.locale_changed(channel, locale, previous_locale)")
 	expect_equal(server.translate(&"HELLO"), "Servus", "mod wins over game")
 	expect_equal(server.translate(&"HELLO", &"menu"), "Hallo (Menü)", "context")
 	expect_equal(server.translate(&"BYE"), "Bye", "fallback locale")
@@ -82,7 +82,7 @@ func _run_checks() -> void:
 	# A direct TranslationServer.set_locale() reaches the server too.
 	TranslationServer.set_locale("en")
 	expect_equal(server.translate(&"HELLO"), "Hello", "TranslationServer.set_locale is the locale source")
-	LocalizationServer.set_locale("de")
+	TranslationServer.set_locale("de")
 
 	# Key ids, plurals and arguments.
 	var hello_id := server.get_key_id(&"HELLO")
@@ -97,10 +97,8 @@ func _run_checks() -> void:
 	expect_equal(server.translate(&"GREET", &"", -1, { "name": "Ann" }), "Hallo Ann", "placeholders from args")
 	expect_equal(TextInsertionServer.insert("{k:t}!", { "k": "HELLO" }), "Servus!", "t modifier uses TextLocalizationServer")
 
-	# Reverse lookup and missing keys.
-	expect_equal(server.get_translation_key("Servus"), &"HELLO", "get_translation_key")
+	# Keys of a text and missing keys.
 	expect_equal(server.get_translation_keys("Bye"), PackedStringArray(["BYE"]), "get_translation_keys")
-	expect_equal(server.get_translation_key_for_locale("fr", "Bonjour"), &"HELLO", "get_translation_key_for_locale")
 	expect(server.get_missing_keys("de").has("BYE"), "get_missing_keys")
 	expect(server.get_available_locales().has("fr"), "get_available_locales")
 
@@ -109,15 +107,18 @@ func _run_checks() -> void:
 	await get_tree().process_frame
 	expect_equal(server.translate(&"BYE"), "Tschüss", "catalog change picked up")
 
-	# Catalog files with folder wildcards and on-demand locales.
+	# Catalog manifests with folder wildcards and on-demand locales.
 	server.clear_catalogs()
 	DirAccess.make_dir_recursive_absolute(DATA_DIR + "/mods/knights/translations")
 	game.save_to_file(DATA_DIR + "/game.lcat")
 	_mod_catalog().save_to_file(DATA_DIR + "/mods/knights/translations/texts.lcat")
-	var list := LocalizationCatalogList.new()
-	list.add_entry(DATA_DIR + "/*.lcat")
-	list.add_entry(DATA_DIR + "/mods/*/translations/*.lcat", 100)
-	expect_equal(server.add_catalog_list(list), 2, "add_catalog_list loads game and mod")
+	var base_manifest := FilesManifest.new()
+	base_manifest.file_paths = PackedStringArray([DATA_DIR + "/game.lcat"])
+	var mod_manifest := FilesManifest.new()
+	mod_manifest.type_hint = &"TextLocalizationCatalog"
+	mod_manifest.folder_paths = PackedStringArray([DATA_DIR + "/mods/*/translations"])
+	expect_equal(server.add_catalog_manifest(base_manifest), 1, "add_catalog_manifest loads the game")
+	expect_equal(server.add_catalog_manifest(mod_manifest, 100), 1, "add_catalog_manifest loads the mod (wildcard folder)")
 	var loaded: LocalizationCatalog = server.get_catalogs()[0]
 	expect_equal(server.translate(&"HELLO"), "Servus", "mod from user://mods/*/translations")
 	expect(loaded.is_locale_loaded("de") and not loaded.is_locale_loaded("fr"), "only the chain locales are read")
@@ -135,7 +136,7 @@ func _run_checks() -> void:
 	expect_equal(tr(&"HELLO"), "Ciao", "tr() after the switch")
 	LanguageSettingsServer.set_locale(settings_locale)
 
-	server.locale_changed.disconnect(_on_locale_changed)
+	TranslationServer.locale_changed.disconnect(_on_locale_changed)
 	server.catalogs_changed.disconnect(_on_catalogs_changed)
 	server.clear_catalogs()
-	LocalizationServer.set_locale(previous_locale)
+	TranslationServer.set_locale(previous_locale)

@@ -32,7 +32,7 @@ func _bench_lookup() -> void:
 		for index in keys:
 			catalog.set_localized_path("res://voice/line_%d.ogg" % index, "de", "res://voice/de/line_%d.ogg" % index)
 		server.add_catalog(catalog)
-		LocalizationServer.set_locale("de")
+		TranslationServer.set_locale("de")
 		var path := "res://voice/line_%d.ogg" % (keys >> 1)
 		var start := Time.get_ticks_usec()
 		for _i in CALLS:
@@ -43,7 +43,7 @@ func _bench_lookup() -> void:
 			server.get_localized_path(path, "de_AT")
 		_report("get_localized_path_explicit_%d_keys" % keys, (Time.get_ticks_usec() - start) * 10000.0 / CALLS, "ns")
 		start = Time.get_ticks_usec()
-		LocalizationServer.set_locale("en")
+		TranslationServer.set_locale("en")
 		_report("set_locale_resolve_%d_keys" % keys, (Time.get_ticks_usec() - start) / 1000.0, "ms")
 	server.clear_catalogs()
 
@@ -79,14 +79,14 @@ func _bench_relocalization() -> void:
 	for path in originals:
 		catalog.set_localized_path(path, "de", path.replace("/en/", "/de/"))
 	server.clear_catalogs()
-	LocalizationServer.set_locale("en")
+	TranslationServer.set_locale("en")
 	server.add_catalog(catalog)
 	var cached: Array[Resource] = []
 	for path in originals:
 		cached.append(load(path))
 
 	# BEFORE: synchronous reload on the main thread, as translation_remaps does in set_locale().
-	LocalizationServer.set_locale("de")
+	TranslationServer.set_locale("de")
 	var start := Time.get_ticks_usec()
 	for path in originals:
 		ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_REPLACE)
@@ -99,7 +99,7 @@ func _bench_relocalization() -> void:
 	for run in 3:
 		var locale := "en" if run % 2 == 0 else "de"
 		start = Time.get_ticks_usec()
-		LocalizationServer.set_locale(locale)
+		TranslationServer.set_locale(locale)
 		var block_ms := (Time.get_ticks_usec() - start) / 1000.0
 		var max_frame_ms := 0.0
 		var frames := 0
@@ -120,7 +120,7 @@ func _bench_relocalization() -> void:
 
 
 func _run_checks() -> void:
-	var previous_locale := LocalizationServer.get_locale()
+	var previous_locale := TranslationServer.get_locale()
 	_bench_lookup()
 	await _bench_relocalization()
-	LocalizationServer.set_locale(previous_locale)
+	TranslationServer.set_locale(previous_locale)

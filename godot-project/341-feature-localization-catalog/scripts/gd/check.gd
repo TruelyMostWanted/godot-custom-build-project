@@ -19,7 +19,7 @@ func _run_checks() -> void:
 	expect(ClassDB.class_exists("LocalizationCatalog"), "ClassDB knows LocalizationCatalog")
 	expect(ClassDB.class_exists("TextLocalizationCatalog"), "ClassDB knows TextLocalizationCatalog")
 	expect(ClassDB.class_exists("ResourceLocalizationCatalog"), "ClassDB knows ResourceLocalizationCatalog")
-	expect(ClassDB.class_exists("LocalizationCatalogList"), "ClassDB knows LocalizationCatalogList")
+	expect(not ClassDB.class_exists("LocalizationCatalogList"), "LocalizationCatalogList is removed (#357): catalog sources are FilesManifest lists")
 	if not ClassDB.class_exists("TextLocalizationCatalog"):
 		return
 	_check_csv_rules()
@@ -28,7 +28,6 @@ func _run_checks() -> void:
 	_check_binary()
 	_check_translations()
 	_check_resource_catalog()
-	_check_list()
 	_measure()
 
 
@@ -220,37 +219,6 @@ func _check_resource_catalog() -> void:
 		expect(err == OK, "resource catalog: load_from_text format %d" % f)
 		expect(copy.get("data") == catalog.get("data"), "resource catalog: data round trip format %d" % f)
 		expect_equal(str(copy.get_expected_type("res://icon.png")), "Texture2D", "resource catalog: expected type format %d" % f)
-
-
-func _check_list() -> void:
-	var folder := "user://catalog_341_list"
-	DirAccess.make_dir_recursive_absolute(folder)
-	var file_names: Array[String] = ["b.json", "a.lcat", "a.lcat.uid", "notes.txt"]
-	for file_name in file_names:
-		var file := FileAccess.open(folder.path_join(file_name), FileAccess.WRITE)
-		if file != null:
-			file.store_string("{}")
-			file.close()
-
-	var list := LocalizationCatalogList.new()
-	list.add_entry(folder.path_join("*"), 10)
-	list.add_entry("res://base.csv")
-	list.add_entry(folder.path_join("*.json"), 10)
-	list.add_entry(folder.path_join("missing/*"))
-	expect_equal(list.get_entry_count(), 4, "list: entry count")
-	var expected := PackedStringArray(["res://base.csv", folder.path_join("a.lcat"), folder.path_join("b.json"), folder.path_join("b.json")])
-	expect_equal(list.get_catalog_paths(), expected, "list: paths sorted by priority, wildcards expanded")
-
-	expect_equal(list.get("entry_1/path"), "res://base.csv", "list: entry_1/path property")
-	list.set("entry_0/priority", -1)
-	expect_equal(list.get_entry_priority(0), -1, "list: entry_0/priority set via property")
-	expect_equal(list.get_catalog_paths()[0], folder.path_join("a.lcat"), "list: lowered priority sorts first")
-	list.remove_entry(0)
-	expect_equal(list.get_entry_count(), 3, "list: remove_entry")
-
-	for file_name in file_names:
-		DirAccess.remove_absolute(folder.path_join(file_name))
-	DirAccess.remove_absolute(folder)
 
 
 func _median(values: Array[float]) -> float:

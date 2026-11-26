@@ -26,7 +26,7 @@ public partial class Issue341FeatureLocalizationCatalogCheck : FeatureCheckCs
         Expect(ClassDB.ClassExists("LocalizationCatalog"), "ClassDB knows LocalizationCatalog");
         Expect(ClassDB.ClassExists("TextLocalizationCatalog"), "ClassDB knows TextLocalizationCatalog");
         Expect(ClassDB.ClassExists("ResourceLocalizationCatalog"), "ClassDB knows ResourceLocalizationCatalog");
-        Expect(ClassDB.ClassExists("LocalizationCatalogList"), "ClassDB knows LocalizationCatalogList");
+        Expect(!ClassDB.ClassExists("LocalizationCatalogList"), "LocalizationCatalogList is removed (#357): catalog sources are FilesManifest lists");
         if (!ClassDB.ClassExists("TextLocalizationCatalog"))
         {
             return Task.CompletedTask;
@@ -37,7 +37,6 @@ public partial class Issue341FeatureLocalizationCatalogCheck : FeatureCheckCs
         CheckBinary();
         CheckTranslations();
         CheckResourceCatalog();
-        CheckList();
         Measure();
         return Task.CompletedTask;
     }
@@ -258,40 +257,6 @@ public partial class Issue341FeatureLocalizationCatalogCheck : FeatureCheckCs
             Expect(SameData(copy, catalog), $"resource catalog: data round trip format {format}");
             ExpectEqual(copy.GetExpectedType("res://icon.png").ToString(), "Texture2D", $"resource catalog: expected type format {format}");
         }
-    }
-
-    private void CheckList()
-    {
-        const string folder = "user://catalog_341_list_cs";
-        DirAccess.MakeDirRecursiveAbsolute(folder);
-        string[] fileNames = ["b.json", "a.lcat", "a.lcat.uid", "notes.txt"];
-        foreach (string fileName in fileNames)
-        {
-            using var file = FileAccess.Open(folder.PathJoin(fileName), FileAccess.ModeFlags.Write);
-            file?.StoreString("{}");
-        }
-
-        var list = new LocalizationCatalogList();
-        list.AddEntry(folder.PathJoin("*"), 10);
-        list.AddEntry("res://base.csv");
-        list.AddEntry(folder.PathJoin("*.json"), 10);
-        list.AddEntry(folder.PathJoin("missing/*"));
-        ExpectEqual(list.GetEntryCount(), 4, "list: entry count");
-        string[] expected = ["res://base.csv", folder.PathJoin("a.lcat"), folder.PathJoin("b.json"), folder.PathJoin("b.json")];
-        Expect(list.GetCatalogPaths().SequenceEqual(expected), "list: paths sorted by priority, wildcards expanded");
-
-        ExpectEqual(list.Get("entry_1/path").AsString(), "res://base.csv", "list: entry_1/path property");
-        list.Set("entry_0/priority", -1);
-        ExpectEqual(list.GetEntryPriority(0), -1, "list: entry_0/priority set via property");
-        ExpectEqual(list.GetCatalogPaths()[0], folder.PathJoin("a.lcat"), "list: lowered priority sorts first");
-        list.RemoveEntry(0);
-        ExpectEqual(list.GetEntryCount(), 3, "list: remove_entry");
-
-        foreach (string fileName in fileNames)
-        {
-            DirAccess.RemoveAbsolute(folder.PathJoin(fileName));
-        }
-        DirAccess.RemoveAbsolute(folder);
     }
 
     private static double Median(List<double> values)
