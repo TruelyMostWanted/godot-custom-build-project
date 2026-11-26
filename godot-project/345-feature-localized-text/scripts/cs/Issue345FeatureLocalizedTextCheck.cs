@@ -46,7 +46,7 @@ public partial class Issue345FeatureLocalizedTextCheck : FeatureCheckCs
         Expect(ClassDB.ClassExists("LocalizedText"), "LocalizedText is a registered class");
         string previousLocale = TranslationServer.GetLocale();
         TextLocalizationCatalog catalog = MakeCatalog();
-        TextLocalizationServer.AddCatalog(catalog, 100);
+        TextLocalizationServer.Singleton.AddCatalog(catalog, 100);
         TranslationServer.SetLocale("en");
         TextInsertionServer.SetValue("player_name", "Ada");
 
@@ -163,7 +163,7 @@ public partial class Issue345FeatureLocalizedTextCheck : FeatureCheckCs
         }
         TextInsertionServer.RemoveValue("player_name");
         TextInsertionServer.RemoveValue("enemy.count");
-        TextLocalizationServer.RemoveCatalog(catalog);
+        TextLocalizationServer.Singleton.RemoveCatalog(catalog);
         TranslationServer.SetLocale(previousLocale);
     }
 
