@@ -18,7 +18,7 @@ public partial class Issue34PathLoader : ResourceFormatLoader
 
     public override string _GetResourceType(string path) => path.EndsWith(PathEnding) ? TypeName : "";
 
-    public override Variant _Load(string path, string originalPath, bool useSubThreads, int cacheMode)
+    public override Variant _Load(string path, string originalPath, bool useSubThreads, ResourceFormatLoader.CacheMode cacheMode)
     {
         var res = new Resource { ResourceName = Tag };
         return res;

@@ -17,7 +17,7 @@ public partial class LimitLoaderCs : ResourceFormatLoader
 
     public override string _GetResourceType(string path) => path.GetExtension() == Extension ? "Resource" : "";
 
-    public override Variant _Load(string path, string originalPath, bool useSubThreads, int cacheMode)
+    public override Variant _Load(string path, string originalPath, bool useSubThreads, ResourceFormatLoader.CacheMode cacheMode)
     {
         var res = new Resource();
         res.SetMeta("loader_id", Id);
@@ -37,7 +37,7 @@ public partial class LimitSaverCs : ResourceFormatSaver
 
     public override bool _RecognizePath(Resource resource, string path) => path.GetExtension() == Extension;
 
-    public override Error _Save(Resource resource, string path, uint flags)
+    public override Error _Save(Resource resource, string path, ResourceSaver.SaverFlags flags)
     {
         Saved++;
         return Error.Ok;
