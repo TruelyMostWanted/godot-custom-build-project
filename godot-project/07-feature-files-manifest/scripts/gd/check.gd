@@ -247,10 +247,10 @@ func _check_wildcards() -> void:
 	expect_equal(ResourceLoader.get_manifest_paths(manifest), PackedStringArray([PREFIX + "a/tr/y.tres", PREFIX + "b/tr/x.tres", PREFIX + "c/tr/sub/w.tres"]), "wildcards behind a custom prefix")
 	PathPrefixServer.unregister_prefix(PREFIX)
 
-	manifest.folder_paths = PackedStringArray([ROOT + "mods/*/tr", ROOT + "missing/*/tr"])
+	manifest.folder_paths = PackedStringArray([ROOT + "mods/*/tr", ROOT + "absent/*/tr"])
 	FilesManifestServer.register_manifest("fm07gd_wildcards", manifest)
 	var validation := FilesManifestServer.validate("fm07gd_wildcards")
-	expect_equal(validation.missing_folders, PackedStringArray([ROOT + "missing/*/tr"]), "validate(): a wildcard folder is missing only if its base is")
+	expect_equal(validation.missing_folders, PackedStringArray([ROOT + "absent/*/tr"]), "validate(): a wildcard folder is missing only if its base is")
 	expect_equal(FilesManifestServer.create_missing_folders("fm07gd_wildcards"), OK, "create_missing_folders() creates the wildcard base")
 	expect(DirAccess.dir_exists_absolute(ROOT + "missing"), "the wildcard base exists")
 	FilesManifestServer.unregister_manifest("fm07gd_wildcards")

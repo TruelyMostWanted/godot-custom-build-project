@@ -280,10 +280,10 @@ public partial class Issue07FeatureFilesManifestCheck : FeatureCheckCs
         ExpectPaths(ResourceLoader.GetManifestPaths(manifest), [Prefix + "a/tr/y.tres", Prefix + "b/tr/x.tres", Prefix + "c/tr/sub/w.tres"], "wildcards behind a custom prefix");
         PathPrefixServer.UnregisterPrefix(Prefix);
 
-        manifest.FolderPaths = [Root + "mods/*/tr", Root + "missing/*/tr"];
+        manifest.FolderPaths = [Root + "mods/*/tr", Root + "absent/*/tr"];
         FilesManifestServer.RegisterManifest("fm07cs_wildcards", manifest);
         FilesManifestValidation validation = FilesManifestServer.Validate("fm07cs_wildcards");
-        ExpectPaths(validation.MissingFolders, [Root + "missing/*/tr"], "Validate(): a wildcard folder is missing only if its base is");
+        ExpectPaths(validation.MissingFolders, [Root + "absent/*/tr"], "Validate(): a wildcard folder is missing only if its base is");
         ExpectEqual(FilesManifestServer.CreateMissingFolders("fm07cs_wildcards"), Error.Ok, "CreateMissingFolders() creates the wildcard base");
         Expect(DirAccess.DirExistsAbsolute(Root + "missing"), "the wildcard base exists");
         FilesManifestServer.UnregisterManifest("fm07cs_wildcards");
