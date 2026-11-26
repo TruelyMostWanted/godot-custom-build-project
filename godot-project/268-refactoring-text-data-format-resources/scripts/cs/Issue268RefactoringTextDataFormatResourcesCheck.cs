@@ -25,7 +25,9 @@ public partial class Issue268RefactoringTextDataFormatResourcesCheck : FeatureCh
         CheckXml();
         CheckToml();
         CheckYaml();
+        CheckYamlDocuments();
         CheckErrors();
+        CheckIniValueStyleSetting();
         return Task.CompletedTask;
     }
 
@@ -259,10 +261,40 @@ public partial class Issue268RefactoringTextDataFormatResourcesCheck : FeatureCh
         ExpectEqual(ini.Parse("[broken\n"), Error.ParseError, "Ini.Parse() of broken text");
         Expect(ini.GetErrorLine() > 0, "INI error line is set");
         Expect(ini.GetErrorMessage().Length > 0, "INI error message is set");
+        ini.Data = new Godot.Collections.Dictionary { { "s", new Godot.Collections.Dictionary { { "k", 1 } } } };
+        Expect(ini.GetErrorMessage().Length == 0 && ini.GetErrorLine() == 0, "setting Data clears the parse error");
         var toml = new Toml();
         Expect(toml.Parse("a = 1\nb = = 2\n") != Error.Ok, "Toml.Parse() of broken text");
         Expect(toml.GetErrorLine() > 0, "TOML error line is set");
         var xml = new Xml();
         Expect(xml.Parse("<a><b></a>") != Error.Ok && xml.GetErrorLine() > 0, "XML error line is set");
+    }
+
+    private void CheckIniValueStyleSetting()
+    {
+        ExpectEqual((int)ProjectSettings.GetSetting("filesystem/resources/text_formats/ini_value_style"), (int)SerializerOptions.IniValueStyle.GodotVariant, "project setting ini_value_style defaults to GodotVariant");
+        Expect(!ProjectSettings.HasSetting("filesystem/resources/text_formats/ini_plain_values"), "the old bool ini_plain_values is not registered");
+    }
+
+    private void CheckYamlDocuments()
+    {
+        ExpectEqual(new Yaml().GetDocumentCount(), 1, "a new Yaml has one document");
+        var yaml = new Yaml();
+        ExpectEqual(yaml.Parse("a: 1\n---\n- x\n...\n---\nb: 2\n"), Error.Ok, "Yaml.Parse() of several documents");
+        ExpectEqual(yaml.GetDocumentCount(), 3, "GetDocumentCount()");
+        ExpectEqual((int)yaml.GetValue("a"), 1, "Data is the first document");
+        var second = (Godot.Collections.Array)yaml.GetDocument(1);
+        Expect(second.Count == 1 && (string)second[0] == "x", "GetDocument(1)");
+        yaml.AddDocument(new Godot.Collections.Dictionary { { "c", 3 } });
+        ExpectEqual(yaml.GetDocumentCount(), 4, "AddDocument()");
+        yaml.RemoveDocument(1);
+        ExpectEqual(yaml.EncodeToText(), "a: 1\n---\nb: 2\n---\nc: 3\n", "documents are written with ---");
+        string path = Root + "documents.yaml";
+        ExpectEqual(yaml.Save(path), Error.Ok, "Save() of several documents");
+        var loaded = new Yaml();
+        ExpectEqual(loaded.Load(path), Error.Ok, "Load() of several documents");
+        ExpectEqual(loaded.GetDocumentCount(), 3, "documents survive Save() and Load()");
+        yaml.RemoveDocument(0);
+        ExpectEqual((int)yaml.GetValue("b"), 2, "RemoveDocument(0) makes the next document Data");
     }
 }
