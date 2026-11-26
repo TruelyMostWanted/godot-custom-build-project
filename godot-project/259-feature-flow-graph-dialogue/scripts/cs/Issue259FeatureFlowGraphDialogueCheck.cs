@@ -154,7 +154,12 @@ public partial class Issue259FeatureFlowGraphDialogueCheck : FeatureCheckCs
         {
             if (node is DialogueLineNode line)
             {
-                textLabel.Text = line.GetTranslatedText().Format(player.GetPlayback().GetBlackboard().Variables);
+                string text = line.GetTranslatedText();
+                foreach (var pair in player.GetPlayback().GetBlackboard().Variables)
+                {
+                    text = text.Replace("{" + pair.Key + "}", pair.Value.ToString());
+                }
+                textLabel.Text = text;
             }
             else if (node is DialogueChoiceNode)
             {
