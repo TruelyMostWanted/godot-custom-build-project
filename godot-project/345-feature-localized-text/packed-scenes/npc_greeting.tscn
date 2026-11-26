@@ -1,0 +1,15 @@
+[gd_scene format=3]
+
+[sub_resource type="LocalizedText" id="LocalizedText_greeting"]
+key = &"NPC_GREETING"
+
+[node name="NpcGreeting" type="Label"]
+text = "NPC_GREETING"
+metadata/localized_text = SubResource("LocalizedText_greeting")
+
+[node name="Answer" type="Button" parent="."]
+text = "NPC_GREETING"
+metadata/localized_text = {
+"text": SubResource("LocalizedText_greeting"),
+"tooltip_text": SubResource("LocalizedText_greeting")
+}
