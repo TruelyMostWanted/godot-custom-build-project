@@ -6,7 +6,7 @@ extends RefCounted
 
 const Generator := preload("res://340-task-translation-benchmark/scripts/gd/generator.gd")
 const DATA_DIR := "user://bench_343/data"
-const VERSION := "1"
+const VERSION := "1b"
 
 
 static func locales_of(data_set: Dictionary) -> PackedStringArray:
@@ -31,6 +31,10 @@ static func ensure_lcat(data_set: Dictionary) -> int:
 	DirAccess.make_dir_recursive_absolute("%s/%s" % [DATA_DIR, data_set.name])
 	var locales := locales_of(data_set)
 	var source_paths: PackedStringArray = data_set.paths
+	if data_set.variant == "compress":
+		# OptimizedTranslation keeps only hashes of the keys and cannot be converted: the catalog of a
+		# compress set is built from the plain set with the same texts (the AFTER path has no compression).
+		source_paths = Generator._make_set(data_set.keys, data_set.locales, data_set.files, "plain").paths
 	var targets := lcat_paths(data_set)
 	var files: int = data_set.files
 	var errors := 0
