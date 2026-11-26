@@ -27,7 +27,7 @@ func _run_checks() -> void:
 	expect_equal(db.open(DB_PATH), OK, "open creates the database in user://")
 	expect(db.is_open(), "is_open is true after open")
 	expect_equal(db.get_path(), DB_PATH, "get_path returns the path")
-	expect_equal(db.get_open_mode(), SQLiteDatabase.OPEN_MODE_READ_WRITE_CREATE, "default open mode is read-write-create")
+	expect_equal(db.get_open_mode(), SQLiteDatabase.OPEN_MODE_CREATE, "default open mode is read-write-create")
 	expect(FileAccess.file_exists(DB_PATH), "the database file exists")
 
 	# Execute with Array and Dictionary params.

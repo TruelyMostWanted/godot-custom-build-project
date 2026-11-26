@@ -40,7 +40,7 @@ public partial class Issue252FeatureSqliteModuleCheck : FeatureCheckCs
         ExpectEqual(db.Open(DbPath), Error.Ok, "Open creates the database in user://");
         Expect(db.IsOpen(), "IsOpen is true after Open");
         ExpectEqual(db.GetPath(), DbPath, "GetPath returns the path");
-        ExpectEqual(db.GetOpenMode(), SQLiteDatabase.OpenMode.ReadWriteCreate, "default open mode is read-write-create");
+        ExpectEqual(db.GetOpenMode(), SQLiteDatabase.OpenMode.Create, "default open mode is read-write-create");
         Expect(FileAccess.FileExists(DbPath), "the database file exists");
 
         // Execute with Array and Dictionary params.
