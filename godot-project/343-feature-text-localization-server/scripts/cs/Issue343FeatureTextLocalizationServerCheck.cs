@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Godot;
@@ -11,7 +10,6 @@ namespace TruelyInteractive.Issue343FeatureTextLocalizationServer;
 public partial class Issue343FeatureTextLocalizationServerCheck : FeatureCheckCs
 {
     private const string DataDir = "user://check_343_cs";
-    private const int Calls = 4000;
 
     protected override string CheckName => "343-feature-text-localization-server";
 
@@ -111,57 +109,5 @@ public partial class Issue343FeatureTextLocalizationServerCheck : FeatureCheckCs
         server.Disconnect("locale_changed", onLocaleChanged);
         TextLocalizationServer.Singleton.ClearCatalogs();
         LocalizationServer.SetLocale(previousLocale);
-
-        if (OS.GetCmdlineUserArgs().Contains("--bench-343"))
-        {
-            Bench();
-        }
-    }
-
-    // C# costs per call (#340: Tr("literal") paid +250-600 ns for the StringName conversion). Uses the files of the GDScript benchmark.
-    private void Bench()
-    {
-        var list = new LocalizationCatalogList();
-        list.AddEntry("user://bench_343/f1_*.lcat");
-        LocalizationServer.SetLocale("de");
-        if (TextLocalizationServer.Singleton.AddCatalogList(list) == 0)
-        {
-            GD.Print("343 bench C#: run the GDScript benchmark first (it generates the data)");
-            return;
-        }
-        var keys = new StringName[Calls];
-        var literals = new string[Calls];
-        var ids = new int[Calls];
-        for (int index = 0; index < Calls; index++)
-        {
-            int k = index * 7919 % 20000;
-            if (k % 10 == 0)
-            {
-                k++;
-            }
-            literals[index] = $"UI_KEY_{k:00000}";
-            keys[index] = new StringName(literals[index]);
-            ids[index] = TextLocalizationServer.GetKeyId(keys[index]);
-        }
-        GD.Print($"343 bench C#: Translate(StringName) {Median(() => { foreach (var key in keys) { TextLocalizationServer.Translate(key); } }):F0} ns");
-        GD.Print($"343 bench C#: Translate(\"literal\") {Median(() => { foreach (var literal in literals) { TextLocalizationServer.Translate(literal); } }):F0} ns");
-        GD.Print($"343 bench C#: TranslateId {Median(() => { foreach (var id in ids) { TextLocalizationServer.TranslateId(id); } }):F0} ns");
-        GD.Print($"343 bench C#: Tr(StringName) (adapter) {Median(() => { foreach (var key in keys) { Tr(key); } }):F0} ns");
-        GD.Print($"343 bench C#: Tr(\"literal\") (adapter) {Median(() => { foreach (var literal in literals) { Tr(literal); } }):F0} ns");
-        TextLocalizationServer.Singleton.ClearCatalogs();
-    }
-
-    private static double Median(System.Action work)
-    {
-        work();
-        var runs = new double[5];
-        for (int run = 0; run < runs.Length; run++)
-        {
-            var watch = Stopwatch.StartNew();
-            work();
-            runs[run] = watch.Elapsed.TotalMilliseconds * 1_000_000.0 / Calls;
-        }
-        System.Array.Sort(runs);
-        return runs[2];
     }
 }

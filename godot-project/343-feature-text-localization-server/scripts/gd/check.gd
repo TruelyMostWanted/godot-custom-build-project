@@ -1,11 +1,7 @@
 extends FeatureCheck
 ## GDScript checks of 343-feature-text-localization-server. Check the same things as scripts/cs/Issue343FeatureTextLocalizationServerCheck.cs.
-## Benchmark (rerun of #340 with the new path): add `-- --bench-343` to the command line.
 
 const DATA_DIR := "user://check_343"
-const BENCH_DIR := "user://bench_343"
-const BENCH_LOCALES := ["en", "de", "fr", "es", "it", "pt", "ru", "ja", "zh", "ko", "pl", "nl"]
-const CALLS := 4000
 
 var _locale_changes: Array = []
 var _catalogs_changed := 0
@@ -130,99 +126,3 @@ func _run_checks() -> void:
 	server.catalogs_changed.disconnect(_on_catalogs_changed)
 	server.clear_catalogs()
 	LocalizationServer.set_locale(previous_locale)
-
-	if OS.get_cmdline_user_args().has("--bench-343"):
-		await _bench()
-
-
-# Benchmark: 20k keys x 12 locales in 1 and 8 files, active locale de, fallback en (as #340).
-func _bench() -> void:
-	for files in [1, 8]:
-		_generate(20000, files)
-		var list := LocalizationCatalogList.new()
-		list.add_entry("%s/f%d_*.lcat" % [BENCH_DIR, files])
-		LocalizationServer.set_locale("de")
-		var memory := Performance.get_monitor(Performance.MEMORY_STATIC)
-		var start := Time.get_ticks_usec()
-		TextLocalizationServer.add_catalog_list(list)
-		var load_ms := (Time.get_ticks_usec() - start) / 1000.0
-		var mb := (Performance.get_monitor(Performance.MEMORY_STATIC) - memory) / 1048576.0
-		var hit: Array[StringName] = []
-		var fallback: Array[StringName] = []
-		var miss: Array[StringName] = []
-		var ids: Array[int] = []
-		for i in CALLS:
-			var k := (i * 7919) % 20000
-			if k % 10 == 0:
-				k += 1
-			hit.append(StringName("UI_KEY_%05d" % k))
-			fallback.append(StringName("UI_KEY_%05d" % ((i * 10) % 20000)))
-			miss.append(StringName("NO_KEY_%05d" % i))
-			ids.append(TextLocalizationServer.get_key_id(hit[i]))
-		var rows := {
-			"translate hit": _median(_run_translate.bind(hit)),
-			"translate miss->fallback": _median(_run_translate.bind(fallback)),
-			"translate miss->key": _median(_run_translate.bind(miss)),
-			"translate_id": _median(_run_translate_id.bind(ids)),
-			"tr() hit (adapter)": _median(_run_tr.bind(hit)),
-			"tr() miss->fallback": _median(_run_tr.bind(fallback)),
-			"tr() miss->key": _median(_run_tr.bind(miss)),
-			"translate_for_locale en": _median(_run_translate_en.bind(hit)),
-		}
-		var switch_start := Time.get_ticks_usec()
-		LocalizationServer.set_locale("fr")
-		var switch_ms := (Time.get_ticks_usec() - switch_start) / 1000.0
-		LocalizationServer.set_locale("de")
-		print("343 bench k20000_l12_f%d: load %.1f ms, static %.2f MB, locale switch (rebuild) %.2f ms" % [files, load_ms, mb, switch_ms])
-		for row_name in rows:
-			print("343 bench k20000_l12_f%d: %s %.0f ns" % [files, row_name, rows[row_name]])
-		TextLocalizationServer.clear_catalogs()
-		await get_tree().process_frame
-
-
-func _run_translate(keys: Array[StringName]) -> void:
-	for key in keys:
-		TextLocalizationServer.translate(key)
-
-
-func _run_translate_en(keys: Array[StringName]) -> void:
-	for key in keys:
-		TextLocalizationServer.translate_for_locale("en", key)
-
-
-func _run_translate_id(ids: Array[int]) -> void:
-	for id in ids:
-		TextLocalizationServer.translate_id(id)
-
-
-func _run_tr(keys: Array[StringName]) -> void:
-	for key in keys:
-		tr(key)
-
-
-func _median(work: Callable) -> float:
-	work.call()
-	var runs: Array[float] = []
-	for run in 5:
-		var start := Time.get_ticks_usec()
-		work.call()
-		runs.append((Time.get_ticks_usec() - start) * 1000.0 / CALLS)
-	runs.sort()
-	return runs[2]
-
-
-func _generate(keys: int, files: int) -> void:
-	DirAccess.make_dir_recursive_absolute(BENCH_DIR)
-	var per_file := keys / files
-	for f in files:
-		var path := "%s/f%d_%d.lcat" % [BENCH_DIR, files, f]
-		if FileAccess.file_exists(path):
-			continue
-		var catalog := TextLocalizationCatalog.new()
-		for i in range(f * per_file, (f + 1) * per_file):
-			var key := StringName("UI_KEY_%05d" % i)
-			for locale in BENCH_LOCALES:
-				if i % 10 == 0 and locale != "en":
-					continue # Only in the fallback locale.
-				catalog.set_text(key, locale, "%s text %d: the quick brown fox jumps over the lazy dog" % [locale, i])
-		catalog.save_to_file(path)
