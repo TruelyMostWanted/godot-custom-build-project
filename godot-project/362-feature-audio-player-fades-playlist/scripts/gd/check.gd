@@ -205,8 +205,13 @@ func _check_playlist_on_player() -> void:
 	expect_equal(player.get_current_track_index(), 0, "get_current_track_index is 0")
 	expect(player.get_current_track_stream() == first, "get_current_track_stream is the first stream")
 	var pos_a := player.get_position_in_playlist()
-	await _wait(0.1)
-	var pos_b := player.get_position_in_playlist()
+	# The dummy driver mixes in blocks on its own thread: wait until the next block arrives (max 1 s).
+	var pos_b := pos_a
+	for i in 20:
+		await _wait(0.05)
+		pos_b = player.get_position_in_playlist()
+		if pos_b > pos_a:
+			break
 	expect(pos_b > pos_a, "get_position_in_playlist increases (%f -> %f)" % [pos_a, pos_b])
 	for i in 40: # At most 2 seconds.
 		if _tracks.has(1):
