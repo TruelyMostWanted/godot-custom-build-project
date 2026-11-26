@@ -23,7 +23,9 @@ func _run_checks() -> void:
 	_check_xml()
 	_check_toml()
 	_check_yaml()
+	_check_yaml_documents()
 	_check_errors()
+	_check_ini_value_style_setting()
 
 
 func _check_api() -> void:
@@ -214,8 +216,35 @@ func _check_errors() -> void:
 	expect_equal(ini.parse("[broken\n"), ERR_PARSE_ERROR, "INI.parse() of broken text")
 	expect(ini.get_error_line() > 0, "INI error line is set")
 	expect(not ini.get_error_message().is_empty(), "INI error message is set")
+	ini.set_data({"s": {"k": 1}})
+	expect(ini.get_error_message().is_empty() and ini.get_error_line() == 0, "set_data() clears the parse error")
 	var toml := TOML.new()
 	expect(toml.parse("a = 1\nb = = 2\n") != OK, "TOML.parse() of broken text")
 	expect(toml.get_error_line() > 0, "TOML error line is set")
 	var xml := XML.new()
 	expect(xml.parse("<a><b></a>") != OK and xml.get_error_line() > 0, "XML error line is set")
+
+
+func _check_ini_value_style_setting() -> void:
+	expect_equal(ProjectSettings.get_setting("filesystem/resources/text_formats/ini_value_style"), SerializerOptions.INI_VALUE_STYLE_GODOT_VARIANT, "project setting ini_value_style defaults to GODOT_VARIANT")
+	expect(not ProjectSettings.has_setting("filesystem/resources/text_formats/ini_plain_values"), "the old bool ini_plain_values is not registered")
+
+
+func _check_yaml_documents() -> void:
+	var yaml := YAML.new()
+	expect_equal(YAML.new().get_document_count(), 1, "a new YAML has one document")
+	expect_equal(yaml.parse("a: 1\n---\n- x\n...\n---\nb: 2\n"), OK, "YAML.parse() of several documents")
+	expect_equal(yaml.get_document_count(), 3, "get_document_count()")
+	expect_equal(yaml.get_value("a"), 1, "data is the first document")
+	expect(yaml.get_document(1) == ["x"], "get_document(1)")
+	yaml.add_document({"c": 3})
+	expect_equal(yaml.get_document_count(), 4, "add_document()")
+	yaml.remove_document(1)
+	expect_equal(yaml.encode_to_text(), "a: 1\n---\nb: 2\n---\nc: 3\n", "documents are written with ---")
+	var path := ROOT + "documents.yaml"
+	expect_equal(yaml.save(path), OK, "save() of several documents")
+	var loaded := YAML.new()
+	expect_equal(loaded.load(path), OK, "load() of several documents")
+	expect_equal(loaded.get_document_count(), 3, "documents survive save() and load()")
+	yaml.remove_document(0)
+	expect_equal(yaml.get_value("b"), 2, "remove_document(0) makes the next document data")
