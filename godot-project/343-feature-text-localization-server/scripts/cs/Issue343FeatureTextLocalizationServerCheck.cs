@@ -106,6 +106,21 @@ public partial class Issue343FeatureTextLocalizationServerCheck : FeatureCheckCs
         ExpectEqual(TextLocalizationServer.Translate("HELLO"), "Servus", "mod from user://mods/*/translations");
         Expect(loaded.IsLocaleLoaded("de") && !loaded.IsLocaleLoaded("fr"), "only the chain locales are read");
 
+        // Language settings list and accept a locale that only a catalog has (#352).
+        TextLocalizationServer.Singleton.ClearCatalogs();
+        var italian = new TextLocalizationCatalog();
+        italian.SetText("HELLO", "it", "Ciao");
+        TextLocalizationServer.Singleton.AddCatalog(italian);
+        string settingsLocale = LanguageSettingsServer.GetLocale();
+#pragma warning disable CS0618 // TranslationServer is deprecated in favour of the localization servers.
+        Expect(!TranslationServer.GetLoadedLocales().Contains("it"), "no Italian translation in TranslationServer");
+#pragma warning restore CS0618
+        Expect(LanguageSettingsServer.GetAvailableLocales().Contains("it"), "LanguageSettingsServer lists the catalog locale");
+        LanguageSettingsServer.SetLocale("it");
+        ExpectEqual(LocalizationServer.GetLocale(), "it", "LanguageSettingsServer.SetLocale switches to a catalog-only locale");
+        ExpectEqual(Tr("HELLO"), "Ciao", "Tr() after the switch");
+        LanguageSettingsServer.SetLocale(settingsLocale);
+
         server.Disconnect("locale_changed", onLocaleChanged);
         TextLocalizationServer.Singleton.ClearCatalogs();
         LocalizationServer.SetLocale(previousLocale);

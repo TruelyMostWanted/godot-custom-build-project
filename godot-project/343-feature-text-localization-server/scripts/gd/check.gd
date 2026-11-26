@@ -122,6 +122,19 @@ func _run_checks() -> void:
 	expect_equal(server.translate(&"HELLO"), "Servus", "mod from user://mods/*/translations")
 	expect(loaded.is_locale_loaded("de") and not loaded.is_locale_loaded("fr"), "only the chain locales are read")
 
+	# Language settings list and accept a locale that only a catalog has (#352).
+	server.clear_catalogs()
+	var italian := TextLocalizationCatalog.new()
+	italian.set_text(&"HELLO", "it", "Ciao")
+	server.add_catalog(italian)
+	var settings_locale := LanguageSettingsServer.get_locale()
+	expect(not TranslationServer.get_loaded_locales().has("it"), "no Italian translation in TranslationServer")
+	expect(LanguageSettingsServer.get_available_locales().has("it"), "LanguageSettingsServer lists the catalog locale")
+	LanguageSettingsServer.set_locale("it")
+	expect_equal(TranslationServer.get_locale(), "it", "LanguageSettingsServer.set_locale switches to a catalog-only locale")
+	expect_equal(tr(&"HELLO"), "Ciao", "tr() after the switch")
+	LanguageSettingsServer.set_locale(settings_locale)
+
 	server.locale_changed.disconnect(_on_locale_changed)
 	server.catalogs_changed.disconnect(_on_catalogs_changed)
 	server.clear_catalogs()
