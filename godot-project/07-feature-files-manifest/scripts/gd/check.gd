@@ -24,6 +24,8 @@ func _run_checks() -> void:
 	_check_single_files()
 	_check_missing_folders()
 	_check_prefixes()
+	_check_order()
+	_check_wildcards()
 	await _check_threaded()
 	_check_null()
 	await _check_performance()
@@ -196,6 +198,62 @@ func _check_prefixes() -> void:
 		expect_equal(ResourceLoader.get_manifest_paths(exec_manifest).size(), 0, "exec:// folders resolve (no matching files)")
 
 	PathPrefixServer.unregister_prefix(PREFIX)
+
+
+# Load order (#354): folders first in list order (files of one folder sorted by path), then files in list order;
+# a path that appears again keeps its first position.
+func _check_order() -> void:
+	var manifest := FilesManifest.new()
+	manifest.extensions = PackedStringArray(["tres", "svg"])
+	manifest.folder_paths = PackedStringArray([_data("b"), _data("a")])
+	manifest.file_paths = PackedStringArray([_data("b/info.json"), _data("a/curve.tres")])
+	var expected := PackedStringArray([_data("b/gradient.tres"), _data("b/sub/deep.tres"), _data("a/curve.tres"), _data("a/icon.svg"), _data("b/info.json")])
+	expect_equal(ResourceLoader.get_manifest_paths(manifest), expected, "folders in list order, then files in list order, duplicates keep their first position")
+	expect_equal(PackedStringArray(ResourceLoader.load_manifest(manifest).keys()), expected, "load_manifest() keeps the load order")
+
+	manifest.folder_paths = PackedStringArray([_data("a"), _data("b")])
+	manifest.file_paths = PackedStringArray([_data("b/info.json")])
+	expect_equal(ResourceLoader.get_manifest_paths(manifest)[0], _data("a/curve.tres"), "reordering folder_paths changes the load order")
+
+	# Inside a folder, files are sorted by path with their subfolders: m/x.tres comes before z.tres.
+	DirAccess.make_dir_recursive_absolute(ROOT + "order/m")
+	ResourceSaver.save(Curve.new(), ROOT + "order/z.tres")
+	ResourceSaver.save(Curve.new(), ROOT + "order/m/x.tres")
+	var sorted := FilesManifest.new()
+	sorted.folder_paths = PackedStringArray([ROOT + "order"])
+	expect_equal(ResourceLoader.get_manifest_paths(sorted), PackedStringArray([ROOT + "order/m/x.tres", ROOT + "order/z.tres"]), "files of a folder are sorted by path, subfolders included")
+
+	FilesManifestServer.register_manifest("fm07gd_order", manifest)
+	expect_equal(FilesManifestServer.get_file_paths("fm07gd_order"), ResourceLoader.get_manifest_paths(manifest), "FilesManifestServer.get_file_paths() keeps the load order")
+	FilesManifestServer.unregister_manifest("fm07gd_order")
+
+
+# Wildcard folders (#354): `*` matches one folder level, matches sorted by name.
+func _check_wildcards() -> void:
+	for relative in ["mods/b/tr/x.tres", "mods/a/tr/y.tres", "mods/a_extra/other/z.tres", "mods/c/tr/sub/w.tres"]:
+		DirAccess.make_dir_recursive_absolute((ROOT + relative).get_base_dir())
+		ResourceSaver.save(Curve.new(), ROOT + relative)
+
+	var manifest := FilesManifest.new()
+	manifest.folder_paths = PackedStringArray([ROOT + "mods/*/tr"])
+	expect_equal(ResourceLoader.get_manifest_paths(manifest), PackedStringArray([ROOT + "mods/a/tr/y.tres", ROOT + "mods/b/tr/x.tres", ROOT + "mods/c/tr/sub/w.tres"]), "mods/*/tr: one level, sorted by name, mods without tr skipped")
+	manifest.folder_paths = PackedStringArray([ROOT + "mods/a*"])
+	expect_equal(ResourceLoader.get_manifest_paths(manifest), PackedStringArray([ROOT + "mods/a/tr/y.tres", ROOT + "mods/a_extra/other/z.tres"]), "patterns inside a segment (a*)")
+	manifest.folder_paths = PackedStringArray([ROOT + "mods/*/nothing"])
+	expect_equal(ResourceLoader.get_manifest_paths(manifest).size(), 0, "no match is not an error")
+
+	expect_equal(PathPrefixServer.register_prefix_folder(PREFIX, ROOT + "mods"), OK, "register_prefix_folder(%s) for wildcards" % PREFIX)
+	manifest.folder_paths = PackedStringArray([PREFIX + "*/tr"])
+	expect_equal(ResourceLoader.get_manifest_paths(manifest), PackedStringArray([PREFIX + "a/tr/y.tres", PREFIX + "b/tr/x.tres", PREFIX + "c/tr/sub/w.tres"]), "wildcards behind a custom prefix")
+	PathPrefixServer.unregister_prefix(PREFIX)
+
+	manifest.folder_paths = PackedStringArray([ROOT + "mods/*/tr", ROOT + "missing/*/tr"])
+	FilesManifestServer.register_manifest("fm07gd_wildcards", manifest)
+	var validation := FilesManifestServer.validate("fm07gd_wildcards")
+	expect_equal(validation.missing_folders, PackedStringArray([ROOT + "missing/*/tr"]), "validate(): a wildcard folder is missing only if its base is")
+	expect_equal(FilesManifestServer.create_missing_folders("fm07gd_wildcards"), OK, "create_missing_folders() creates the wildcard base")
+	expect(DirAccess.dir_exists_absolute(ROOT + "missing"), "the wildcard base exists")
+	FilesManifestServer.unregister_manifest("fm07gd_wildcards")
 
 
 func _check_threaded() -> void:
