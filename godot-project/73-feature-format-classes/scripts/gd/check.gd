@@ -30,7 +30,7 @@ func _same_item(a: Variant, b: Issue73GdItem) -> bool:
 
 func _check_api() -> void:
 	for cls in ["XML", "INI", "CSV"]:
-		expect(ClassDB.class_exists(cls) and ClassDB.is_parent_class(cls, "RefCounted"), "%s exists and is RefCounted" % cls)
+		expect(ClassDB.class_exists(cls) and ClassDB.is_parent_class(cls, "Resource"), "%s exists and is a Resource" % cls)
 		for method in ["parse", "get_data", "get_error_line", "get_error_message", "parse_string", "stringify", "serialize", "deserialize"]:
 			expect(ClassDB.class_has_method(cls, method), "%s.%s()" % [cls, method])
 	expect(ClassDB.class_has_method("JSON", "serialize") and ClassDB.class_has_method("JSON", "deserialize"), "JSON.serialize()/deserialize()")
@@ -94,7 +94,7 @@ func _check_ini() -> void:
 	expect(typed.begins_with("version=2\n") and typed.contains("[audio]\n") and typed.contains("device=\"Speakers (USB)\""), "INI.stringify() typed values")
 	expect_equal(INI.parse_string(typed), data, "INI typed stringify and parse again")
 	var plain := SerializerOptions.new()
-	plain.ini_plain_values = true
+	plain.ini_value_style = SerializerOptions.INI_VALUE_STYLE_PLAIN
 	var plain_text := INI.stringify(data, plain)
 	expect(plain_text.contains("device=Speakers (USB)") and plain_text.contains("mute=false"), "INI.stringify() plain values")
 	expect_equal(INI.parse_string(plain_text), data, "INI plain stringify and parse again")

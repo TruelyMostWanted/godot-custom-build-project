@@ -45,7 +45,7 @@ public partial class Issue73FeatureFormatClassesCheck : FeatureCheckCs
     {
         foreach (string cls in new[] { "XML", "INI", "CSV" })
         {
-            Expect(ClassDB.ClassExists(cls) && ClassDB.IsParentClass(cls, "RefCounted"), $"{cls} exists and is RefCounted");
+            Expect(ClassDB.ClassExists(cls) && ClassDB.IsParentClass(cls, "Resource"), $"{cls} exists and is a Resource");
             foreach (string method in new[] { "parse", "get_data", "get_error_line", "get_error_message", "parse_string", "stringify", "serialize", "deserialize" })
             {
                 Expect(ClassDB.ClassHasMethod(cls, method), $"{cls}.{method}()");
@@ -117,7 +117,7 @@ public partial class Issue73FeatureFormatClassesCheck : FeatureCheckCs
         string typed = Ini.Stringify(data);
         Expect(typed.StartsWith("version=2\n") && typed.Contains("[audio]\n") && typed.Contains("device=\"Speakers (USB)\""), "Ini.Stringify() typed values");
         Expect(Ini.ParseString(typed).RecursiveEqual(data), "INI typed stringify and parse again");
-        string plainText = Ini.Stringify(data, new SerializerOptions { IniPlainValues = true });
+        string plainText = Ini.Stringify(data, new SerializerOptions { IniValueStyle = SerializerOptions.IniValueStyleEnum.Plain });
         Expect(plainText.Contains("device=Speakers (USB)") && plainText.Contains("mute=false"), "Ini.Stringify() plain values");
         Expect(Ini.ParseString(plainText).RecursiveEqual(data), "INI plain stringify and parse again");
 
