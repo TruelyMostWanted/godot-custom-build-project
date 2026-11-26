@@ -119,7 +119,7 @@ func _check_xml_files() -> void:
 	var f := FileAccess.open(other, FileAccess.WRITE)
 	f.store_string("<?xml version=\"1.0\"?>\n<config><volume>3</volume></config>\n")
 	f.close()
-	expect_equal(ResourceLoader.get_resource_type(other), "", "XML without the type marker is not a resource file")
+	expect_equal(ResourceLoader.get_resource_type(other), "XML", "XML without the type marker is a plain XML file (type XML)")
 
 
 func _check_same_text_as_files() -> void:

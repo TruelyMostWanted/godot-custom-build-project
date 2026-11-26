@@ -30,7 +30,7 @@ func _same_item(a: Variant, b: Issue73GdItem) -> bool:
 
 func _check_api() -> void:
 	for cls in ["XML", "INI", "CSV"]:
-		expect(ClassDB.class_exists(cls) and ClassDB.is_parent_class(cls, "RefCounted"), "%s exists and is RefCounted" % cls)
+		expect(ClassDB.class_exists(cls) and ClassDB.is_parent_class(cls, "Resource"), "%s exists and is a Resource" % cls)
 		for method in ["parse", "get_data", "get_error_line", "get_error_message", "parse_string", "stringify", "serialize", "deserialize"]:
 			expect(ClassDB.class_has_method(cls, method), "%s.%s()" % [cls, method])
 	expect(ClassDB.class_has_method("JSON", "serialize") and ClassDB.class_has_method("JSON", "deserialize"), "JSON.serialize()/deserialize()")
@@ -94,7 +94,7 @@ func _check_ini() -> void:
 	expect(typed.begins_with("version=2\n") and typed.contains("[audio]\n") and typed.contains("device=\"Speakers (USB)\""), "INI.stringify() typed values")
 	expect_equal(INI.parse_string(typed), data, "INI typed stringify and parse again")
 	var plain := SerializerOptions.new()
-	plain.ini_plain_values = true
+	plain.ini_value_style = SerializerOptions.INI_VALUE_STYLE_PLAIN
 	var plain_text := INI.stringify(data, plain)
 	expect(plain_text.contains("device=Speakers (USB)") and plain_text.contains("mute=false"), "INI.stringify() plain values")
 	expect_equal(INI.parse_string(plain_text), data, "INI plain stringify and parse again")
@@ -109,11 +109,12 @@ func _check_csv() -> void:
 	var headers := SerializerOptions.new()
 	headers.csv_headers = true
 	var csv := CSV.new()
+	csv.options = headers
 	var text := "name,note\nAnn,\"a, b\"\r\nBob,\"line\nbreak \"\"quoted\"\"\"\nCleo\n"
-	expect_equal(csv.parse(text, headers), OK, "CSV.parse() with headers")
-	var records: Array = csv.get_data()
-	expect_equal(records.size(), 3, "CSV records")
-	if records.size() == 3:
+	expect_equal(csv.parse(text), OK, "CSV.parse() with headers")
+	expect_equal(csv.get_row_count(), 3, "CSV records")
+	if csv.get_row_count() == 3:
+		var records := [csv.get_row_as_dictionary(0), csv.get_row_as_dictionary(1), csv.get_row_as_dictionary(2)]
 		expect(records[0].get("note") == "a, b" and records[1].get("note") == "line\nbreak \"quoted\"", "CSV quoted cells")
 		expect(records[2].get("name") == "Cleo" and records[2].get("note") == "", "CSV missing cells are empty")
 
@@ -136,9 +137,9 @@ func _check_csv() -> void:
 	expect_equal(tabbed, "a\tb c\t\n1\t2\t3\n", "CSV.stringify() rows with tab delimiter")
 	expect_equal(CSV.parse_string(tabbed, tabs), table, "CSV rows stringify and parse again")
 
-	expect_equal(csv.parse("a,b\n1,2\n3,\"open\n", headers), ERR_PARSE_ERROR, "CSV unclosed quote fails")
+	expect_equal(csv.parse("a,b\n1,2\n3,\"open\n"), ERR_PARSE_ERROR, "CSV unclosed quote fails")
 	expect_equal(csv.get_error_line(), 3, "CSV error line of the unclosed quote")
-	expect_equal(csv.parse("a,b\n1,2,3\n", headers), ERR_PARSE_ERROR, "CSV too many cells fails")
+	expect_equal(csv.parse("a,b\n1,2,3\n"), ERR_PARSE_ERROR, "CSV too many cells fails")
 	expect(csv.get_error_line() == 2 and not csv.get_error_message().is_empty(), "CSV error line and message of the long row")
 
 
