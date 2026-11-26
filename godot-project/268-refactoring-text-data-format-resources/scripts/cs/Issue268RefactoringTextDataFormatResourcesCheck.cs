@@ -272,7 +272,7 @@ public partial class Issue268RefactoringTextDataFormatResourcesCheck : FeatureCh
 
     private void CheckIniValueStyleSetting()
     {
-        ExpectEqual((int)ProjectSettings.GetSetting("filesystem/resources/text_formats/ini_value_style"), (int)SerializerOptions.IniValueStyle.GodotVariant, "project setting ini_value_style defaults to GodotVariant");
+        ExpectEqual((int)ProjectSettings.GetSetting("filesystem/resources/text_formats/ini_value_style"), (int)SerializerOptions.IniValueStyleEnum.GodotVariant, "project setting ini_value_style defaults to GodotVariant");
         Expect(!ProjectSettings.HasSetting("filesystem/resources/text_formats/ini_plain_values"), "the old bool ini_plain_values is not registered");
     }
 
