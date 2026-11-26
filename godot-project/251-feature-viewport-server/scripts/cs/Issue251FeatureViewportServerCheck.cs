@@ -104,7 +104,7 @@ public partial class Issue251FeatureViewportServerCheck : FeatureCheckCs
         var outside = new SubViewport { Snap2DTransformsToPixel = !snap };
         AddChild(outside);
         // A session override is not stored in the player's settings file.
-        TextureSettingsServer.SetSessionOverride("snap_2d_transforms_to_pixel", snap);
+        TextureSettingsServer.Singleton.SetSessionOverride("snap_2d_transforms_to_pixel", snap);
         ExpectEqual(root.Snap2DTransformsToPixel, snap, "the root gets the value");
         ExpectEqual(outside.Snap2DTransformsToPixel, !snap, "Group: a viewport outside the group keeps its value");
         TextureSettingsServer.ViewportTarget = SettingsServer.ViewportTargetMode.AllViewports;
@@ -114,7 +114,7 @@ public partial class Issue251FeatureViewportServerCheck : FeatureCheckCs
         AddChild(late);
         ExpectEqual(late.Snap2DTransformsToPixel, snap, "AllViewports: a viewport that enters the tree later gets the value");
         TextureSettingsServer.ViewportTarget = SettingsServer.ViewportTargetMode.RootOnly;
-        TextureSettingsServer.ClearSessionOverride("snap_2d_transforms_to_pixel");
+        TextureSettingsServer.Singleton.ClearSessionOverride("snap_2d_transforms_to_pixel");
         ExpectEqual(root.Snap2DTransformsToPixel, !snap, "the root gets the stored value back");
         ExpectEqual(late.Snap2DTransformsToPixel, snap, "RootOnly: the other viewports keep their values");
         TextureSettingsServer.ViewportTarget = SettingsServer.ViewportTargetMode.Group;
