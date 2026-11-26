@@ -152,7 +152,7 @@ public partial class Issue68FeatureXmlAndUnifiedSerializerCheck : FeatureCheckCs
         var f = FileAccess.Open(other, FileAccess.ModeFlags.Write);
         f.StoreString("<?xml version=\"1.0\"?>\n<config><volume>3</volume></config>\n");
         f.Close();
-        ExpectEqual(ResourceLoader.GetResourceType(other), "", "XML without the type marker is not a resource file");
+        ExpectEqual(ResourceLoader.GetResourceType(other), "XML", "XML without the type marker is a plain XML file (type XML)");
     }
 
     private void CheckSameTextAsFiles()
