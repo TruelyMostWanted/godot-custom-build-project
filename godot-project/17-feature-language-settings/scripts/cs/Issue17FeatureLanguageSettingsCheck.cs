@@ -28,7 +28,7 @@ public partial class Issue17FeatureLanguageSettingsCheck : FeatureCheckCs
         Expect(SettingsServerManager.GetServer("language") == server, "the domain is registered as \"language\"");
         Expect(server.IsStarted(), "the domain was started before the main scene");
         ExpectEqual(server.GetFilePath(), LanguageFile, "file path");
-        ExpectEqual(string.Join(",", server.GetSettingNames()), "locale,pseudolocalization_enabled,layout_direction,root_auto_translate_mode", "setting names");
+        ExpectEqual(string.Join(",", server.GetSettingNames()), "locale,pseudolocalization_enabled,layout_direction,root_auto_translate_mode,interface_locale,audio_locale,subtitles_locale", "setting names");
 
         CheckDefaults();
         CheckLocale();
