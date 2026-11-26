@@ -1,0 +1,22 @@
+[gd_resource type="DataSchema" format=3]
+
+[sub_resource type="DataField" id="DataField_id"]
+name = &"id"
+type = 2
+required = true
+unique = true
+
+[sub_resource type="DataField" id="DataField_name"]
+name = &"name"
+type = 4
+allow_empty = false
+
+[sub_resource type="DataField" id="DataField_hp"]
+name = &"hp"
+type = 2
+hint = 1
+hint_string = "0,100,1"
+
+[resource]
+fields = Array[DataField]([SubResource("DataField_id"), SubResource("DataField_name"), SubResource("DataField_hp")])
+file_patterns = PackedStringArray("res://278-feature-data-file-text-editor/data/items_*.csv")

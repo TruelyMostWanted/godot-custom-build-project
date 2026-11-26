@@ -1,0 +1,4 @@
+[
+	{"id": 1, "name": "Sword", "stats": {"atk": 5}, "tags": ["a", "b"], "drops": [{"item": "gold", "count": 3}]},
+	{"id": 1, "name": "Axe", "stats": {"atk": "high"}, "tags": [1], "drops": [{"item": "gem", "count": "many"}]}
+]
