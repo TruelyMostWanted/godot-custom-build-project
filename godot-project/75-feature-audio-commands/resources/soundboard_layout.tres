@@ -1,0 +1,13 @@
+[gd_resource type="AudioMixerLayout" format=3]
+
+[sub_resource type="AudioMixerChannel" id="AudioMixerChannel_5qylv"]
+channel_name = &"music"
+
+[sub_resource type="AudioMixerChannel" id="AudioMixerChannel_2ixym"]
+channel_name = &"birds"
+
+[sub_resource type="AudioMixerChannel" id="AudioMixerChannel_bargj"]
+channel_name = &"pad_1"
+
+[resource]
+channels = Array[AudioMixerChannel]([SubResource("AudioMixerChannel_5qylv"), SubResource("AudioMixerChannel_2ixym"), SubResource("AudioMixerChannel_bargj")])

@@ -1,0 +1,6 @@
+[gd_resource type="InputMapSettingsEvent" format=3]
+
+[resource]
+device = 2
+input = "RightStickDown"
+device_id = "1"

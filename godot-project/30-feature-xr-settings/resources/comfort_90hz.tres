@@ -1,0 +1,6 @@
+[gd_resource type="XRSettings" format=3]
+
+[resource]
+foveation_level = 2
+foveation_dynamic = true
+display_refresh_rate = 90.0
