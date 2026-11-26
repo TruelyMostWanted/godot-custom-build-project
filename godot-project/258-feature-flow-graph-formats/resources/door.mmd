@@ -1,0 +1,9 @@
+%% A hand-written Mermaid flowchart: loads as a FlowGraph with generic nodes.
+flowchart TD
+	start([Start]) --> door{Door open?}
+	door -->|yes| walk[Walk in]
+	door -- no --> stop((Stop))
+	walk --> stop
+	subgraph room [The room]
+		walk
+	end
