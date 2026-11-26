@@ -126,7 +126,7 @@ func _check_file_round_trips() -> void:
 		expect(catalog.save_to_file(path) == OK, "save_to_file .%s" % extension)
 		var copy := TextLocalizationCatalog.new()
 		expect(copy.load_from_file(path) == OK, "load_from_file .%s" % extension)
-		expect(copy.get("data") == data, "file .%s: data is equal" % extension)
+		expect(copy.get("data") == data if extension != "lcat" else _without_notes(copy.get("data")) == _without_notes(data), "file .%s: data is equal" % extension)
 		expect(copy.get_text("HELLO", "de", "menu") == "Hallo (Menü)", "file .%s: get_text" % extension)
 		DirAccess.remove_absolute(path)
 
@@ -162,7 +162,7 @@ func _check_binary() -> void:
 	expect(not loaded.is_locale_loaded("de"), "binary: unload_locale")
 	expect(loaded.load_locale("de") == OK, "binary: load_locale returns OK")
 	expect(loaded.is_locale_loaded("de"), "binary: load_locale loads")
-	expect(loaded.get("data") == catalog.get("data"), "binary: data equals the source")
+	expect(_without_notes(loaded.get("data")) == _without_notes(catalog.get("data")), "binary: data equals the source (notes are not stored in .lcat)")
 	loaded.locale_loaded.disconnect(_on_locale_loaded)
 
 	# A changed catalog no longer reads from the file.
@@ -336,3 +336,19 @@ func _measure() -> void:
 	else:
 		print("  NOTE  MEMORY_STATIC is 0 (release build): memory check skipped")
 	DirAccess.remove_absolute(path)
+
+
+# Translator notes (_ columns, #357) are never stored in .lcat.
+func _without_notes(value: Variant) -> Variant:
+	if value is Dictionary:
+		var result := {}
+		for key in value:
+			if not (key is String and key.begins_with("_") and key not in ["_key", "_context"]) :
+				result[key] = _without_notes(value[key])
+		return result
+	if value is Array:
+		var result := []
+		for item in value:
+			result.append(_without_notes(item))
+		return result
+	return value
