@@ -20,7 +20,7 @@ func _run_checks() -> void:
 	expect_equal(SettingsServerManager.get_server(&"language"), Engine.get_singleton("LanguageSettingsServer"), "the domain is registered as \"language\"")
 	expect(LanguageSettingsServer.is_started(), "the domain was started before the main scene")
 	expect_equal(LanguageSettingsServer.get_file_path(), LANGUAGE_FILE, "file path")
-	expect_equal(LanguageSettingsServer.get_setting_names(), PackedStringArray(["locale", "pseudolocalization_enabled", "layout_direction", "root_auto_translate_mode"]), "setting names")
+	expect_equal(LanguageSettingsServer.get_setting_names(), PackedStringArray(["locale", "pseudolocalization_enabled", "layout_direction", "root_auto_translate_mode", "interface_locale", "audio_locale", "subtitles_locale"]), "setting names")
 
 	_check_defaults()
 	_check_locale()
