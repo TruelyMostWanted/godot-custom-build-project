@@ -119,6 +119,390 @@
    },
    "expand_all": true,
    "max_height": 380
+  },
+  {
+   "name": "inspector-iso-000",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_iso_000.tres",
+   "properties": {
+    "tile_shape": 1,
+    "tile_layout": 4,
+    "tile_offset_axis": 0,
+    "swap_x_and_y_axis": false,
+    "flip_x": false,
+    "flip_y": false
+   },
+   "expand_all": true,
+   "max_height": 380
+  },
+  {
+   "name": "inspector-iso-001",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_iso_001.tres",
+   "properties": {
+    "tile_shape": 1,
+    "tile_layout": 4,
+    "tile_offset_axis": 0,
+    "swap_x_and_y_axis": false,
+    "flip_x": false,
+    "flip_y": true
+   },
+   "expand_all": true,
+   "max_height": 380
+  },
+  {
+   "name": "inspector-iso-010",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_iso_010.tres",
+   "properties": {
+    "tile_shape": 1,
+    "tile_layout": 4,
+    "tile_offset_axis": 0,
+    "swap_x_and_y_axis": false,
+    "flip_x": true,
+    "flip_y": false
+   },
+   "expand_all": true,
+   "max_height": 380
+  },
+  {
+   "name": "inspector-iso-011",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_iso_011.tres",
+   "properties": {
+    "tile_shape": 1,
+    "tile_layout": 4,
+    "tile_offset_axis": 0,
+    "swap_x_and_y_axis": false,
+    "flip_x": true,
+    "flip_y": true
+   },
+   "expand_all": true,
+   "max_height": 380
+  },
+  {
+   "name": "inspector-iso-100",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_iso_100.tres",
+   "properties": {
+    "tile_shape": 1,
+    "tile_layout": 4,
+    "tile_offset_axis": 0,
+    "swap_x_and_y_axis": true,
+    "flip_x": false,
+    "flip_y": false
+   },
+   "expand_all": true,
+   "max_height": 380
+  },
+  {
+   "name": "inspector-iso-101",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_iso_101.tres",
+   "properties": {
+    "tile_shape": 1,
+    "tile_layout": 4,
+    "tile_offset_axis": 0,
+    "swap_x_and_y_axis": true,
+    "flip_x": false,
+    "flip_y": true
+   },
+   "expand_all": true,
+   "max_height": 380
+  },
+  {
+   "name": "inspector-iso-110",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_iso_110.tres",
+   "properties": {
+    "tile_shape": 1,
+    "tile_layout": 4,
+    "tile_offset_axis": 0,
+    "swap_x_and_y_axis": true,
+    "flip_x": true,
+    "flip_y": false
+   },
+   "expand_all": true,
+   "max_height": 380
+  },
+  {
+   "name": "inspector-iso-111",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_iso_111.tres",
+   "properties": {
+    "tile_shape": 1,
+    "tile_layout": 4,
+    "tile_offset_axis": 0,
+    "swap_x_and_y_axis": true,
+    "flip_x": true,
+    "flip_y": true
+   },
+   "expand_all": true,
+   "max_height": 380
+  },
+  {
+   "name": "inspector-half-000",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_half_000.tres",
+   "properties": {
+    "tile_shape": 2,
+    "tile_layout": 0,
+    "tile_offset_axis": 0,
+    "swap_x_and_y_axis": false,
+    "flip_x": false,
+    "flip_y": false
+   },
+   "expand_all": true,
+   "max_height": 380
+  },
+  {
+   "name": "inspector-half-001",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_half_001.tres",
+   "properties": {
+    "tile_shape": 2,
+    "tile_layout": 0,
+    "tile_offset_axis": 0,
+    "swap_x_and_y_axis": false,
+    "flip_x": false,
+    "flip_y": true
+   },
+   "expand_all": true,
+   "max_height": 380
+  },
+  {
+   "name": "inspector-half-010",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_half_010.tres",
+   "properties": {
+    "tile_shape": 2,
+    "tile_layout": 0,
+    "tile_offset_axis": 0,
+    "swap_x_and_y_axis": false,
+    "flip_x": true,
+    "flip_y": false
+   },
+   "expand_all": true,
+   "max_height": 380
+  },
+  {
+   "name": "inspector-half-011",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_half_011.tres",
+   "properties": {
+    "tile_shape": 2,
+    "tile_layout": 0,
+    "tile_offset_axis": 0,
+    "swap_x_and_y_axis": false,
+    "flip_x": true,
+    "flip_y": true
+   },
+   "expand_all": true,
+   "max_height": 380
+  },
+  {
+   "name": "inspector-half-100",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_half_100.tres",
+   "properties": {
+    "tile_shape": 2,
+    "tile_layout": 0,
+    "tile_offset_axis": 0,
+    "swap_x_and_y_axis": true,
+    "flip_x": false,
+    "flip_y": false
+   },
+   "expand_all": true,
+   "max_height": 380
+  },
+  {
+   "name": "inspector-half-101",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_half_101.tres",
+   "properties": {
+    "tile_shape": 2,
+    "tile_layout": 0,
+    "tile_offset_axis": 0,
+    "swap_x_and_y_axis": true,
+    "flip_x": false,
+    "flip_y": true
+   },
+   "expand_all": true,
+   "max_height": 380
+  },
+  {
+   "name": "inspector-half-110",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_half_110.tres",
+   "properties": {
+    "tile_shape": 2,
+    "tile_layout": 0,
+    "tile_offset_axis": 0,
+    "swap_x_and_y_axis": true,
+    "flip_x": true,
+    "flip_y": false
+   },
+   "expand_all": true,
+   "max_height": 380
+  },
+  {
+   "name": "inspector-half-111",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_half_111.tres",
+   "properties": {
+    "tile_shape": 2,
+    "tile_layout": 0,
+    "tile_offset_axis": 0,
+    "swap_x_and_y_axis": true,
+    "flip_x": true,
+    "flip_y": true
+   },
+   "expand_all": true,
+   "max_height": 380
+  },
+  {
+   "name": "inspector-hex-000",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_hex_000.tres",
+   "properties": {
+    "tile_shape": 3,
+    "tile_layout": 0,
+    "tile_offset_axis": 0,
+    "swap_x_and_y_axis": false,
+    "flip_x": false,
+    "flip_y": false
+   },
+   "expand_all": true,
+   "max_height": 380
+  },
+  {
+   "name": "inspector-hex-001",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_hex_001.tres",
+   "properties": {
+    "tile_shape": 3,
+    "tile_layout": 0,
+    "tile_offset_axis": 0,
+    "swap_x_and_y_axis": false,
+    "flip_x": false,
+    "flip_y": true
+   },
+   "expand_all": true,
+   "max_height": 380
+  },
+  {
+   "name": "inspector-hex-010",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_hex_010.tres",
+   "properties": {
+    "tile_shape": 3,
+    "tile_layout": 0,
+    "tile_offset_axis": 0,
+    "swap_x_and_y_axis": false,
+    "flip_x": true,
+    "flip_y": false
+   },
+   "expand_all": true,
+   "max_height": 380
+  },
+  {
+   "name": "inspector-hex-011",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_hex_011.tres",
+   "properties": {
+    "tile_shape": 3,
+    "tile_layout": 0,
+    "tile_offset_axis": 0,
+    "swap_x_and_y_axis": false,
+    "flip_x": true,
+    "flip_y": true
+   },
+   "expand_all": true,
+   "max_height": 380
+  },
+  {
+   "name": "inspector-hex-100",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_hex_100.tres",
+   "properties": {
+    "tile_shape": 3,
+    "tile_layout": 0,
+    "tile_offset_axis": 0,
+    "swap_x_and_y_axis": true,
+    "flip_x": false,
+    "flip_y": false
+   },
+   "expand_all": true,
+   "max_height": 380
+  },
+  {
+   "name": "inspector-hex-101",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_hex_101.tres",
+   "properties": {
+    "tile_shape": 3,
+    "tile_layout": 0,
+    "tile_offset_axis": 0,
+    "swap_x_and_y_axis": true,
+    "flip_x": false,
+    "flip_y": true
+   },
+   "expand_all": true,
+   "max_height": 380
+  },
+  {
+   "name": "inspector-hex-110",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_hex_110.tres",
+   "properties": {
+    "tile_shape": 3,
+    "tile_layout": 0,
+    "tile_offset_axis": 0,
+    "swap_x_and_y_axis": true,
+    "flip_x": true,
+    "flip_y": false
+   },
+   "expand_all": true,
+   "max_height": 380
+  },
+  {
+   "name": "inspector-hex-111",
+   "type": "inspector",
+   "class": "TileSet",
+   "resource": "res://editor_shots/tileset_coordinates_hex_111.tres",
+   "properties": {
+    "tile_shape": 3,
+    "tile_layout": 0,
+    "tile_offset_axis": 0,
+    "swap_x_and_y_axis": true,
+    "flip_x": true,
+    "flip_y": true
+   },
+   "expand_all": true,
+   "max_height": 380
   }
  ]
 }

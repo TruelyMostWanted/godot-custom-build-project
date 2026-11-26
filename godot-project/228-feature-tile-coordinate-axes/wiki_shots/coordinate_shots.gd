@@ -1,19 +1,25 @@
 extends Node
 ## Wiki images of the TileSet coordinate system (engine #261): one picture per combination of
-## swap_x_and_y_axis, flip_x and flip_y, named tileset-coordinates-<swap><flip_x><flip_y>.png (e.g. 101).
+## swap_x_and_y_axis, flip_x and flip_y, named tileset-coordinates-<prefix><swap><flip_x><flip_y>.png (e.g. 101).
 ##
-## Each picture is the Inspector group "Coordinate System" on the left and a square grid on the right:
+## --shape picks the tile shape (default square); the prefix keeps the square names unchanged:
+##   square       Square                                               prefix ""
+##   isometric    Isometric, Diamond Right, horizontal offset axis     prefix "iso-"
+##   half-offset  Half-Offset Square, Stacked, horizontal offset axis  prefix "half-"
+##   hexagon      Hexagon, Stacked, horizontal offset axis             prefix "hex-"
+##
+## Each picture is the Inspector group "Coordinate System" on the left and the grid on the right:
 ## cell coordinates as labels, origin (0, 0) yellow, +X arrow red, +Y arrow green (the colors of the
 ## TileMap editor's axis arrows).
 ##
 ## 1. Inspector crops (optional): take the 8 shots of editor_shots_job.json with the editor-shots tool
 ##    (inspector of a TileSet with the three bools set; one max_height for all, tuned once so the crop
-##    ends below the "Coordinate System" group). They are named inspector-<code>.png.
+##    ends below the "Coordinate System" group). They are named inspector-<prefix><code>.png.
 ## 2. Run this scene with a window (not --headless, it renders):
 ##      godot --path godot-project res://228-feature-tile-coordinate-axes/wiki_shots/coordinate_shots.tscn \
-##            -- --out=<folder> [--inspector-dir=<folder with inspector-<code>.png>]
-##    It writes grid-<code>.png and, when the inspector crop exists, the combined
-##    tileset-coordinates-<code>.png (inspector left, grid right), then quits.
+##            -- --out=<folder> [--shape=square|isometric|half-offset|hexagon] [--inspector-dir=<folder>]
+##    It writes grid-<prefix><code>.png and, when the inspector crop exists, the combined
+##    tileset-coordinates-<prefix><code>.png (inspector left, grid right), then quits.
 ## 3. Copy tileset-coordinates-*.png to the wiki: images/TileSet-Coordinate-Axes/.
 
 const CELL := 64
@@ -27,8 +33,17 @@ const ORIGIN := Color(0.95, 0.80, 0.25, 0.35)
 const X_COLOR := Color(0.96, 0.32, 0.37)
 const Y_COLOR := Color(0.53, 0.84, 0.01)
 
+## Shape name: [tile_shape, tile_layout, tile_offset_axis, tile_size, file prefix].
+const SHAPES := {
+	"square": [TileSet.TILE_SHAPE_SQUARE, TileSet.TILE_LAYOUT_STACKED, TileSet.TILE_OFFSET_AXIS_HORIZONTAL, Vector2i(64, 64), ""],
+	"isometric": [TileSet.TILE_SHAPE_ISOMETRIC, TileSet.TILE_LAYOUT_DIAMOND_RIGHT, TileSet.TILE_OFFSET_AXIS_HORIZONTAL, Vector2i(96, 48), "iso-"],
+	"half-offset": [TileSet.TILE_SHAPE_HALF_OFFSET_SQUARE, TileSet.TILE_LAYOUT_STACKED, TileSet.TILE_OFFSET_AXIS_HORIZONTAL, Vector2i(64, 64), "half-"],
+	"hexagon": [TileSet.TILE_SHAPE_HEXAGON, TileSet.TILE_LAYOUT_STACKED, TileSet.TILE_OFFSET_AXIS_HORIZONTAL, Vector2i(64, 72), "hex-"],
+}
+
 var _out_dir := "user://wiki_shots"
 var _inspector_dir := ""
+var _shape := "square"
 
 
 class Grid:
@@ -48,13 +63,31 @@ class Grid:
 		for x in range(-RANGE, RANGE + 1):
 			for y in range(-RANGE, RANGE + 1):
 				var center := _map(Vector2i(x, y))
-				var rect := Rect2(center - Vector2(CELL, CELL) / 2.0, Vector2(CELL, CELL))
+				var outline := _cell_outline(center)
 				if x == 0 and y == 0:
-					draw_rect(rect, ORIGIN)
-				draw_rect(rect, GRID, false, 1.0)
+					draw_colored_polygon(outline, ORIGIN)
+				var closed := outline.duplicate()
+				closed.append(outline[0])
+				draw_polyline(closed, GRID, 1.0)
 				draw_string(font, center + Vector2(-CELL / 2.0, 5), "%d, %d" % [x, y], HORIZONTAL_ALIGNMENT_CENTER, CELL, 13, LABEL)
 		_draw_axis(Vector2i(RANGE, 0), X_COLOR, "+X")
 		_draw_axis(Vector2i(0, RANGE), Y_COLOR, "+Y")
+
+	## Outline of one cell (horizontal offset axis: diamonds, pointy-top hexagons).
+	func _cell_outline(center: Vector2) -> PackedVector2Array:
+		var half := Vector2(tile_set.tile_size) / 2.0
+		var points: PackedVector2Array
+		match tile_set.tile_shape:
+			TileSet.TILE_SHAPE_ISOMETRIC:
+				points = [Vector2(0, -half.y), Vector2(half.x, 0), Vector2(0, half.y), Vector2(-half.x, 0)]
+			TileSet.TILE_SHAPE_HEXAGON:
+				points = [Vector2(0, -half.y), Vector2(half.x, -half.y / 2.0), Vector2(half.x, half.y / 2.0),
+						Vector2(0, half.y), Vector2(-half.x, half.y / 2.0), Vector2(-half.x, -half.y / 2.0)]
+			_:
+				points = [-half, Vector2(half.x, -half.y), half, Vector2(-half.x, half.y)]
+		for i in points.size():
+			points[i] += center
+		return points
 
 	func _draw_axis(target_cell: Vector2i, color: Color, text: String) -> void:
 		var origin := _map(Vector2i.ZERO)
@@ -77,34 +110,58 @@ func _ready() -> void:
 			_out_dir = arg.trim_prefix("--out=")
 		elif arg.begins_with("--inspector-dir="):
 			_inspector_dir = arg.trim_prefix("--inspector-dir=")
+		elif arg.begins_with("--shape="):
+			_shape = arg.trim_prefix("--shape=")
+	if not SHAPES.has(_shape):
+		push_error("coordinate_shots: unknown --shape=%s (square, isometric, half-offset, hexagon)" % _shape)
+		get_tree().quit(1)
+		return
 	DirAccess.make_dir_recursive_absolute(_out_dir)
+	var shape: Array = SHAPES[_shape]
+	var prefix: String = shape[4]
 
-	var size := (2 * RANGE + 1) * CELL + 2 * MARGIN + CELL # Extra room for the arrow labels.
+	var tile_sets: Array[TileSet] = []
+	for index in 8:
+		var tile_set := TileSet.new()
+		tile_set.tile_shape = shape[0]
+		tile_set.tile_layout = shape[1]
+		tile_set.tile_offset_axis = shape[2]
+		tile_set.tile_size = shape[3]
+		tile_set.swap_x_and_y_axis = (index & 4) != 0
+		tile_set.flip_x = (index & 2) != 0
+		tile_set.flip_y = (index & 1) != 0
+		tile_sets.append(tile_set)
+
+	# One image size for all 8 combinations: cell centers relative to cell (0, 0), grown by half a tile,
+	# plus room for the arrow labels.
+	var grid := Grid.new()
+	var bounds := Rect2()
+	for tile_set in tile_sets:
+		grid.tile_set = tile_set
+		var origin := grid._map(Vector2i.ZERO)
+		for x in range(-RANGE, RANGE + 1):
+			for y in range(-RANGE, RANGE + 1):
+				bounds = bounds.expand(grid._map(Vector2i(x, y)) - origin)
+	var half := Vector2(shape[3]) / 2.0
+	bounds = bounds.grow_individual(half.x, half.y, half.x, half.y)
+	var pad := Vector2(MARGIN + CELL / 2.0, MARGIN + CELL / 2.0)
+	var size := Vector2i((bounds.size + 2.0 * pad).ceil())
+
 	var viewport := SubViewport.new()
-	viewport.size = Vector2i(size, size)
+	viewport.size = size
 	viewport.transparent_bg = false
 	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	add_child(viewport)
 	var background := ColorRect.new()
 	background.color = BACKGROUND
-	background.size = Vector2(size, size)
+	background.size = Vector2(size)
 	viewport.add_child(background)
-	var grid := Grid.new()
 	viewport.add_child(grid)
 
-	for index in 8:
-		var swap := (index & 4) != 0
-		var flip_x := (index & 2) != 0
-		var flip_y := (index & 1) != 0
-		var code := "%d%d%d" % [int(swap), int(flip_x), int(flip_y)]
-		var tile_set := TileSet.new()
-		tile_set.tile_shape = TileSet.TILE_SHAPE_SQUARE
-		tile_set.tile_size = Vector2i(CELL, CELL)
-		tile_set.swap_x_and_y_axis = swap
-		tile_set.flip_x = flip_x
-		tile_set.flip_y = flip_y
+	for tile_set in tile_sets:
+		var code := prefix + "%d%d%d" % [int(tile_set.swap_x_and_y_axis), int(tile_set.flip_x), int(tile_set.flip_y)]
 		grid.tile_set = tile_set
-		grid.position = Vector2(size, size) / 2.0 - grid._map(Vector2i.ZERO)
+		grid.position = pad - bounds.position - grid._map(Vector2i.ZERO)
 		grid.queue_redraw()
 		await RenderingServer.frame_post_draw
 		await RenderingServer.frame_post_draw
