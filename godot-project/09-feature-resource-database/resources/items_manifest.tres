@@ -1,0 +1,5 @@
+[gd_resource type="FilesManifest" format=3]
+
+[resource]
+extensions = PackedStringArray(".tres")
+folder_paths = PackedStringArray("res://09-feature-resource-database/resources/items")

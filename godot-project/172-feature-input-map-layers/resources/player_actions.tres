@@ -1,0 +1,42 @@
+[gd_resource type="InputActions" format=3]
+
+[sub_resource type="InputEventKey" id="InputEventKey_o4b61"]
+device = -1
+keycode = 32
+
+[sub_resource type="InputEventJoypadButton" id="InputEventJoypadButton_82ogg"]
+device = -1
+
+[sub_resource type="InputAction" id="InputAction_wcoh0"]
+action = &"jump"
+events = Array[InputEvent]([SubResource("InputEventKey_o4b61"), SubResource("InputEventJoypadButton_82ogg")])
+
+[sub_resource type="InputEventMouseButton" id="InputEventMouseButton_vgas4"]
+device = -1
+button_index = 1
+
+[sub_resource type="InputEventJoypadMotion" id="InputEventJoypadMotion_xgmjx"]
+device = -1
+axis = 5
+axis_value = 1.0
+
+[sub_resource type="InputAction" id="InputAction_8c4wp"]
+action = &"fire"
+deadzone = 0.3
+events = Array[InputEvent]([SubResource("InputEventMouseButton_vgas4"), SubResource("InputEventJoypadMotion_xgmjx")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_2ktly"]
+device = -1
+keycode = 87
+
+[sub_resource type="InputEventJoypadMotion" id="InputEventJoypadMotion_6i6d7"]
+device = -1
+axis = 1
+axis_value = -1.0
+
+[sub_resource type="InputAction" id="InputAction_1e5wl"]
+action = &"move_forward"
+events = Array[InputEvent]([SubResource("InputEventKey_2ktly"), SubResource("InputEventJoypadMotion_6i6d7")])
+
+[resource]
+actions = Array[InputAction]([SubResource("InputAction_wcoh0"), SubResource("InputAction_8c4wp"), SubResource("InputAction_1e5wl")])

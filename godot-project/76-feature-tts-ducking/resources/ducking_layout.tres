@@ -1,0 +1,11 @@
+[gd_resource type="AudioMixerLayout" format=3]
+
+[sub_resource type="AudioMixerChannel" id="AudioMixerChannel_rrg7u"]
+channel_name = &"music"
+duck_on_tts = true
+
+[sub_resource type="AudioMixerChannel" id="AudioMixerChannel_0mgok"]
+channel_name = &"sfx"
+
+[resource]
+channels = Array[AudioMixerChannel]([SubResource("AudioMixerChannel_rrg7u"), SubResource("AudioMixerChannel_0mgok")])

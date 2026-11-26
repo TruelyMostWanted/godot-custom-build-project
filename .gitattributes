@@ -3,3 +3,5 @@
 
 # PowerShell scripts keep CRLF for Windows PowerShell 5.1
 *.ps1 text eol=crlf
+
+*.db binary

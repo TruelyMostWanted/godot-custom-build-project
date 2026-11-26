@@ -1,0 +1,6 @@
+[gd_resource type="ImageSaveOptions" format=3]
+
+[resource]
+jpg_quality = 0.9
+webp_lossy = true
+webp_quality = 0.8

@@ -1,0 +1,6 @@
+[gd_resource type="AudioMixerChannel" format=3]
+
+[resource]
+channel_name = &"music"
+queue_mode = 1
+default_fade_time = 0.3
