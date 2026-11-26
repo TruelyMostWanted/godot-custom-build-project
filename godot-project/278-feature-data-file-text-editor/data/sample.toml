@@ -1,0 +1,13 @@
+# TOML sample
+title = "Items"
+
+[sword]
+id = 1
+hp = 10
+tags = ["melee", "iron"]
+weight = 2.5
+owned = true
+
+[[drops]]
+item = "axe"
+count = 3

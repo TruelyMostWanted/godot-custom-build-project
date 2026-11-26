@@ -1,0 +1,10 @@
+# YAML sample
+title: Items
+sword:
+  id: 1
+  hp: 10
+  tags:
+    - melee
+    - iron
+owned: true
+weight: 2.5
