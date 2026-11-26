@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="FlowGraph" path="res://276-feature-flow-graph-debugger/resources/debug_dialogue.tres" id="1_graph"]
+[ext_resource type="Script" path="res://276-feature-flow-graph-debugger/scripts/gd/debugger_demo.gd" id="2_demo"]
+
+[node name="DebuggerDemo" type="Node"]
+script = ExtResource("2_demo")
+
+[node name="PlayerA" type="FlowGraphPlayer" parent="."]
+graph = ExtResource("1_graph")
+autostart = true
+
+[node name="PlayerB" type="FlowGraphPlayer" parent="."]
+graph = ExtResource("1_graph")
