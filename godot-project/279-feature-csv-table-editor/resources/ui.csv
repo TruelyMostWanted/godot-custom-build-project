@@ -1,0 +1,4 @@
+keys,en,de,fr,_notes
+MENU_START,Start,Starten,Commencer,
+MENU_QUIT,Quit,Beenden,,missing fr
+MENU_OPTIONS,Options,,,missing de and fr
