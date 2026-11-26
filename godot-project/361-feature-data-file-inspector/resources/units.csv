@@ -1,0 +1,5 @@
+name,class,hp,ranged
+knight,warrior,100,false
+archer,ranger,60,true
+mage,caster,45,true
+ghost,unknown,500,maybe

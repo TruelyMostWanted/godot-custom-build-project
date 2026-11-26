@@ -1,0 +1,28 @@
+[gd_resource type="DataSchema" format=3]
+
+[sub_resource type="DataField" id="DataField_name"]
+name = &"name"
+type = 4
+unique = true
+allow_empty = false
+description = "Unique unit name."
+
+[sub_resource type="DataField" id="DataField_class"]
+name = &"class"
+type = 4
+hint = 2
+hint_string = "warrior,ranger,caster"
+
+[sub_resource type="DataField" id="DataField_hp"]
+name = &"hp"
+type = 2
+hint = 1
+hint_string = "1,200,1"
+
+[sub_resource type="DataField" id="DataField_ranged"]
+name = &"ranged"
+type = 1
+
+[resource]
+fields = Array[DataField]([SubResource("DataField_name"), SubResource("DataField_class"), SubResource("DataField_hp"), SubResource("DataField_ranged")])
+file_patterns = PackedStringArray("*/361-feature-data-file-inspector/resources/units.csv")

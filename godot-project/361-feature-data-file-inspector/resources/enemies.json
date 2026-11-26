@@ -1,0 +1,7 @@
+{
+	"enemies": [
+		{ "name": "Slime", "hp": 12, "speed": 1.5, "drops": ["gel"] },
+		{ "name": "Bat", "hp": 6, "speed": 4.0, "flying": true }
+	],
+	"boss": null
+}
