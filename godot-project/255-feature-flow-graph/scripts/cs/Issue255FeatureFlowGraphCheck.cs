@@ -138,7 +138,7 @@ public partial class Issue255FeatureFlowGraphCheck : FeatureCheckCs
         graph.AddNode(new FlowEndNode());
         FlowGraphValidation validation = graph.Validate();
         Expect(!validation.IsValid(), "a graph without start is invalid");
-        Expect(HasIssue(validation, FlowGraphValidation.IssueKind.MissingStart, FlowGraph.NodeIdNone), "missing start reported");
+        Expect(HasIssue(validation, FlowGraphValidation.IssueKind.MissingStart, (int)FlowGraph.NodeIdNone), "missing start reported");
 
         graph = MakeGraph();
         int lonely = graph.AddNode(new FlowWaitNode());
