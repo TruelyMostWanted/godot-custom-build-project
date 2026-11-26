@@ -1,0 +1,13 @@
+[gd_resource type="PCKPackage" format=3]
+
+[resource]
+files = [{
+"path": "sample/icon.svg",
+"source": "res://icon.svg"
+}, {
+"data": PackedByteArray(83, 97, 109, 112, 108, 101, 32, 112, 97, 99, 107, 32, 102, 111, 114, 32, 116, 104, 101, 32, 80, 67, 75, 32, 105, 110, 115, 112, 101, 99, 116, 111, 114),
+"path": "sample/readme.txt"
+}, {
+"data": PackedByteArray(123, 34, 108, 101, 118, 101, 108, 115, 34, 58, 32, 91, 49, 44, 32, 50, 44, 32, 51, 93, 125),
+"path": "sample/data/levels.json"
+}]

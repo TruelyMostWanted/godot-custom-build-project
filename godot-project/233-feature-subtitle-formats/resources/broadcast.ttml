@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tt xmlns="http://www.w3.org/ns/ttml" xmlns:tts="http://www.w3.org/ns/ttml#styling" xmlns:ttp="http://www.w3.org/ns/ttml#parameter" ttp:frameRate="25" xml:lang="de">
+  <head>
+    <styling>
+      <style xml:id="s1" tts:color="white"/>
+    </styling>
+  </head>
+  <body>
+    <div>
+      <p begin="00:00:01.000" end="00:00:02.500" style="s1">Guten Abend<br/>
+        und willkommen.</p>
+      <p begin="00:00:03:00" end="00:00:04:12">[Applaus]</p>
+      <p begin="5s" dur="1500ms"><span tts:fontStyle="italic">Eine Stimme aus dem Off.</span></p>
+      <p begin="175f" end="200f">WACHE: Halt &amp; stehen bleiben!</p>
+    </div>
+  </body>
+</tt>

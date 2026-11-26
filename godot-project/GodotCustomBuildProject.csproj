@@ -1,7 +1,8 @@
 <!-- Godot.NET.Sdk comes from the local NuGet folder (nuget.config), built from truely-godot-engine with
-     modules/mono/build_scripts/build_assemblies.py and its push-nupkgs-local option. The version follows version.py of the engine
-     ("4.8.0-beta"; with GODOT_VERSION_STATUS=truely it is "4.8.0-truely"). -->
-<Project Sdk="Godot.NET.Sdk/4.8.0-beta">
+     modules/mono/build_scripts/build_assemblies.py and its push-nupkgs-local option, or copied from a release
+     (GodotSharp/Tools/nupkgs) by checks/use-engine.ps1, which also sets the version below. The version follows the engine:
+     "4.8.0-beta" for status beta, "4.8.0-beta.5" for beta5 (releases), "4.8.0-truely" for GODOT_VERSION_STATUS=truely. -->
+<Project Sdk="Godot.NET.Sdk/4.8.0-beta.5">
   <PropertyGroup>
     <TargetFramework>net11.0</TargetFramework>
     <EnableDynamicLoading>true</EnableDynamicLoading>
