@@ -1,0 +1,10 @@
+[gd_resource type="PCKPackage" format=3]
+
+[resource]
+files = [{
+"path": "streaming/icon.svg",
+"source": "res://91-feature-streaming-assets-pack-mode/resources/streaming_sample/icon.svg"
+}, {
+"path": "streaming/data/levels.json",
+"source": "res://91-feature-streaming-assets-pack-mode/resources/streaming_sample/data/levels.json"
+}]

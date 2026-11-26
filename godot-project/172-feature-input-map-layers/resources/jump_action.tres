@@ -1,0 +1,12 @@
+[gd_resource type="InputAction" format=3]
+
+[sub_resource type="InputEventKey" id="InputEventKey_i6ukm"]
+device = -1
+keycode = 32
+
+[sub_resource type="InputEventJoypadButton" id="InputEventJoypadButton_8limn"]
+device = -1
+
+[resource]
+action = &"jump"
+events = Array[InputEvent]([SubResource("InputEventKey_i6ukm"), SubResource("InputEventJoypadButton_8limn")])
