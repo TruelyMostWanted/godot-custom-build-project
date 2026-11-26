@@ -88,7 +88,7 @@ public partial class Issue27FeatureAccessibilitySettingsCheck : FeatureCheckCs
         float baseFactor = root.ContentScaleFactor;
         AccessibilitySettingsServer.SetUiScale(1.5f);
         Expect(Mathf.IsEqualApprox(root.ContentScaleFactor, baseFactor * 1.5f), $"UI scale 150 % multiplies the root content scale factor ({root.ContentScaleFactor})");
-        Expect(Mathf.IsEqualApprox(VideoWindowSettingsServer.GetContentScaleFactor(), baseFactor), "the video window factor stays separate");
+        Expect(Mathf.IsEqualApprox(WindowSettingsServer.GetContentScaleFactor(), baseFactor), "the window factor stays separate");
         AccessibilitySettingsServer.SetUiScale(1.0f);
         Expect(Mathf.IsEqualApprox(root.ContentScaleFactor, baseFactor), "UI scale 100 % gives the factor back");
     }

@@ -13,8 +13,8 @@ namespace TruelyInteractive.Issue22FeatureVideoTextureSettings;
 /// </summary>
 public partial class Issue22FeatureVideoTextureSettingsCheck : FeatureCheckCs
 {
-    private const string TextureFile = "user://settings/video_texture.ini";
-    private const string StreamingFile = "user://settings/video_texture_streaming.ini";
+    private const string TextureFile = "user://settings/texture.ini";
+    private const string StreamingFile = "user://settings/texture_streaming.ini";
 
     private static readonly string[] Names =
     {
@@ -39,15 +39,15 @@ public partial class Issue22FeatureVideoTextureSettingsCheck : FeatureCheckCs
     {
         await CheckTypedSignals();
 
-        var server = VideoTextureSettingsServer.Singleton;
-        Expect(Engine.HasSingleton("VideoTextureSettingsServer"), "VideoTextureSettingsServer is a registered singleton");
-        Expect(server is VideoTextureSettingsServerInstance, "VideoTextureSettingsServer.Singleton is the instance type");
-        Expect(Engine.GetSingleton("VideoTextureSettingsServer") is SettingsServer, "VideoTextureSettingsServerInstance derives from SettingsServer");
-        Expect(SettingsServerManager.GetServer("video_texture") == server, "the domain is registered as \"video_texture\"");
+        var server = TextureSettingsServer.Singleton;
+        Expect(Engine.HasSingleton("TextureSettingsServer"), "TextureSettingsServer is a registered singleton");
+        Expect(server is TextureSettingsServerInstance, "TextureSettingsServer.Singleton is the instance type");
+        Expect(Engine.GetSingleton("TextureSettingsServer") is SettingsServer, "TextureSettingsServerInstance derives from SettingsServer");
+        Expect(SettingsServerManager.GetServer("texture") == server, "the domain is registered as \"texture\"");
         Expect(server.IsStarted(), "the domain was started before the main scene");
         ExpectEqual(server.GetApplyPhase(), SettingsServer.ApplyPhase.Scene, "applied after the root viewport exists");
         ExpectEqual(server.GetFilePath(), TextureFile, "file path");
-        Expect(server.GetSettings() is VideoTextureSettings, "the settings resource is a VideoTextureSettings");
+        Expect(server.GetSettings() is TextureSettings, "the settings resource is a TextureSettings");
         var names = server.GetSettingNames();
         ExpectEqual(names.Length, Names.Length, "11 values");
         foreach (string setting in Names)
@@ -72,30 +72,30 @@ public partial class Issue22FeatureVideoTextureSettingsCheck : FeatureCheckCs
         DirAccess.RemoveAbsolute(TextureFile);
     }
 
-    private static bool Supported(string setting) => VideoTextureSettingsServer.Singleton.IsValueSupported(setting);
+    private static bool Supported(string setting) => TextureSettingsServer.Singleton.IsValueSupported(setting);
 
     private static Variant Project(string path) => ProjectSettings.GetSetting(path);
 
     private void CheckDefaults()
     {
-        var server = VideoTextureSettingsServer.Singleton;
+        var server = TextureSettingsServer.Singleton;
         var root = GetTree().Root;
         ExpectEqual(server.GetDefaultValue("anisotropic_filtering_level").AsInt32(), Project("rendering/textures/default_filters/anisotropic_filtering_level").AsInt32(), "default anisotropy is the project setting");
         ExpectEqual(server.GetDefaultValue("canvas_item_default_texture_filter").AsInt32(), Project("rendering/textures/canvas_textures/default_texture_filter").AsInt32(), "default canvas filter is the project setting");
         ExpectEqual(server.GetDefaultValue("snap_2d_transforms_to_pixel").AsBool(), Project("rendering/2d/snap/snap_2d_transforms_to_pixel").AsBool(), "default pixel snap is the project setting");
         ExpectEqual(server.GetDefaultValue("canvas_shadow_atlas_size").AsInt32(), Project("rendering/2d/shadow_atlas/size").AsInt32(), "default 2D shadow atlas is the project setting");
-        ExpectEqual(root.AnisotropicFilteringLevel, VideoTextureSettingsServer.GetAnisotropicFilteringLevel(), "the root viewport has the default anisotropy");
-        ExpectEqual(root.CanvasItemDefaultTextureFilter, VideoTextureSettingsServer.GetCanvasItemDefaultTextureFilter(), "the root viewport has the default canvas filter");
+        ExpectEqual(root.AnisotropicFilteringLevel, TextureSettingsServer.GetAnisotropicFilteringLevel(), "the root viewport has the default anisotropy");
+        ExpectEqual(root.CanvasItemDefaultTextureFilter, TextureSettingsServer.GetCanvasItemDefaultTextureFilter(), "the root viewport has the default canvas filter");
     }
 
     private void CheckSupport()
     {
         string method = RenderingServer.GetCurrentRenderingMethod();
-        var unsupported = VideoTextureSettingsServer.GetUnsupportedSettingNames();
+        var unsupported = TextureSettingsServer.GetUnsupportedSettingNames();
         foreach (string setting in Names)
         {
             ExpectEqual(Array.IndexOf(unsupported, setting) >= 0, !Supported(setting), $"GetUnsupportedSettingNames() matches IsValueSupported(\"{setting}\")");
-            ExpectEqual(Supported(setting), VideoTextureSettingsServer.IsRendererSupported(setting), $"IsRendererSupported(\"{setting}\")");
+            ExpectEqual(Supported(setting), TextureSettingsServer.IsRendererSupported(setting), $"IsRendererSupported(\"{setting}\")");
         }
         ExpectEqual(Supported("decal_filter"), method != "gl_compatibility", "decal filter: not in Compatibility");
         ExpectEqual(Supported("light_projector_filter"), method != "gl_compatibility", "light projector filter: not in Compatibility");
@@ -105,38 +105,38 @@ public partial class Issue22FeatureVideoTextureSettingsCheck : FeatureCheckCs
 
     private void CheckApply()
     {
-        var server = VideoTextureSettingsServer.Singleton;
+        var server = TextureSettingsServer.Singleton;
         var root = GetTree().Root;
-        VideoTextureSettingsServer.SetAnisotropicFilteringLevel(Anisotropy16X);
+        TextureSettingsServer.SetAnisotropicFilteringLevel(Anisotropy16X);
         ExpectEqual(root.AnisotropicFilteringLevel, Anisotropy16X, "anisotropic_filtering_level reaches the root at once");
-        VideoTextureSettingsServer.SetTextureMipmapBias(-0.5f);
+        TextureSettingsServer.SetTextureMipmapBias(-0.5f);
         Expect(Mathf.IsEqualApprox(root.TextureMipmapBias, -0.5f), "texture_mipmap_bias reaches the root at once");
-        VideoTextureSettingsServer.SetCanvasItemDefaultTextureFilter(Viewport.DefaultCanvasItemTextureFilter.Nearest);
+        TextureSettingsServer.SetCanvasItemDefaultTextureFilter(Viewport.DefaultCanvasItemTextureFilter.Nearest);
         ExpectEqual(root.CanvasItemDefaultTextureFilter, Viewport.DefaultCanvasItemTextureFilter.Nearest, "canvas_item_default_texture_filter reaches the root at once");
-        VideoTextureSettingsServer.SetCanvasItemDefaultTextureRepeat(Viewport.DefaultCanvasItemTextureRepeat.Mirror);
+        TextureSettingsServer.SetCanvasItemDefaultTextureRepeat(Viewport.DefaultCanvasItemTextureRepeat.Mirror);
         ExpectEqual(root.CanvasItemDefaultTextureRepeat, Viewport.DefaultCanvasItemTextureRepeat.Mirror, "canvas_item_default_texture_repeat reaches the root at once");
-        VideoTextureSettingsServer.SetSnap2DTransformsToPixel(true);
+        TextureSettingsServer.SetSnap2DTransformsToPixel(true);
         Expect(root.Snap2DTransformsToPixel, "snap_2d_transforms_to_pixel reaches the root at once");
-        VideoTextureSettingsServer.SetSnap2DVerticesToPixel(true);
+        TextureSettingsServer.SetSnap2DVerticesToPixel(true);
         Expect(root.Snap2DVerticesToPixel, "snap_2d_vertices_to_pixel reaches the root at once");
-        VideoTextureSettingsServer.SetSdfOversize(SdfOversize200);
+        TextureSettingsServer.SetSdfOversize(SdfOversize200);
         ExpectEqual(root.SdfOversize, SdfOversize200, "sdf_oversize reaches the root at once");
-        VideoTextureSettingsServer.SetSdfScale(SdfScale100);
+        TextureSettingsServer.SetSdfScale(SdfScale100);
         ExpectEqual(root.SdfScale, SdfScale100, "sdf_scale reaches the root at once");
 
         // Global values: no getter on RenderingServer, the domain keeps them.
-        VideoTextureSettingsServer.SetCanvasShadowAtlasSize(4096);
-        ExpectEqual(VideoTextureSettingsServer.GetCanvasShadowAtlasSize(), 4096, "canvas_shadow_atlas_size is kept");
-        VideoTextureSettingsServer.SetDecalFilter(RenderingServer.DecalFilter.Nearest);
-        ExpectEqual(VideoTextureSettingsServer.GetDecalFilter(), RenderingServer.DecalFilter.Nearest, "decal_filter is stored");
-        VideoTextureSettingsServer.SetLightProjectorFilter(RenderingServer.LightProjectorFilter.Linear);
-        ExpectEqual(VideoTextureSettingsServer.GetLightProjectorFilter(), RenderingServer.LightProjectorFilter.Linear, "light_projector_filter is stored");
+        TextureSettingsServer.SetCanvasShadowAtlasSize(4096);
+        ExpectEqual(TextureSettingsServer.GetCanvasShadowAtlasSize(), 4096, "canvas_shadow_atlas_size is kept");
+        TextureSettingsServer.SetDecalFilter(RenderingServer.DecalFilter.Nearest);
+        ExpectEqual(TextureSettingsServer.GetDecalFilter(), RenderingServer.DecalFilter.Nearest, "decal_filter is stored");
+        TextureSettingsServer.SetLightProjectorFilter(RenderingServer.LightProjectorFilter.Linear);
+        ExpectEqual(TextureSettingsServer.GetLightProjectorFilter(), RenderingServer.LightProjectorFilter.Linear, "light_projector_filter is stored");
 
         // Changed on the root directly, read back.
         root.SdfScale = SdfScale25;
         server.ReadFromEngine();
-        ExpectEqual(VideoTextureSettingsServer.GetSdfScale(), SdfScale25, "ReadFromEngine() reads the root back");
-        ExpectEqual(VideoTextureSettingsServer.GetCanvasShadowAtlasSize(), 4096, "ReadFromEngine() keeps the global values");
+        ExpectEqual(TextureSettingsServer.GetSdfScale(), SdfScale25, "ReadFromEngine() reads the root back");
+        ExpectEqual(TextureSettingsServer.GetCanvasShadowAtlasSize(), 4096, "ReadFromEngine() keeps the global values");
 
         server.ResetToDefaults();
         ExpectEqual((int)root.AnisotropicFilteringLevel, Project("rendering/textures/default_filters/anisotropic_filtering_level").AsInt32(), "ResetToDefaults() gives back the anisotropy");
@@ -146,29 +146,29 @@ public partial class Issue22FeatureVideoTextureSettingsCheck : FeatureCheckCs
     private void CheckViewports()
     {
         var added = new SubViewport();
-        VideoTextureSettingsServer.SetCanvasItemDefaultTextureFilter(Viewport.DefaultCanvasItemTextureFilter.Nearest);
-        VideoTextureSettingsServer.AddViewport(added);
-        Expect(VideoTextureSettingsServer.HasViewport(added), "HasViewport()");
+        TextureSettingsServer.SetCanvasItemDefaultTextureFilter(Viewport.DefaultCanvasItemTextureFilter.Nearest);
+        TextureSettingsServer.AddViewport(added);
+        Expect(TextureSettingsServer.HasViewport(added), "HasViewport()");
         ExpectEqual(added.CanvasItemDefaultTextureFilter, Viewport.DefaultCanvasItemTextureFilter.Nearest, "an added viewport gets the values at once");
-        VideoTextureSettingsServer.SetSnap2DTransformsToPixel(true);
+        TextureSettingsServer.SetSnap2DTransformsToPixel(true);
         Expect(added.Snap2DTransformsToPixel, "an added viewport gets later changes");
-        VideoTextureSettingsServer.RemoveViewport(added);
-        Expect(!VideoTextureSettingsServer.HasViewport(added), "RemoveViewport()");
-        VideoTextureSettingsServer.SetSnap2DTransformsToPixel(false);
+        TextureSettingsServer.RemoveViewport(added);
+        Expect(!TextureSettingsServer.HasViewport(added), "RemoveViewport()");
+        TextureSettingsServer.SetSnap2DTransformsToPixel(false);
         Expect(added.Snap2DTransformsToPixel, "a removed viewport keeps its values");
         added.Free();
-        VideoTextureSettingsServer.Singleton.ResetToDefaults();
+        TextureSettingsServer.Singleton.ResetToDefaults();
     }
 
     private async Task CheckGroup()
     {
-        ExpectEqual(VideoTextureSettingsServer.GetViewportGroup(), new StringName("video_texture_settings"), "GetViewportGroup()");
-        VideoTextureSettingsServer.SetCanvasItemDefaultTextureFilter(Viewport.DefaultCanvasItemTextureFilter.Nearest);
+        ExpectEqual(TextureSettingsServer.GetViewportGroup(), new StringName("texture_settings"), "GetViewportGroup()");
+        TextureSettingsServer.SetCanvasItemDefaultTextureFilter(Viewport.DefaultCanvasItemTextureFilter.Nearest);
         var grouped = new SubViewport();
-        grouped.AddToGroup(VideoTextureSettingsServer.GetViewportGroup());
+        grouped.AddToGroup(TextureSettingsServer.GetViewportGroup());
         AddChild(grouped);
         ExpectEqual(grouped.CanvasItemDefaultTextureFilter, Viewport.DefaultCanvasItemTextureFilter.Nearest, "a viewport in the group gets the values when it enters the tree");
-        VideoTextureSettingsServer.SetAnisotropicFilteringLevel(Anisotropy2X);
+        TextureSettingsServer.SetAnisotropicFilteringLevel(Anisotropy2X);
         ExpectEqual(grouped.AnisotropicFilteringLevel, Anisotropy2X, "a viewport in the group gets later changes");
         var other = new SubViewport();
         AddChild(other);
@@ -176,16 +176,16 @@ public partial class Issue22FeatureVideoTextureSettingsCheck : FeatureCheckCs
         grouped.QueueFree();
         other.QueueFree();
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        VideoTextureSettingsServer.Singleton.ResetToDefaults();
+        TextureSettingsServer.Singleton.ResetToDefaults();
     }
 
     private void CheckValidation()
     {
-        var server = VideoTextureSettingsServer.Singleton;
-        VideoTextureSettingsServer.SetTextureMipmapBias(5.0f);
-        Expect(Mathf.IsEqualApprox(VideoTextureSettingsServer.GetTextureMipmapBias(), 2.0f), "the mipmap bias is clamped to 2.0");
-        VideoTextureSettingsServer.SetCanvasShadowAtlasSize(16);
-        ExpectEqual(VideoTextureSettingsServer.GetCanvasShadowAtlasSize(), 128, "the 2D shadow atlas is clamped to 128");
+        var server = TextureSettingsServer.Singleton;
+        TextureSettingsServer.SetTextureMipmapBias(5.0f);
+        Expect(Mathf.IsEqualApprox(TextureSettingsServer.GetTextureMipmapBias(), 2.0f), "the mipmap bias is clamped to 2.0");
+        TextureSettingsServer.SetCanvasShadowAtlasSize(16);
+        ExpectEqual(TextureSettingsServer.GetCanvasShadowAtlasSize(), 128, "the 2D shadow atlas is clamped to 128");
         server.SetValue("anisotropic_filtering_level", 9);
         ExpectEqual(server.GetValue("anisotropic_filtering_level").AsInt32(), server.GetDefaultValue("anisotropic_filtering_level").AsInt32(), "an invalid anisotropy falls back to the default");
         server.ResetToDefaults();
@@ -193,18 +193,18 @@ public partial class Issue22FeatureVideoTextureSettingsCheck : FeatureCheckCs
 
     private void CheckStorage()
     {
-        var server = VideoTextureSettingsServer.Singleton;
-        VideoTextureSettingsServer.SetAnisotropicFilteringLevel(Anisotropy8X);
-        VideoTextureSettingsServer.SetSnap2DVerticesToPixel(true);
-        VideoTextureSettingsServer.SetDecalFilter(RenderingServer.DecalFilter.Linear);
+        var server = TextureSettingsServer.Singleton;
+        TextureSettingsServer.SetAnisotropicFilteringLevel(Anisotropy8X);
+        TextureSettingsServer.SetSnap2DVerticesToPixel(true);
+        TextureSettingsServer.SetDecalFilter(RenderingServer.DecalFilter.Linear);
         ExpectEqual(server.Save(), Error.Ok, "Save()");
         Expect(FileAccess.FileExists(TextureFile), "the file exists");
         Expect(FileAccess.GetFileAsString(TextureFile).Contains("anisotropic_filtering_level"), "the INI file has anisotropic_filtering_level");
         server.ResetToDefaults();
         ExpectEqual(server.Load(), Error.Ok, "Load()");
-        ExpectEqual(VideoTextureSettingsServer.GetAnisotropicFilteringLevel(), Anisotropy8X, "the anisotropy is loaded");
-        Expect(VideoTextureSettingsServer.IsSnap2DVerticesToPixelEnabled(), "the vertex snap is loaded");
-        ExpectEqual(VideoTextureSettingsServer.GetDecalFilter(), RenderingServer.DecalFilter.Linear, "the decal filter is loaded (also where the renderer ignores it)");
+        ExpectEqual(TextureSettingsServer.GetAnisotropicFilteringLevel(), Anisotropy8X, "the anisotropy is loaded");
+        Expect(TextureSettingsServer.IsSnap2DVerticesToPixelEnabled(), "the vertex snap is loaded");
+        ExpectEqual(TextureSettingsServer.GetDecalFilter(), RenderingServer.DecalFilter.Linear, "the decal filter is loaded (also where the renderer ignores it)");
         server.Apply();
         ExpectEqual(GetTree().Root.AnisotropicFilteringLevel, Anisotropy8X, "the loaded value reaches the root after Apply()");
     }
@@ -213,18 +213,18 @@ public partial class Issue22FeatureVideoTextureSettingsCheck : FeatureCheckCs
     {
         if (!ClassDB.ClassExists("TextureStreaming"))
         {
-            Expect(!Engine.HasSingleton("VideoTextureStreamingSettingsServer"), "without the texture_streaming module, the streaming domain is missing");
-            Expect(SettingsServerManager.GetServer("video_texture_streaming") == null, "no \"video_texture_streaming\" domain");
+            Expect(!Engine.HasSingleton("TextureStreamingSettingsServer"), "without the texture_streaming module, the streaming domain is missing");
+            Expect(SettingsServerManager.GetServer("texture_streaming") == null, "no \"texture_streaming\" domain");
             return;
         }
-        Expect(Engine.HasSingleton("VideoTextureStreamingSettingsServer"), "VideoTextureStreamingSettingsServer exists with the texture_streaming module");
-        var streaming = Engine.GetSingleton("VideoTextureStreamingSettingsServer") as SettingsServer;
+        Expect(Engine.HasSingleton("TextureStreamingSettingsServer"), "TextureStreamingSettingsServer exists with the texture_streaming module");
+        var streaming = Engine.GetSingleton("TextureStreamingSettingsServer") as SettingsServer;
         Expect(streaming != null, "the streaming domain is a SettingsServer");
         if (streaming == null)
         {
             return;
         }
-        Expect(SettingsServerManager.GetServer("video_texture_streaming") == streaming, "the domain is registered as \"video_texture_streaming\"");
+        Expect(SettingsServerManager.GetServer("texture_streaming") == streaming, "the domain is registered as \"texture_streaming\"");
         Expect(streaming.IsStarted(), "the streaming domain was started");
         ExpectEqual(streaming.GetApplyPhase(), SettingsServer.ApplyPhase.PreDisplay, "applied before the renderers start");
         ExpectEqual(streaming.GetFilePath(), StreamingFile, "streaming file path");
@@ -278,12 +278,12 @@ public partial class Issue22FeatureVideoTextureSettingsCheck : FeatureCheckCs
     /// <summary>Issue #173: the typed signal fires once per applied change, not for pending changes in manual mode.</summary>
     private async Task CheckTypedSignals()
     {
-        if (!Engine.HasSingleton("VideoTextureSettingsServer"))
+        if (!Engine.HasSingleton("TextureSettingsServer"))
         {
             return;
         }
-        var s = (SettingsServer)Engine.GetSingleton("VideoTextureSettingsServer");
-        Expect(s.HasSignal("texture_mipmap_bias_changed"), "VideoTextureSettingsServer has the typed signal texture_mipmap_bias_changed");
+        var s = (SettingsServer)Engine.GetSingleton("TextureSettingsServer");
+        Expect(s.HasSignal("texture_mipmap_bias_changed"), "TextureSettingsServer has the typed signal texture_mipmap_bias_changed");
         string filePath = s.GetFilePath();
         bool hadFile = FileAccess.FileExists(filePath);
         var previousMode = s.ApplyMode;

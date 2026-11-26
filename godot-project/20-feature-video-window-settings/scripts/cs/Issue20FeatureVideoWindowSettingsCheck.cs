@@ -13,7 +13,7 @@ namespace TruelyInteractive.Issue20FeatureVideoWindowSettings;
 public partial class Issue20FeatureVideoWindowSettingsCheck : FeatureCheckCs
 {
     private const string ProbeScene = "res://20-feature-video-window-settings/scenes/restart_probe.tscn";
-    private const string VideoWindowFile = "user://settings/video_window.ini";
+    private const string WindowFile = "user://settings/window.ini";
     private const string ProbeWindowKey = "/root/RestartProbe/Inventory";
 
     protected override string CheckName => "20-feature-video-window-settings";
@@ -22,14 +22,14 @@ public partial class Issue20FeatureVideoWindowSettingsCheck : FeatureCheckCs
     {
         await CheckTypedSignals();
 
-        var server = VideoWindowSettingsServer.Singleton;
-        Expect(Engine.HasSingleton("VideoWindowSettingsServer"), "VideoWindowSettingsServer is a registered singleton");
-        Expect(server is VideoWindowSettingsServerInstance, "VideoWindowSettingsServer.Singleton is the instance type");
-        Expect(server is SettingsServer, "VideoWindowSettingsServerInstance derives from SettingsServer");
-        Expect(SettingsServerManager.GetServer("video_window") == server, "the domain is registered as \"video_window\"");
+        var server = WindowSettingsServer.Singleton;
+        Expect(Engine.HasSingleton("WindowSettingsServer"), "WindowSettingsServer is a registered singleton");
+        Expect(server is WindowSettingsServerInstance, "WindowSettingsServer.Singleton is the instance type");
+        Expect(server is SettingsServer, "WindowSettingsServerInstance derives from SettingsServer");
+        Expect(SettingsServerManager.GetServer("window") == server, "the domain is registered as \"window\"");
         Expect(server.IsStarted(), "the domain was started before the main scene");
         ExpectEqual(server.GetApplyPhase(), SettingsServer.ApplyPhase.PreDisplay, "applied before the display server exists");
-        ExpectEqual(server.GetFilePath(), VideoWindowFile, "file path");
+        ExpectEqual(server.GetFilePath(), WindowFile, "file path");
         var names = server.GetSettingNames();
         foreach (string setting in new[] { "window_mode", "window_size", "screen", "window_centered", "window_position", "borderless", "always_on_top", "unresizable", "transparent", "vsync_mode", "content_scale_mode", "content_scale_aspect", "content_scale_stretch", "content_scale_factor", "hdr_output_requested", "hdr_reference_luminance", "hdr_max_luminance", "window_states" })
         {
@@ -47,27 +47,27 @@ public partial class Issue20FeatureVideoWindowSettingsCheck : FeatureCheckCs
         // Leave no player files behind for later runs.
         Reset();
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        DirAccess.RemoveAbsolute(VideoWindowFile);
+        DirAccess.RemoveAbsolute(WindowFile);
     }
 
     private static void Reset()
     {
-        VideoWindowSettingsServer.Singleton.ResetToDefaults();
-        VideoWindowSettingsServer.Singleton.ConfirmChanges();
+        WindowSettingsServer.Singleton.ResetToDefaults();
+        WindowSettingsServer.Singleton.ConfirmChanges();
     }
 
     private static bool IsHeadless() => DisplayServer.GetName() == "headless";
 
     private void CheckDefaults()
     {
-        var server = VideoWindowSettingsServer.Singleton;
+        var server = WindowSettingsServer.Singleton;
         Reset();
         ExpectEqual(server.GetDefaultValue("window_mode").AsInt32(), ProjectSettings.GetSetting("display/window/size/mode").AsInt32(), "default mode is the project setting");
         ExpectEqual(server.GetDefaultValue("vsync_mode").AsInt32(), ProjectSettings.GetSetting("display/window/vsync/vsync_mode").AsInt32(), "default V-Sync mode is the project setting");
         ExpectEqual(server.GetDefaultValue("screen").AsInt32(), (int)DisplayServer.ScreenPrimary, "default screen is the primary screen");
-        ExpectEqual(VideoWindowSettingsServer.IsWindowCentered(), true, "the window is centered by default");
-        ExpectEqual(VideoWindowSettingsServer.GetHdrReferenceLuminance(), -1.0f, "HDR luminance: automatic by default");
-        ExpectEqual(VideoWindowSettingsServer.GetCommandLineOptions().Count, 0, "no window options on the command line of this run");
+        ExpectEqual(WindowSettingsServer.IsWindowCentered(), true, "the window is centered by default");
+        ExpectEqual(WindowSettingsServer.GetHdrReferenceLuminance(), -1.0f, "HDR luminance: automatic by default");
+        ExpectEqual(WindowSettingsServer.GetCommandLineOptions().Count, 0, "no window options on the command line of this run");
         Expect(server.IsValueSupported("content_scale_factor"), "content scale is supported everywhere");
         if (IsHeadless())
         {
@@ -77,18 +77,18 @@ public partial class Issue20FeatureVideoWindowSettingsCheck : FeatureCheckCs
 
     private void CheckConfirmation()
     {
-        var server = VideoWindowSettingsServer.Singleton;
+        var server = WindowSettingsServer.Singleton;
         Expect(server.GetSettingFlags("window_mode").HasFlag(SettingsServer.SettingFlags.Confirm), "window_mode needs a confirmation");
         Expect(server.GetSettingFlags("window_size").HasFlag(SettingsServer.SettingFlags.Confirm), "window_size needs a confirmation");
         Expect(!server.GetSettingFlags("vsync_mode").HasFlag(SettingsServer.SettingFlags.Confirm), "vsync_mode is applied without a confirmation");
 
-        Vector2I oldSize = VideoWindowSettingsServer.GetWindowSize();
-        VideoWindowSettingsServer.SetWindowSize(new Vector2I(1024, 600));
+        Vector2I oldSize = WindowSettingsServer.GetWindowSize();
+        WindowSettingsServer.SetWindowSize(new Vector2I(1024, 600));
         Expect(server.IsConfirmationPending(), "a new window size waits for the confirmation");
         server.CancelConfirmation();
-        ExpectEqual(VideoWindowSettingsServer.GetWindowSize(), oldSize, "CancelConfirmation() gives back the old size");
+        ExpectEqual(WindowSettingsServer.GetWindowSize(), oldSize, "CancelConfirmation() gives back the old size");
 
-        VideoWindowSettingsServer.SetWindowSize(new Vector2I(1024, 600));
+        WindowSettingsServer.SetWindowSize(new Vector2I(1024, 600));
         server.ConfirmChanges();
         ExpectEqual(server.GetAppliedValue("window_size").AsVector2I(), new Vector2I(1024, 600), "ConfirmChanges() keeps the new size");
         Reset();
@@ -96,25 +96,25 @@ public partial class Issue20FeatureVideoWindowSettingsCheck : FeatureCheckCs
 
     private void CheckVsync()
     {
-        var server = VideoWindowSettingsServer.Singleton;
-        VideoWindowSettingsServer.SetVsyncMode(DisplayServer.VSyncMode.Disabled);
-        ExpectEqual(VideoWindowSettingsServer.GetVsyncMode(), DisplayServer.VSyncMode.Disabled, "GetVsyncMode()");
+        var server = WindowSettingsServer.Singleton;
+        WindowSettingsServer.SetVsyncMode(DisplayServer.VSyncMode.Disabled);
+        ExpectEqual(WindowSettingsServer.GetVsyncMode(), DisplayServer.VSyncMode.Disabled, "GetVsyncMode()");
         ExpectEqual(server.GetAppliedValue("vsync_mode").AsInt32(), (int)DisplayServer.VSyncMode.Disabled, "V-Sync is applied at once");
         if (!IsHeadless() && server.IsValueSupported("vsync_mode"))
         {
             ExpectEqual(DisplayServer.WindowGetVsyncMode(), DisplayServer.VSyncMode.Disabled, "the display server has the V-Sync mode");
         }
         server.ReadFromEngine();
-        ExpectEqual(VideoWindowSettingsServer.GetVsyncMode(), DisplayServer.VSyncMode.Disabled, "ReadFromEngine() reads the same V-Sync mode back");
+        ExpectEqual(WindowSettingsServer.GetVsyncMode(), DisplayServer.VSyncMode.Disabled, "ReadFromEngine() reads the same V-Sync mode back");
         Reset();
     }
 
     private void CheckContentScale()
     {
         Window root = GetTree().Root;
-        VideoWindowSettingsServer.SetContentScaleMode(Window.ContentScaleModeEnum.CanvasItems);
-        VideoWindowSettingsServer.SetContentScaleAspect(Window.ContentScaleAspectEnum.Expand);
-        VideoWindowSettingsServer.SetContentScaleFactor(1.5f);
+        WindowSettingsServer.SetContentScaleMode(Window.ContentScaleModeEnum.CanvasItems);
+        WindowSettingsServer.SetContentScaleAspect(Window.ContentScaleAspectEnum.Expand);
+        WindowSettingsServer.SetContentScaleFactor(1.5f);
         ExpectEqual(root.ContentScaleMode, Window.ContentScaleModeEnum.CanvasItems, "the root window gets the content scale mode");
         ExpectEqual(root.ContentScaleAspect, Window.ContentScaleAspectEnum.Expand, "the root window gets the content scale aspect");
         ExpectEqual(root.ContentScaleFactor, 1.5f, "the root window gets the content scale factor");
@@ -127,18 +127,18 @@ public partial class Issue20FeatureVideoWindowSettingsCheck : FeatureCheckCs
         AddChild(popup);
         popup.Size = new Vector2I(320, 240);
         popup.Position = new Vector2I(50, 40);
-        VideoWindowSettingsServer.SaveWindowState(popup);
+        WindowSettingsServer.SaveWindowState(popup);
         string key = popup.GetPath();
-        Expect(VideoWindowSettingsServer.HasWindowState(key), "the state is stored under the node path");
+        Expect(WindowSettingsServer.HasWindowState(key), "the state is stored under the node path");
         RemoveChild(popup);
         popup.Size = new Vector2I(100, 100);
         AddChild(popup);
         ExpectEqual(popup.Size, new Vector2I(320, 240), "the window gets its size back when it enters the tree");
         var other = new Window();
-        Expect(VideoWindowSettingsServer.RestoreWindowState(other, key), "RestoreWindowState() with a key, before AddChild()");
+        Expect(WindowSettingsServer.RestoreWindowState(other, key), "RestoreWindowState() with a key, before AddChild()");
         ExpectEqual(other.Size, new Vector2I(320, 240), "restored size");
-        VideoWindowSettingsServer.ClearWindowState(key);
-        Expect(!VideoWindowSettingsServer.HasWindowState(key), "ClearWindowState()");
+        WindowSettingsServer.ClearWindowState(key);
+        Expect(!WindowSettingsServer.HasWindowState(key), "ClearWindowState()");
         other.Free();
         popup.QueueFree();
         Reset();
@@ -146,12 +146,12 @@ public partial class Issue20FeatureVideoWindowSettingsCheck : FeatureCheckCs
 
     private void CheckResource()
     {
-        var settings = new VideoWindowSettings();
-        ExpectEqual(settings.WindowMode, DisplayServer.WindowMode.Windowed, "VideoWindowSettings: default mode");
-        ExpectEqual(settings.WindowSize, new Vector2I(1152, 648), "VideoWindowSettings: default size");
-        ExpectEqual(settings.VsyncMode, DisplayServer.VSyncMode.Enabled, "VideoWindowSettings: default V-Sync mode");
+        var settings = new WindowSettings();
+        ExpectEqual(settings.WindowMode, DisplayServer.WindowMode.Windowed, "WindowSettings: default mode");
+        ExpectEqual(settings.WindowSize, new Vector2I(1152, 648), "WindowSettings: default size");
+        ExpectEqual(settings.VsyncMode, DisplayServer.VSyncMode.Enabled, "WindowSettings: default V-Sync mode");
         settings.WindowMode = DisplayServer.WindowMode.Fullscreen;
-        ExpectEqual(settings.WindowMode, DisplayServer.WindowMode.Fullscreen, "VideoWindowSettings: WindowMode is a plain property");
+        ExpectEqual(settings.WindowMode, DisplayServer.WindowMode.Fullscreen, "WindowSettings: WindowMode is a plain property");
     }
 
     private void CheckRestart()
@@ -161,18 +161,18 @@ public partial class Issue20FeatureVideoWindowSettingsCheck : FeatureCheckCs
             GD.Print("  SKIP  restart check (needs a desktop platform to start a second process)");
             return;
         }
-        var server = VideoWindowSettingsServer.Singleton;
+        var server = WindowSettingsServer.Singleton;
 
         // 1) Fullscreen and 1920x1080 are saved and loaded before the main scene; a second window gets its state back.
         server.ApplyMode = SettingsServer.ApplyModeEnum.Manual;
-        VideoWindowSettingsServer.SetWindowMode(DisplayServer.WindowMode.Fullscreen);
-        VideoWindowSettingsServer.SetWindowSize(new Vector2I(1920, 1080));
-        VideoWindowSettingsServer.SetScreen(5); // A screen that does not exist.
+        WindowSettingsServer.SetWindowMode(DisplayServer.WindowMode.Fullscreen);
+        WindowSettingsServer.SetWindowSize(new Vector2I(1920, 1080));
+        WindowSettingsServer.SetScreen(5); // A screen that does not exist.
         ExpectEqual(server.Apply(), Error.Ok, "Apply() in manual mode");
         server.ConfirmChanges();
         server.ApplyMode = SettingsServer.ApplyModeEnum.Immediate;
         var inventory = new Window { Size = new Vector2I(400, 300), Position = new Vector2I(60, 70) };
-        VideoWindowSettingsServer.SaveWindowState(inventory, ProbeWindowKey);
+        WindowSettingsServer.SaveWindowState(inventory, ProbeWindowKey);
         inventory.Free();
         ExpectEqual(server.Save(), Error.Ok, "Save() writes the player file");
 
@@ -226,12 +226,12 @@ public partial class Issue20FeatureVideoWindowSettingsCheck : FeatureCheckCs
     /// <summary>Issue #173: the typed signal fires once per applied change, not for pending changes in manual mode.</summary>
     private async Task CheckTypedSignals()
     {
-        if (!Engine.HasSingleton("VideoWindowSettingsServer"))
+        if (!Engine.HasSingleton("WindowSettingsServer"))
         {
             return;
         }
-        var s = (SettingsServer)Engine.GetSingleton("VideoWindowSettingsServer");
-        Expect(s.HasSignal("vsync_mode_changed"), "VideoWindowSettingsServer has the typed signal vsync_mode_changed");
+        var s = (SettingsServer)Engine.GetSingleton("WindowSettingsServer");
+        Expect(s.HasSignal("vsync_mode_changed"), "WindowSettingsServer has the typed signal vsync_mode_changed");
         string filePath = s.GetFilePath();
         bool hadFile = FileAccess.FileExists(filePath);
         var previousMode = s.ApplyMode;
