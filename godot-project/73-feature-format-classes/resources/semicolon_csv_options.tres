@@ -2,4 +2,4 @@
 
 [resource]
 csv_delimiter = ";"
-ini_plain_values = true
+ini_value_style = 0

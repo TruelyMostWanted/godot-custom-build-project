@@ -1,0 +1,8 @@
+[gd_resource type="FlowPort" format=3]
+
+[resource]
+name = &"amount"
+kind = 1
+type = 2
+default_value = 1
+label = "Amount"

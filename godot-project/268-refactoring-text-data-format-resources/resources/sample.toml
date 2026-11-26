@@ -1,0 +1,8 @@
+# plain TOML file
+title = "Demo"
+
+[server]
+port = 8080
+
+[server.limits]
+max = 64

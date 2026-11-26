@@ -39,7 +39,7 @@ public partial class Issue252FeatureSqliteModuleCheck : FeatureCheckCs
         ExpectEqual(db.Execute("SELECT 1;"), Error.Unconfigured, "Execute on a closed database returns Unconfigured");
         ExpectEqual(db.Open(DbPath), Error.Ok, "Open creates the database in user://");
         Expect(db.IsOpen(), "IsOpen is true after Open");
-        ExpectEqual(db.GetPath(), DbPath, "GetPath returns the path");
+        ExpectEqual(db.GetDatabasePath(), DbPath, "GetDatabasePath returns the path");
         ExpectEqual(db.GetOpenMode(), SQLiteDatabase.OpenMode.Create, "default open mode is read-write-create");
         Expect(FileAccess.FileExists(DbPath), "the database file exists");
 
@@ -174,6 +174,63 @@ public partial class Issue252FeatureSqliteModuleCheck : FeatureCheckCs
         ExpectEqual(shipped.Query("SELECT id FROM items;").Count, 4, "the copy has 4 rows");
         shipped.Close();
         RemoveDb();
+
+        // Schema API (#292).
+        Expect(ClassDB.ClassExists("SQLiteColumn"), "ClassDB knows SQLiteColumn");
+        ExpectEqual(db.Open(DbPath), Error.Ok, "open a database for the schema checks");
+        ExpectEqual(db.GetTableNames().Length, 0, "an empty database has no tables");
+        ExpectEqual(db.Execute(
+            "CREATE TABLE items (id INTEGER PRIMARY KEY, name VARCHAR(40) NOT NULL DEFAULT 'none', weight DOUBLE, price DECIMAL(10,2));"
+            + "CREATE TABLE \"odd \"\"name\" (a TEXT, b INT, PRIMARY KEY (b, a));"
+            + "CREATE VIEW heavy AS SELECT id FROM items;"
+            + "CREATE VIRTUAL TABLE notes USING fts5(body);"
+            + "INSERT INTO items (name) VALUES ('a'), ('b');"), Error.Ok, "create tables, a view and a virtual table");
+        Expect(db.GetTableNames().SequenceEqual(new[] { "items", "notes", "odd \"name" }), "GetTableNames lists tables and virtual tables by name, without views and shadow tables");
+        Expect(db.HasTable("ITEMS"), "HasTable ignores case");
+        Expect(db.HasTable("odd \"name"), "HasTable with a quote in the name");
+        Expect(!db.HasTable("heavy"), "a view is not a table");
+        Expect(!db.HasTable("notes_data"), "FTS5 shadow tables are hidden");
+        Godot.Collections.Array<SQLiteColumn> columns = db.GetColumns("items");
+        ExpectEqual(columns.Count, 4, "GetColumns returns every column");
+        ExpectEqual(columns[0].Name, "id", "column name");
+        ExpectEqual(columns[0].PrimaryKeyIndex, 1, "INTEGER PRIMARY KEY is key column 1");
+        ExpectEqual(columns[0].Affinity, SQLiteColumn.AffinityEnum.Integer, "INTEGER affinity");
+        ExpectEqual(columns[1].DeclaredType, "VARCHAR(40)", "declared type as written");
+        Expect(columns[1].NotNull, "NOT NULL");
+        ExpectEqual(columns[1].DefaultValue, "'none'", "default value as SQL text");
+        ExpectEqual(columns[1].PrimaryKeyIndex, 0, "not part of the key");
+        ExpectEqual(columns[1].Affinity, SQLiteColumn.AffinityEnum.Text, "VARCHAR has TEXT affinity");
+        ExpectEqual(columns[2].Affinity, SQLiteColumn.AffinityEnum.Real, "DOUBLE has REAL affinity");
+        ExpectEqual(columns[2].DefaultValue, "", "no default is empty");
+        ExpectEqual(columns[3].Affinity, SQLiteColumn.AffinityEnum.Numeric, "DECIMAL has NUMERIC affinity");
+        Godot.Collections.Array<SQLiteColumn> odd = db.GetColumns("odd \"name");
+        Expect(odd[0].PrimaryKeyIndex == 2 && odd[1].PrimaryKeyIndex == 1, "composite key positions");
+        Expect(db.GetColumnNames("items").SequenceEqual(new[] { "id", "name", "weight", "price" }), "GetColumnNames");
+        ExpectEqual(db.GetColumnCount("items"), 4, "GetColumnCount");
+        ExpectEqual(db.GetRowCount("items"), 2L, "GetRowCount");
+        ExpectEqual(db.GetRowCount("Items"), 2L, "GetRowCount ignores case");
+        ExpectEqual(db.GetRowCount("odd \"name"), 0L, "GetRowCount of a quoted name");
+        ExpectEqual(db.GetRowCount("missing"), -1L, "GetRowCount of an unknown table is -1");
+        ExpectEqual(db.GetLastError(), Error.DoesNotExist, "unknown table sets DoesNotExist");
+        ExpectEqual(db.GetColumns("missing").Count, 0, "GetColumns of an unknown table is empty");
+        ExpectEqual(db.GetColumnCount("missing"), -1, "GetColumnCount of an unknown table is -1");
+        ExpectEqual(db.GetRowCount("items\"; DROP TABLE items; --"), -1L, "a name with SQL in it is just an unknown table");
+        Expect(db.HasTable("items"), "the table is still there");
+        db.Close();
+        RemoveDb();
+
+        // Database files as resources (#292).
+        var loaded = GD.Load<SQLiteDatabase>(ShippedDb);
+        Expect(loaded != null, "Load returns an SQLiteDatabase for a .db file");
+        Expect(!loaded.IsOpen(), "a loaded database is not open yet");
+        ExpectEqual(loaded.ResourcePath, ShippedDb, "ResourcePath is the file");
+        ExpectEqual(loaded.Open(), Error.Ok, "Open() without a path opens the loaded file");
+        ExpectEqual(loaded.GetOpenMode(), SQLiteDatabase.OpenMode.ReadOnly, "a file in res:// opens read-only");
+        ExpectEqual(loaded.GetDatabasePath(), ShippedDb, "GetDatabasePath of the loaded file");
+        Expect(loaded.GetTableNames().SequenceEqual(new[] { "items" }), "tables of the shipped database");
+        ExpectEqual(loaded.GetRowCount("items"), 3L, "rows of the shipped database");
+        loaded.Close();
+        ExpectEqual(new SQLiteDatabase().Open(), Error.InvalidParameter, "Open() without a path needs a loaded file");
         return Task.CompletedTask;
     }
 }

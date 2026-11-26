@@ -1,0 +1,7 @@
+[gd_resource type="FlowBlackboard" format=3]
+
+[resource]
+variables = Dictionary[StringName, Variant]({
+&"player_name": "Ada",
+&"score": 10
+})
