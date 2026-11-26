@@ -50,7 +50,7 @@ func _run_checks() -> void:
 	server.catalogs_changed.connect(_on_catalogs_changed)
 
 	# Locale (TranslationServer) and chain (the closest other locale comes before the fallback).
-	var fallback := TranslationServer.get_fallback_locale()
+	var fallback := str(ProjectSettings.get_setting("internationalization/locale/fallback", "en"))
 	expect_equal(server.get_locale_chain("de_DE"), PackedStringArray(["de_DE", "de", fallback]), "chain de_DE -> de -> fallback")
 
 	# Game and mod layers: the mod (priority 100) overrides the game.

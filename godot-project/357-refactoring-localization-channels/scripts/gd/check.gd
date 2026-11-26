@@ -94,8 +94,8 @@ func _run_checks() -> void:
 	expect_equal(String(subtitles_domain.translate(&"LINE")), "Where are we?", "domain subtitles follows the subtitles channel")
 	expect_equal(tr(&"LINE"), "LINE", "a subtitle key is not in the main domain")
 	var node := Node.new()
-	node.translation_domain = &"subtitles"
-	expect_equal(node.tr(&"LINE"), "Where are we?", "Node.translation_domain picks the channel")
+	node.set_translation_domain(&"subtitles")
+	expect_equal(node.tr(&"LINE"), "Where are we?", "Node translation domain picks the channel")
 	expect_equal(text_server.translate_for_locale("de", &"LINE"), "Wo sind wir?", "translate_for_locale")
 	TranslationServer.set_locale_for(&"subtitles", "de")
 	expect_equal(String(subtitles_domain.translate(&"LINE")), "Wo sind wir?", "subtitles channel change")
@@ -141,7 +141,8 @@ func _run_checks() -> void:
 	DirAccess.make_dir_recursive_absolute(DATA_DIR + "/formats")
 	for extension in ["json", "yaml", "lcat", "tres"]:
 		var path: String = DATA_DIR + "/formats/subs." + extension
-		expect_equal(_subtitle_catalog().save_to_file(path), OK, "save " + extension)
+		var saved: Error = ResourceSaver.save(_subtitle_catalog(), path) if extension == "tres" else _subtitle_catalog().save_to_file(path)
+		expect_equal(saved, OK, "save " + extension)
 		var loaded := ResourceLoader.load(path, "TextLocalizationCatalog", ResourceLoader.CACHE_MODE_IGNORE) as TextLocalizationCatalog
 		expect(loaded != null and loaded.channel == &"subtitles", "channel round trip: " + extension)
 	var extensions := LocalizationCatalog.get_file_extensions()

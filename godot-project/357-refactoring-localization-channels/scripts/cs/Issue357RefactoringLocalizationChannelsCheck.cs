@@ -55,8 +55,8 @@ public partial class Issue357RefactoringLocalizationChannelsCheck : FeatureCheck
 
     protected override async Task RunChecks()
     {
-        TextLocalizationServer textServer = TextLocalizationServer.Singleton;
-        ResourceLocalizationServer resourceServer = ResourceLocalizationServer.Singleton;
+        TextLocalizationServerInstance textServer = TextLocalizationServer.Singleton;
+        ResourceLocalizationServerInstance resourceServer = ResourceLocalizationServer.Singleton;
         string previousLocale = TranslationServer.GetLocale();
         textServer.ClearCatalogs();
         resourceServer.ClearCatalogs();
@@ -101,8 +101,9 @@ public partial class Issue357RefactoringLocalizationChannelsCheck : FeatureCheck
         TranslationDomain subtitlesDomain = TranslationServer.GetOrAddDomain("subtitles");
         ExpectEqual((string)subtitlesDomain.Translate("LINE"), "Where are we?", "domain subtitles follows the subtitles channel");
         ExpectEqual(Tr("LINE"), "LINE", "a subtitle key is not in the main domain");
-        var node = new Node { TranslationDomain = "subtitles" };
-        ExpectEqual(node.Tr("LINE"), "Where are we?", "Node.TranslationDomain picks the channel");
+        var node = new Node();
+        node.SetTranslationDomain("subtitles");
+        ExpectEqual(node.Tr("LINE"), "Where are we?", "Node translation domain picks the channel");
         ExpectEqual(TextLocalizationServer.TranslateForLocale("de", "LINE"), "Wo sind wir?", "TranslateForLocale");
         TranslationServer.SetLocaleFor("subtitles", "de");
         ExpectEqual((string)subtitlesDomain.Translate("LINE"), "Wo sind wir?", "subtitles channel change");
@@ -146,7 +147,8 @@ public partial class Issue357RefactoringLocalizationChannelsCheck : FeatureCheck
         foreach (string extension in new[] { "json", "yaml", "lcat", "tres" })
         {
             string path = DataDir + "/formats/subs." + extension;
-            ExpectEqual(SubtitleCatalog().SaveToFile(path), Error.Ok, "save " + extension);
+            Error saved = extension == "tres" ? ResourceSaver.Save(SubtitleCatalog(), path) : SubtitleCatalog().SaveToFile(path);
+            ExpectEqual(saved, Error.Ok, "save " + extension);
             var loaded = ResourceLoader.Load(path, "TextLocalizationCatalog", ResourceLoader.CacheMode.Ignore) as TextLocalizationCatalog;
             Expect(loaded != null && loaded.Channel.ToString() == "subtitles", "channel round trip: " + extension);
         }

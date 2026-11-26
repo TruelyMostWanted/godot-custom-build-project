@@ -48,7 +48,7 @@ public partial class Issue343FeatureTextLocalizationServerCheck : FeatureCheckCs
         TranslationServer.Singleton.Connect("locale_changed", onLocaleChanged);
 
         // Locale (TranslationServer) and chain (the closest other locale comes before the fallback).
-        string fallback = TranslationServer.GetFallbackLocale();
+        string fallback = (string)ProjectSettings.GetSetting("internationalization/locale/fallback", "en");
         Expect(TextLocalizationServer.Singleton.GetLocaleChain("de_DE").SequenceEqual(new[] { "de_DE", "de", fallback }), "chain de_DE -> de -> fallback");
 
         // Game and mod layers: the mod (priority 100) overrides the game.
