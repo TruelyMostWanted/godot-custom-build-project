@@ -1,0 +1,18 @@
+# Server configuration
+title = "Arena"
+
+[server]
+port = 8080
+public = true
+
+[server.limits]
+players = 16
+tick_rate = 30.0
+
+[[maps]]
+name = "Forest"
+rounds = 3
+
+[[maps]]
+name = "Desert"
+rounds = 5
