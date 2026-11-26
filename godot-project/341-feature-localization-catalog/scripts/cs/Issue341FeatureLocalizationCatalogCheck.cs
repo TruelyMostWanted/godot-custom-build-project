@@ -42,7 +42,34 @@ public partial class Issue341FeatureLocalizationCatalogCheck : FeatureCheckCs
     }
 
     private static bool SameData(GodotObject a, GodotObject b)
-        => a.Get("data").AsGodotDictionary().RecursiveEqual(b.Get("data").AsGodotDictionary());
+        => WithoutNotes(a.Get("data").AsGodotDictionary()).RecursiveEqual(WithoutNotes(b.Get("data").AsGodotDictionary()));
+
+    /// <summary>Translator notes (_ fields, #357) are never stored in .lcat: compared without them.</summary>
+    private static Godot.Collections.Dictionary WithoutNotes(Godot.Collections.Dictionary data)
+    {
+        var result = new Godot.Collections.Dictionary();
+        foreach (var pair in data)
+        {
+            if (pair.Value.VariantType == Variant.Type.Dictionary)
+            {
+                var entry = new Godot.Collections.Dictionary();
+                foreach (var field in pair.Value.AsGodotDictionary())
+                {
+                    string name = field.Key.AsString();
+                    if (!name.StartsWith('_') || name == "_key" || name == "_context")
+                    {
+                        entry[field.Key] = field.Value;
+                    }
+                }
+                result[pair.Key] = entry;
+            }
+            else
+            {
+                result[pair.Key] = pair.Value;
+            }
+        }
+        return result;
+    }
 
     /// <summary>The rules of the CSV translation importer: ?context, ?plural + continuation rows, _ columns ignored,
     /// ?pluralrule row, translations unescaped.</summary>
