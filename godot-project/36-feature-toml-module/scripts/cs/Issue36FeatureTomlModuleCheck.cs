@@ -143,7 +143,7 @@ public partial class Issue36FeatureTomlModuleCheck : FeatureCheckCs
             + "\n[[players]]\nname = \"Bob\"\n";
         var toml = new Toml();
         ExpectEqual(toml.Parse(source), Error.Ok, "Parse() a hand-written document");
-        Dictionary data = toml.GetData();
+        Dictionary data = toml.GetData().AsGodotDictionary();
         Expect((string)data["title"] == "TOML" && (string)data["literal"] == "C:\\path", "basic and literal strings");
         Expect((long)data["hex"] == 255 && (long)data["big"] == 1000000 && Mathf.IsEqualApprox((double)data["pi"], 3.14) && double.IsPositiveInfinity((double)data["up"]), "integers and floats");
         Expect((string)data["when"] == "1979-05-27T07:32:00Z", "dates are read as strings");

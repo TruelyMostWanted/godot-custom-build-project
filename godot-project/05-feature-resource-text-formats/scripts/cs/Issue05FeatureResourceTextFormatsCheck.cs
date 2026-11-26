@@ -75,7 +75,7 @@ public partial class Issue05FeatureResourceTextFormatsCheck : FeatureCheckCs
         var json = ResourceTextSerializer.Format.Json;
         var defaults = new SerializerOptions();
         Expect(defaults.Indent == "  " && defaults.EnumsAsNames && defaults.Defaults == null && defaults.IncludeTypeMarker && !defaults.SortKeys && !defaults.FullPrecisionFloats, "SerializerOptions(): common defaults");
-        Expect(defaults.CsvDelimiter == "," && defaults.CsvHeaders && !defaults.IniPlainValues && defaults.XmlDeclaration, "SerializerOptions(): format defaults");
+        Expect(defaults.CsvDelimiter == "," && defaults.CsvHeaders && defaults.IniValueStyle == SerializerOptions.IniValueStyleEnum.GodotVariant && defaults.XmlDeclaration, "SerializerOptions(): format defaults");
         ExpectEqual(ResourceTextSerializer.Serialize(settings, json, defaults), ResourceTextSerializer.Serialize(settings, json), "new() gives the same text as null (project settings)");
 
         Expect(ResourceTextSerializer.Serialize(settings, json, new SerializerOptions { Indent = "\t" }).Contains("\n\t\""), "Indent");
@@ -112,7 +112,7 @@ public partial class Issue05FeatureResourceTextFormatsCheck : FeatureCheckCs
         var backEntries = back?.Get("entries").As<Array>();
         Expect(backEntries != null && backEntries.Count == 1 && SameBus(backEntries[0], entries[0]), "CsvHeaders = false round trip");
 
-        string ini = ResourceTextSerializer.Serialize(settings, ResourceTextSerializer.Format.Ini, new SerializerOptions { IniPlainValues = true });
+        string ini = ResourceTextSerializer.Serialize(settings, ResourceTextSerializer.Format.Ini, new SerializerOptions { IniValueStyle = SerializerOptions.IniValueStyleEnum.Plain });
         Expect(ini.Contains("cell=1, -2, 3"), "IniPlainValues");
         CheckSettings(ResourceTextSerializer.Deserialize(ini, ResourceTextSerializer.Format.Ini), "IniPlainValues");
 
