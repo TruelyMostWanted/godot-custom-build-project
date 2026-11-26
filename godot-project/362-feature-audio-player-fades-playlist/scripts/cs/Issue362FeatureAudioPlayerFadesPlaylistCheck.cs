@@ -139,7 +139,7 @@ public partial class Issue362FeatureAudioPlayerFadesPlaylistCheck : FeatureCheck
         _fadeFinished = 0;
         Expect(!player.IsFading(), "not fading at the start");
         Expect(Approx(player.GetFadeGain(), 1.0), "gain is 1.0 at the start");
-        player.FadeIn(0.4);
+        player.FadeIn(0.4f);
         Expect(player.Playing, "fade_in() starts playback");
         Expect(player.IsFading(), "is_fading() during fade_in");
         Expect((float)player.GetFadeGain() < 0.2f, $"gain starts near 0 (got {player.GetFadeGain()})");
@@ -163,7 +163,7 @@ public partial class Issue362FeatureAudioPlayerFadesPlaylistCheck : FeatureCheck
         Expect(Approx(player.VolumeDb, 0.0), "volume_db is untouched by fades");
 
         _fadeFinished = 0;
-        player.FadeOut(0.3);
+        player.FadeOut(0.3f);
         Expect(player.IsFading(), "is_fading() during fade_out");
         await Wait(0.6);
         Expect(!player.Playing, "fade_out(stop_at_end) stops the player");
@@ -172,7 +172,7 @@ public partial class Issue362FeatureAudioPlayerFadesPlaylistCheck : FeatureCheck
         player.Play();
         Expect(player.Playing, "play() starts playback");
         Expect(Approx(player.GetFadeGain(), 1.0), "play() resets the gain to 1.0");
-        player.FadeOut(0.2, AudioMixerServer.FadeCurve.Linear, false);
+        player.FadeOut(0.2f, AudioMixerServer.FadeCurve.Linear, false);
         await Wait(0.5);
         Expect(player.Playing, "fade_out(stop_at_end = false) keeps playing");
         player.QueueFree();
@@ -189,7 +189,7 @@ public partial class Issue362FeatureAudioPlayerFadesPlaylistCheck : FeatureCheck
         player.StreamChanged += OnStreamChanged;
         _fadeFinished = 0;
         _streamChanged.Clear();
-        player.CrossfadeTo(second, 0.4);
+        player.CrossfadeTo(second, 0.4f);
         Expect(_streamChanged.Count == 1 && _streamChanged[0] == second, "crossfade_to emits stream_changed with the new stream");
         Expect(player.Stream == second, "crossfade_to swaps the stream");
         Expect(player.IsFading(), "is_fading() during the crossfade");
@@ -221,9 +221,9 @@ public partial class Issue362FeatureAudioPlayerFadesPlaylistCheck : FeatureCheck
         Expect(_tracks.Count >= 1 && _tracks[0] == 0 && _trackStreams[0] == first, "track_changed(0, first) arrives after play()");
         ExpectEqual((int)player.GetCurrentTrackIndex(), 0, "get_current_track_index is 0");
         Expect(player.GetCurrentTrackStream() == first, "get_current_track_stream is the first stream");
-        float posA = player.GetPositionInPlaylist();
+        double posA = player.GetPositionInPlaylist();
         await Wait(0.1);
-        float posB = player.GetPositionInPlaylist();
+        double posB = player.GetPositionInPlaylist();
         Expect(posB > posA, $"get_position_in_playlist increases ({posA} -> {posB})");
         for (int i = 0; i < 40 && !_tracks.Contains(1); i++) // At most 2 seconds.
         {
@@ -273,7 +273,7 @@ public partial class Issue362FeatureAudioPlayerFadesPlaylistCheck : FeatureCheck
         AddChild(p2d);
         p2d.FadeFinished += OnFadeFinished;
         _fadeFinished = 0;
-        p2d.FadeIn(0.2);
+        p2d.FadeIn(0.2f);
         Expect(p2d.Playing, "2D: fade_in() starts playback");
         Expect((float)p2d.GetFadeGain() < 0.3f, "2D: gain starts near 0");
         await Wait(0.5);
@@ -285,7 +285,7 @@ public partial class Issue362FeatureAudioPlayerFadesPlaylistCheck : FeatureCheck
         AddChild(p3d);
         p3d.FadeFinished += OnFadeFinished;
         _fadeFinished = 0;
-        p3d.FadeIn(0.2);
+        p3d.FadeIn(0.2f);
         Expect(p3d.Playing, "3D: fade_in() starts playback");
         Expect((float)p3d.GetFadeGain() < 0.3f, "3D: gain starts near 0");
         await Wait(0.5);
