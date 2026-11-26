@@ -101,6 +101,8 @@ func _run_checks() -> void:
 	expect(greeting.is_bound(label) and label.get_meta(&"localized_text") == greeting, "binding is the metadata localized_text")
 	expect_equal(label.auto_translate_mode, Node.AUTO_TRANSLATE_MODE_DISABLED, "bound node is not translated twice")
 	expect_equal(button.tooltip_text, "Hallo Ada!", "other properties bind too")
+	var button_meta: Dictionary = button.get_meta(&"localized_text")
+	expect(button_meta.size() == 2 and button_meta["tooltip_text"] == greeting, "two properties: the one key holds a dictionary")
 
 	greeting.text_changed.connect(_on_text_changed)
 	TextInsertionServer.set_value(&"player_name", "Bob")
@@ -127,9 +129,12 @@ func _run_checks() -> void:
 	expect_equal(npc.text, "Hello Bob!", "metadata binding applies on entering the tree")
 	var npc_text := npc.get_meta(&"localized_text") as LocalizedText
 	expect(npc_text != null and npc_text.is_bound(npc), "scene metadata holds a bound LocalizedText")
+	var answer := npc.get_node("Answer") as Button
+	expect(answer.text == "Hello Bob!" and answer.tooltip_text == "Hello Bob!", "dictionary metadata binds text and tooltip_text")
 	TextInsertionServer.set_value(&"player_name", "Cy")
 	await _settle()
 	expect_equal(npc.text, "Hello Cy!", "scene binding refreshes")
+	expect_equal(answer.tooltip_text, "Hello Cy!", "dictionary binding refreshes")
 
 	# Only texts using a value refresh; EVERY_FRAME for provider values.
 	_ticks = 0

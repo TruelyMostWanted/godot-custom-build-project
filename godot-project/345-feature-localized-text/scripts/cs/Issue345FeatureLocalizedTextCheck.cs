@@ -100,6 +100,8 @@ public partial class Issue345FeatureLocalizedTextCheck : FeatureCheckCs
         Expect(greeting.IsBound(label) && label.GetMeta("localized_text").AsGodotObject() == greeting, "binding is the metadata localized_text");
         ExpectEqual(label.AutoTranslateMode, Node.AutoTranslateModeEnum.Disabled, "bound node is not translated twice");
         ExpectEqual(button.TooltipText, "Hallo Ada!", "other properties bind too");
+        var buttonMeta = button.GetMeta("localized_text").AsGodotDictionary();
+        Expect(buttonMeta.Count == 2 && buttonMeta["tooltip_text"].AsGodotObject() == greeting, "two properties: the one key holds a dictionary");
 
         greeting.TextChanged += OnTextChanged;
         TextInsertionServer.SetValue("player_name", "Bob");
@@ -126,9 +128,12 @@ public partial class Issue345FeatureLocalizedTextCheck : FeatureCheckCs
         ExpectEqual(npc.Text, "Hello Bob!", "metadata binding applies on entering the tree");
         var npcText = npc.GetMeta("localized_text").As<LocalizedText>();
         Expect(npcText != null && npcText.IsBound(npc), "scene metadata holds a bound LocalizedText");
+        var answer = npc.GetNode<Button>("Answer");
+        Expect(answer.Text == "Hello Bob!" && answer.TooltipText == "Hello Bob!", "dictionary metadata binds text and tooltip_text");
         TextInsertionServer.SetValue("player_name", "Cy");
         await Settle();
         ExpectEqual(npc.Text, "Hello Cy!", "scene binding refreshes");
+        ExpectEqual(answer.TooltipText, "Hello Cy!", "dictionary binding refreshes");
 
         // Only texts using a value refresh; EveryFrame for provider values.
         _ticks = 0;
