@@ -53,11 +53,12 @@ func _run_scenario(mode: int, wav: AudioStreamWAV) -> float:
 		var player := AudioStreamPlayer.new()
 		player.stream = wav
 		_root_node.add_child(player)
-		if mode == 1:
-			player.position_signal_interval = 0.1
-			player.position_changed.connect(_noop)
 		if mode == 2:
-			player.fade_in(10.0)
+			player.set("position_signal_interval", 0.1)
+			if player.has_signal("position_changed"):
+				player.connect("position_changed", _noop)
+		if mode == 3 and player.has_method("fade_in"):
+			player.call("fade_in", 10.0)
 		else:
 			player.play()
 	return await _measure()
@@ -71,11 +72,11 @@ func _run() -> void:
 	var wav := _make_wav(30.0)
 	await _clear()
 	var baseline := await _measure()
-	var names := ["plain playing", "position_signal_interval = 0.1", "fade_in(10.0)"]
+	var names := ["plain playing (warm-up)", "plain playing", "position_signal_interval = 0.1", "fade_in(10.0)"]
 	print("| Scenario | Avg frame process (us) | Per player (us) |")
 	print("|---|---|---|")
 	print("| empty scene (baseline) | %.1f | - |" % (baseline * 1000000.0))
-	for mode in 3:
+	for mode in (4 if ClassDB.class_has_method("AudioStreamPlayer", "fade_in") else 2):
 		var avg := await _run_scenario(mode, wav)
 		var per_player := (avg - baseline) * 1000000.0 / PLAYERS
 		print("| %s | %.1f | %.3f |" % [names[mode], avg * 1000000.0, per_player])
