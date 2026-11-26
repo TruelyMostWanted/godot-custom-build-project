@@ -35,6 +35,11 @@ class Grid:
 	extends Node2D
 
 	var tile_set: TileSet
+	var _layer := TileMapLayer.new() # TileSet has no bound map_to_local(); the layer has.
+
+	func _map(cell: Vector2i) -> Vector2:
+		_layer.tile_set = tile_set
+		return _layer.map_to_local(cell)
 
 	func _draw() -> void:
 		if tile_set == null:
@@ -42,7 +47,7 @@ class Grid:
 		var font := ThemeDB.fallback_font
 		for x in range(-RANGE, RANGE + 1):
 			for y in range(-RANGE, RANGE + 1):
-				var center := tile_set.map_to_local(Vector2i(x, y))
+				var center := _map(Vector2i(x, y))
 				var rect := Rect2(center - Vector2(CELL, CELL) / 2.0, Vector2(CELL, CELL))
 				if x == 0 and y == 0:
 					draw_rect(rect, ORIGIN)
@@ -52,8 +57,8 @@ class Grid:
 		_draw_axis(Vector2i(0, RANGE), Y_COLOR, "+Y")
 
 	func _draw_axis(target_cell: Vector2i, color: Color, text: String) -> void:
-		var origin := tile_set.map_to_local(Vector2i.ZERO)
-		var target := tile_set.map_to_local(target_cell)
+		var origin := _map(Vector2i.ZERO)
+		var target := _map(target_cell)
 		var direction := (target - origin).normalized()
 		var normal := direction.orthogonal()
 		var start := origin + direction * CELL * 0.3
@@ -99,7 +104,7 @@ func _ready() -> void:
 		tile_set.flip_x = flip_x
 		tile_set.flip_y = flip_y
 		grid.tile_set = tile_set
-		grid.position = Vector2(size, size) / 2.0 - tile_set.map_to_local(Vector2i.ZERO)
+		grid.position = Vector2(size, size) / 2.0 - grid._map(Vector2i.ZERO)
 		grid.queue_redraw()
 		await RenderingServer.frame_post_draw
 		await RenderingServer.frame_post_draw

@@ -20,7 +20,7 @@
     "flip_y": false
    },
    "expand_all": true,
-   "max_height": 330
+   "max_height": 380
   },
   {
    "name": "inspector-001",
@@ -34,7 +34,7 @@
     "flip_y": true
    },
    "expand_all": true,
-   "max_height": 330
+   "max_height": 380
   },
   {
    "name": "inspector-010",
@@ -48,7 +48,7 @@
     "flip_y": false
    },
    "expand_all": true,
-   "max_height": 330
+   "max_height": 380
   },
   {
    "name": "inspector-011",
@@ -62,7 +62,7 @@
     "flip_y": true
    },
    "expand_all": true,
-   "max_height": 330
+   "max_height": 380
   },
   {
    "name": "inspector-100",
@@ -76,7 +76,7 @@
     "flip_y": false
    },
    "expand_all": true,
-   "max_height": 330
+   "max_height": 380
   },
   {
    "name": "inspector-101",
@@ -90,7 +90,7 @@
     "flip_y": true
    },
    "expand_all": true,
-   "max_height": 330
+   "max_height": 380
   },
   {
    "name": "inspector-110",
@@ -104,7 +104,7 @@
     "flip_y": false
    },
    "expand_all": true,
-   "max_height": 330
+   "max_height": 380
   },
   {
    "name": "inspector-111",
@@ -118,7 +118,7 @@
     "flip_y": true
    },
    "expand_all": true,
-   "max_height": 330
+   "max_height": 380
   }
  ]
 }
