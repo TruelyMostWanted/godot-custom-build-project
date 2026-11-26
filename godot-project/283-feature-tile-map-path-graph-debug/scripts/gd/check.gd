@@ -9,7 +9,9 @@ const MUD := Vector2i(2, 0) # Custom data "cost" = 20.
 const MAP := Rect2i(0, 0, 7, 5)
 const FROM := Vector2i(0, 2)
 const TO := Vector2i(6, 2)
+## Two gap cells (even and odd row): odd rows of stacked isometric maps are shifted half a cell.
 const GAP := Vector2i(3, 4)
+const GAP2 := Vector2i(3, 3)
 const MUD_CELL := Vector2i(1, 2)
 
 
@@ -51,7 +53,7 @@ func _check_shape(label: String, shape: TileSet.TileShape) -> void:
 	for y in range(MAP.position.y, MAP.end.y):
 		for x in range(MAP.position.x, MAP.end.x):
 			var cell := Vector2i(x, y)
-			layer.set_cell(cell, 0, WALL if x == 3 and cell != GAP else FLOOR)
+			layer.set_cell(cell, 0, WALL if x == 3 and cell != GAP and cell != GAP2 else FLOOR)
 	layer.set_cell(MUD_CELL, 0, MUD)
 	add_child(layer)
 
@@ -63,9 +65,9 @@ func _check_shape(label: String, shape: TileSet.TileShape) -> void:
 	# The overlay draws what the pathfinder uses: no path cell is drawn as blocked,
 	# the wall is, and the mud cell is the most expensive (fully shaded) cell.
 	var path := graph.get_cell_path(FROM, TO)
-	expect(not path.is_empty() and path.has(GAP), label + ": the path goes through the gap")
+	expect(not path.is_empty() and (path.has(GAP) or path.has(GAP2)), label + ": the path goes through the gap")
 	expect(path.filter(func(cell: Vector2i) -> bool: return graph.is_cell_blocked(cell)).is_empty(), label + ": no path cell is drawn as blocked")
-	expect(graph.is_cell_blocked(Vector2i(3, 0)) and not graph.is_cell_blocked(GAP), label + ": wall cells are drawn as blocked")
+	expect(graph.is_cell_blocked(Vector2i(3, 0)) and not graph.is_cell_blocked(GAP) and not graph.is_cell_blocked(GAP2), label + ": wall cells are drawn as blocked")
 	expect(is_equal_approx(graph.get_cell_cost(MUD_CELL), 20.0) and is_equal_approx(graph.get_cell_cost(Vector2i(0, 0)), 1.0), label + ": mud is shaded, floor is not")
 	expect(not path.has(MUD_CELL), label + ": the path avoids the shaded cell")
 
@@ -83,7 +85,8 @@ func _check_shape(label: String, shape: TileSet.TileShape) -> void:
 	expect(draws[0] >= 1, label + ": draw_debug() runs in _draw()")
 	var before: int = draws[0]
 	layer.set_cell(GAP, 0, WALL)
-	graph.update_cells([GAP])
+	layer.set_cell(GAP2, 0, WALL)
+	graph.update_cells([GAP, GAP2])
 	await get_tree().process_frame
 	expect(draws[0] > before, label + ": updated redraws the overlay")
 	expect(graph.get_cell_path(FROM, TO).is_empty(), label + ": closed wall, no path")

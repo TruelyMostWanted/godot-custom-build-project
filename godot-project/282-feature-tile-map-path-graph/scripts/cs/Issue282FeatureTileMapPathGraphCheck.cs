@@ -19,6 +19,7 @@ public partial class Issue282FeatureTileMapPathGraphCheck : FeatureCheckCs
     private static readonly Vector2I From = new(-4, 0);
     private static readonly Vector2I To = new(4, 0);
     private static readonly Vector2I Gap = ColumnGraph.Gap;
+    private static readonly Vector2I Gap2 = ColumnGraph.Gap2;
 
     protected override string CheckName => "282-feature-tile-map-path-graph";
 
@@ -159,7 +160,7 @@ public partial class Issue282FeatureTileMapPathGraphCheck : FeatureCheckCs
         for (int y = Map.Position.Y; y < Map.End.Y; y++)
         {
             var cell = new Vector2I(0, y);
-            if (cell != Gap)
+            if (cell != Gap && cell != Gap2)
             {
                 layer.SetCell(cell, 0, Wall);
                 wall.Add(cell);
@@ -167,15 +168,16 @@ public partial class Issue282FeatureTileMapPathGraphCheck : FeatureCheckCs
         }
         graph.UpdateCells(wall);
         ExpectEqual(updates, 1, $"{label}: UpdateCells() emits Updated");
-        Expect(graph.IsCellBlocked(new Vector2I(0, 0)) && !graph.IsCellBlocked(Gap), $"{label}: wall cells are blocked");
+        Expect(graph.IsCellBlocked(new Vector2I(0, 0)) && !graph.IsCellBlocked(Gap) && !graph.IsCellBlocked(Gap2), $"{label}: wall cells are blocked");
         path = graph.GetCellPath(From, To);
-        Expect(IsValidPath(graph, layer, path, From, To) && path.Contains(Gap), $"{label}: the path goes through the gap");
+        Expect(IsValidPath(graph, layer, path, From, To) && (path.Contains(Gap) || path.Contains(Gap2)), $"{label}: the path goes through the gap");
 
         // Close the gap in the layer but update another cell: only the given cells are recomputed.
         layer.SetCell(Gap, 0, Wall);
+        layer.SetCell(Gap2, 0, Wall);
         graph.UpdateCells(new Array<Vector2I> { From });
-        Expect(graph.GetCellPath(From, To).Contains(Gap), $"{label}: UpdateCells() recomputes only the given cells");
-        graph.UpdateCells(new Array<Vector2I> { Gap });
+        Expect(graph.GetCellPath(From, To).Contains(Gap) || graph.GetCellPath(From, To).Contains(Gap2), $"{label}: UpdateCells() recomputes only the given cells");
+        graph.UpdateCells(new Array<Vector2I> { Gap, Gap2 });
         Expect(graph.GetCellPath(From, To).Count == 0, $"{label}: closed wall, no path");
         Array<Vector2I> partial = graph.GetCellPath(From, To, true);
         Expect(partial.Count > 0 && partial[0] == From && partial[partial.Count - 1].X < 0, $"{label}: partial path ends before the wall");
@@ -186,11 +188,13 @@ public partial class Issue282FeatureTileMapPathGraphCheck : FeatureCheckCs
             layer.SetCell(cell, 0, Mud);
         }
         layer.SetCell(Gap, 0, Floor);
+        layer.SetCell(Gap2, 0, Floor);
         wall.Add(Gap);
+        wall.Add(Gap2);
         graph.UpdateCells(wall);
-        Expect(Mathf.IsEqualApprox(graph.GetCellCost(new Vector2I(0, 0)), 20.0f) && Mathf.IsEqualApprox(graph.GetCellCost(Gap), 1.0f), $"{label}: costs from the custom data layer");
+        Expect(Mathf.IsEqualApprox(graph.GetCellCost(new Vector2I(0, 0)), 20.0f) && Mathf.IsEqualApprox(graph.GetCellCost(Gap), 1.0f) && Mathf.IsEqualApprox(graph.GetCellCost(Gap2), 1.0f), $"{label}: costs from the custom data layer");
         path = graph.GetCellPath(From, To);
-        Expect(IsValidPath(graph, layer, path, From, To) && path.Contains(Gap), $"{label}: the cheap way goes through the gap");
+        Expect(IsValidPath(graph, layer, path, From, To) && (path.Contains(Gap) || path.Contains(Gap2)), $"{label}: the cheap way goes through the gap");
         layer.Free();
     }
 
@@ -236,9 +240,9 @@ public partial class Issue282FeatureTileMapPathGraphCheck : FeatureCheckCs
         var graph = new ColumnGraph();
         graph.SetLayer(layer);
         ExpectEqual(graph.UpdateAll(), Error.Ok, "a C# subclass builds");
-        Expect(graph.IsCellBlocked(new Vector2I(0, 0)) && !graph.IsCellBlocked(Gap), "_IsCellBlocked() decides blocked cells");
+        Expect(graph.IsCellBlocked(new Vector2I(0, 0)) && !graph.IsCellBlocked(Gap) && !graph.IsCellBlocked(Gap2), "_IsCellBlocked() decides blocked cells");
         Expect(Mathf.IsEqualApprox(graph.GetCellCost(new Vector2I(1, 0)), 3.0f) && Mathf.IsEqualApprox(graph.GetCellCost(new Vector2I(1, 1)), 1.0f), "_GetCellCost() decides costs");
-        Expect(graph.GetCellPath(From, To).Contains(Gap), "the path uses the gap left by _IsCellBlocked()");
+        Expect(graph.GetCellPath(From, To).Contains(Gap) || graph.GetCellPath(From, To).Contains(Gap2), "the path uses the gap left by _IsCellBlocked()");
         layer.Free();
     }
 }

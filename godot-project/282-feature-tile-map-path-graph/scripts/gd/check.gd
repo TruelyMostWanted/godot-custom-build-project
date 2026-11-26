@@ -9,13 +9,16 @@ const MUD := Vector2i(2, 0) # Custom data "cost" = 20.
 const MAP := Rect2i(-4, -3, 9, 7)
 const FROM := Vector2i(-4, 0)
 const TO := Vector2i(4, 0)
+## Two gap cells, one in an even and one in an odd row: on stacked isometric maps odd rows are shifted half a cell,
+## so a single gap cell cannot be passed with side neighbors only.
 const GAP := Vector2i(0, 3)
+const GAP2 := Vector2i(0, 2)
 
 
 ## Blocks the column x = 0 except the gap and makes row y = 0 more expensive, without custom data.
 class ColumnGraph extends TileMapPathGraph:
 	func _is_cell_blocked(cell: Vector2i, _tile_data: TileData) -> bool:
-		return cell.x == 0 and cell != GAP
+		return cell.x == 0 and cell != GAP and cell != GAP2
 
 	func _get_cell_cost(cell: Vector2i, _tile_data: TileData) -> float:
 		return 3.0 if cell.y == 0 else 1.0
@@ -140,20 +143,21 @@ func _check_map(label: String, shape: TileSet.TileShape, layout: TileSet.TileLay
 	# A wall at x = 0 with one gap.
 	var wall: Array[Vector2i] = []
 	for y in range(MAP.position.y, MAP.end.y):
-		if Vector2i(0, y) != GAP:
+		if Vector2i(0, y) != GAP and Vector2i(0, y) != GAP2:
 			layer.set_cell(Vector2i(0, y), 0, WALL)
 			wall.append(Vector2i(0, y))
 	graph.update_cells(wall)
 	expect_equal(updates[0], 1, label + ": update_cells() emits updated")
-	expect(graph.is_cell_blocked(Vector2i(0, 0)) and not graph.is_cell_blocked(GAP), label + ": wall cells are blocked")
+	expect(graph.is_cell_blocked(Vector2i(0, 0)) and not graph.is_cell_blocked(GAP) and not graph.is_cell_blocked(GAP2), label + ": wall cells are blocked")
 	path = graph.get_cell_path(FROM, TO)
-	expect(_is_valid_path(graph, layer, path, FROM, TO) and path.has(GAP), label + ": the path goes through the gap")
+	expect(_is_valid_path(graph, layer, path, FROM, TO) and (path.has(GAP) or path.has(GAP2)), label + ": the path goes through the gap")
 
 	# Close the gap in the layer but update another cell: only the given cells are recomputed.
 	layer.set_cell(GAP, 0, WALL)
+	layer.set_cell(GAP2, 0, WALL)
 	graph.update_cells([FROM])
-	expect(graph.get_cell_path(FROM, TO).has(GAP), label + ": update_cells() recomputes only the given cells")
-	graph.update_cells([GAP])
+	expect((graph.get_cell_path(FROM, TO).has(GAP) or graph.get_cell_path(FROM, TO).has(GAP2)), label + ": update_cells() recomputes only the given cells")
+	graph.update_cells([GAP, GAP2])
 	expect(graph.get_cell_path(FROM, TO).is_empty(), label + ": closed wall, no path")
 	var partial := graph.get_cell_path(FROM, TO, true)
 	expect(not partial.is_empty() and partial[0] == FROM and partial[-1].x < 0, label + ": partial path ends before the wall")
@@ -162,11 +166,13 @@ func _check_map(label: String, shape: TileSet.TileShape, layout: TileSet.TileLay
 	for cell in wall:
 		layer.set_cell(cell, 0, MUD)
 	layer.set_cell(GAP, 0, FLOOR)
+	layer.set_cell(GAP2, 0, FLOOR)
 	wall.append(GAP)
+	wall.append(GAP2)
 	graph.update_cells(wall)
-	expect(is_equal_approx(graph.get_cell_cost(Vector2i(0, 0)), 20.0) and is_equal_approx(graph.get_cell_cost(GAP), 1.0), label + ": costs from the custom data layer")
+	expect(is_equal_approx(graph.get_cell_cost(Vector2i(0, 0)), 20.0) and is_equal_approx(graph.get_cell_cost(GAP), 1.0) and is_equal_approx(graph.get_cell_cost(GAP2), 1.0), label + ": costs from the custom data layer")
 	path = graph.get_cell_path(FROM, TO)
-	expect(_is_valid_path(graph, layer, path, FROM, TO) and path.has(GAP), label + ": the cheap way goes through the gap")
+	expect(_is_valid_path(graph, layer, path, FROM, TO) and (path.has(GAP) or path.has(GAP2)), label + ": the cheap way goes through the gap")
 	layer.free()
 
 
@@ -212,7 +218,7 @@ func _check_virtuals() -> void:
 	var graph := ColumnGraph.new()
 	graph.set_layer(layer)
 	expect_equal(graph.update_all(), OK, "a script subclass builds")
-	expect(graph.is_cell_blocked(Vector2i(0, 0)) and not graph.is_cell_blocked(GAP), "_is_cell_blocked() decides blocked cells")
+	expect(graph.is_cell_blocked(Vector2i(0, 0)) and not graph.is_cell_blocked(GAP) and not graph.is_cell_blocked(GAP2), "_is_cell_blocked() decides blocked cells")
 	expect(is_equal_approx(graph.get_cell_cost(Vector2i(1, 0)), 3.0) and is_equal_approx(graph.get_cell_cost(Vector2i(1, 1)), 1.0), "_get_cell_cost() decides costs")
-	expect(graph.get_cell_path(FROM, TO).has(GAP), "the path uses the gap left by _is_cell_blocked()")
+	expect(graph.get_cell_path(FROM, TO).has(GAP) or graph.get_cell_path(FROM, TO).has(GAP2), "the path uses the gap left by _is_cell_blocked()")
 	layer.free()
