@@ -1,0 +1,4 @@
+[gd_resource type="EngineSettings" format=3]
+
+[resource]
+max_fps = 60

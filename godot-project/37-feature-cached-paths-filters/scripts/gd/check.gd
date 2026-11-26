@@ -26,6 +26,7 @@ func _run_checks() -> void:
 	_check_class_name()
 	_check_extension()
 	_check_directory()
+	_check_counts_and_kinds()
 	_check_freed()
 	_check_threads()
 	_check_performance()
@@ -84,7 +85,7 @@ func _check_api() -> void:
 		if info["name"] == "get_cached_paths_for_type":
 			for arg in info["args"]:
 				arg_names.append(arg["name"])
-	expect_equal(arg_names, ["type", "exact_type"], "get_cached_paths_for_type() parameters are type and exact_type")
+	expect_equal(arg_names, ["type", "exact_type", "kinds"], "get_cached_paths_for_type() parameters are type, exact_type and kinds (#235)")
 
 
 func _check_type() -> void:
@@ -133,6 +134,39 @@ func _check_directory() -> void:
 	expect_equal(_under(ResourceLoader.get_cached_paths_in_directory(_p("a/b/"), false)), in_b, "directory a/b/, recursive = false: its two resources")
 	expect_equal(_under(ResourceLoader.get_cached_paths_in_directory(_p("none/"))), [], "unknown directory: nothing")
 	expect(not ResourceLoader.get_cached_paths_in_directory("res://").has(_p("a/grad.tres")), "directory res:// does not return user:// paths")
+
+
+func _check_counts_and_kinds() -> void:
+	# #235: counts without path arrays, kinds of cached resources, resources and counts per class.
+	var dir := _p("a/")
+	var file := ResourceLoader.CACHED_RESOURCE_KIND_FILE
+	var built_in := ResourceLoader.CACHED_RESOURCE_KIND_BUILT_IN
+	var imported := ResourceLoader.CACHED_RESOURCE_KIND_IMPORTED
+	var all := ResourceLoader.CACHED_RESOURCE_KIND_ALL
+	var counts_match := true
+	for kinds in [file, built_in, file | built_in, all]:
+		counts_match = counts_match and ResourceLoader.get_cached_count_in_directory(dir, true, kinds) == ResourceLoader.get_cached_paths_in_directory(dir, true, kinds).size()
+		counts_match = counts_match and ResourceLoader.get_cached_count_with_extension("tres", kinds) == ResourceLoader.get_cached_paths_with_extension("tres", kinds).size()
+		counts_match = counts_match and ResourceLoader.get_cached_count_for_type(&"Curve", false, kinds) == ResourceLoader.get_cached_paths_for_type(&"Curve", false, kinds).size()
+		counts_match = counts_match and ResourceLoader.get_cached_count(kinds) == ResourceLoader.get_cached_paths(kinds).size()
+	expect(counts_match, "every count equals the size of the matching path list")
+	expect_equal(ResourceLoader.get_cached_count_in_directory(dir, true, file), 6, "six resources in their own files under a/")
+	expect(ResourceLoader.get_cached_paths_in_directory(dir, true, built_in).has(_tex_sub_path), "the built-in sub-resource of tex.tres has the kind BUILT_IN")
+	expect(not ResourceLoader.get_cached_paths_in_directory(dir, true, file).has(_tex_sub_path), "and not FILE")
+
+	var icon := load("res://icon.svg")
+	expect(ResourceLoader.get_cached_paths(imported).has("res://icon.svg"), "res://icon.svg has the kind IMPORTED")
+	expect(not ResourceLoader.get_cached_paths(file).has("res://icon.svg"), "and not FILE")
+
+	var curves := []
+	for resource in ResourceLoader.get_cached_resources_for_type(&"Curve", true, file):
+		if resource.resource_path.begins_with(ROOT):
+			curves.append(resource)
+	expect_equal(curves.size(), 2, "get_cached_resources_for_type() returns the two curves themselves")
+	var type_counts := ResourceLoader.get_cached_type_counts(file)
+	expect(type_counts.get(&"Curve", 0) >= 2, "get_cached_type_counts() counts the curves")
+	expect(type_counts.get(&"Issue37GdWidget", 0) >= 1, "get_cached_type_counts() uses the script class name")
+	icon = null
 
 
 func _check_freed() -> void:
