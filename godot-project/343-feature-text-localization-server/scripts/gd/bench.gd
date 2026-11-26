@@ -103,15 +103,14 @@ func _use_before(data_set: Dictionary) -> Array[Translation]:
 ## Returns the number of catalogs added.
 func _use_after(data_set: Dictionary) -> int:
 	_reset()
-	var list := LocalizationCatalogList.new()
-	for path in BenchData.lcat_paths(data_set):
-		list.add_entry(path)
-	return TextLocalizationServer.add_catalog_list(list)
+	var manifest := FilesManifest.new()
+	manifest.file_paths = BenchData.lcat_paths(data_set)
+	return TextLocalizationServer.add_catalog_manifest(manifest)
 
 
 func _set_locale(mode: String, locale: String) -> void:
 	if mode == "after":
-		LocalizationServer.set_locale(locale)
+		TranslationServer.set_locale(locale)
 	else:
 		TranslationServer.set_locale(locale)
 
@@ -223,7 +222,7 @@ func _bench_mod_layer(data_set: Dictionary, hit: Array[StringName], hit_strings:
 			mod.set_text(StringName(Generator.key_name(i)), "de", BenchData.mod_text(i))
 			mod_keys += 1
 	TextLocalizationServer.add_catalog(mod, MOD_PRIORITY)
-	LocalizationServer.set_locale("de")
+	TranslationServer.set_locale("de")
 	var wrong_translate := 0
 	var wrong_tr := 0
 	var wrong_en := 0
@@ -383,16 +382,15 @@ func _bench_load(data_set: Dictionary) -> void:
 	_emit_delta(data_set, "before", "_after_switch", s0, messages)
 	loaded.clear()
 
-	# AFTER: add_catalog_list reads the directory of every catalog; only the chain locales (en + de) are loaded.
+	# AFTER: add_catalog_manifest reads the directory of every catalog; only the chain locales (en + de) are loaded.
 	_reset()
 	var a0 := _snap()
 	var ta := Time.get_ticks_usec()
-	var list := LocalizationCatalogList.new()
-	for path in BenchData.lcat_paths(data_set):
-		list.add_entry(path)
-	var added := TextLocalizationServer.add_catalog_list(list)
+	var manifest := FilesManifest.new()
+	manifest.file_paths = BenchData.lcat_paths(data_set)
+	var added := TextLocalizationServer.add_catalog_manifest(manifest)
 	_row(data_set, "after", "load_ms", (Time.get_ticks_usec() - ta) / 1000.0, "ms")
-	expect_equal(added, files, "%s: add_catalog_list added all catalogs" % data_set.name)
+	expect_equal(added, files, "%s: add_catalog_manifest added all catalogs" % data_set.name)
 	_row(data_set, "after", "messages", messages, "count")
 	_row(data_set, "after", "locales_loaded", _loaded_locales(), "count")
 	_row(data_set, "after", "locales_total", total_locales, "count")
@@ -400,12 +398,12 @@ func _bench_load(data_set: Dictionary) -> void:
 	_row(data_set, "after", "stringname_est", TextLocalizationServer.get_key_count(), "count")
 	_emit_delta(data_set, "after", "", a0, messages)
 	var ts := Time.get_ticks_usec()
-	LocalizationServer.set_locale("fr")
+	TranslationServer.set_locale("fr")
 	_row(data_set, "after", "switch_fr_sync_ms", (Time.get_ticks_usec() - ts) / 1000.0, "ms")
 	await get_tree().process_frame
 	_row(data_set, "after", "locales_loaded_after_switch", _loaded_locales(), "count")
 	_emit_delta(data_set, "after", "_after_switch", a0, messages)
-	LocalizationServer.set_locale("de")
+	TranslationServer.set_locale("de")
 	await get_tree().process_frame
 	# Force every locale (load_locale), the worst case equal to the BEFORE path.
 	var tf := Time.get_ticks_usec()
@@ -539,7 +537,7 @@ func _bench_ui() -> void:
 					if api == "ts":
 						TranslationServer.set_locale(locale)
 					else:
-						LocalizationServer.set_locale(locale)
+						TranslationServer.set_locale(locale)
 					var ts1 := Time.get_ticks_usec()
 					await get_tree().process_frame
 					await get_tree().process_frame

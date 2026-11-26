@@ -26,11 +26,10 @@ func _run_checks() -> void:
 	var server := ResourceLocalizationServer
 	expect(Engine.has_singleton("ResourceLocalizationServer"), "ResourceLocalizationServer is a registered singleton")
 	expect(ClassDB.is_parent_class("ResourceLocalizationServer", "LocalizationServer"), "inherits LocalizationServer")
-	expect(ProjectSettings.has_setting("internationalization/localization/resource_catalogs"), "setting resource_catalogs")
-	expect(ProjectSettings.has_setting("internationalization/localization/resource_external_catalogs"), "setting resource_external_catalogs")
-	var previous_locale := LocalizationServer.get_locale()
+	expect(ProjectSettings.has_setting("internationalization/localization/catalog_manifests"), "setting catalog_manifests")
+	var previous_locale := TranslationServer.get_locale()
 	server.clear_catalogs()
-	LocalizationServer.set_locale("en")
+	TranslationServer.set_locale("en")
 	_write_files()
 
 	var voice_path := DATA_DIR + "/voice.tres"
@@ -55,7 +54,7 @@ func _run_checks() -> void:
 	expect_equal(voice.resource_name, "en", "load() in English")
 	expect_equal(logo.get_width(), 8, "English logo")
 	expect_equal(voice.resource_path, voice_path, "cached under the original path")
-	LocalizationServer.set_locale("de")
+	TranslationServer.set_locale("de")
 	var paths: PackedStringArray = await server.resources_relocalized
 	expect(paths.has(voice_path) and paths.has(logo_path), "resources_relocalized(paths): " + str(paths))
 	expect(not server.is_relocalizing(), "is_relocalizing() false after the signal")
@@ -64,18 +63,19 @@ func _run_checks() -> void:
 	expect(load(voice_path) == voice, "load() returns the same instance")
 
 	# A missing localized file: the original is loaded.
-	LocalizationServer.set_locale("fr")
+	TranslationServer.set_locale("fr")
 	await server.resources_relocalized
 	expect_equal(logo.get_width(), 8, "missing fr file falls back to the original")
 
-	# A mod adds Polish voice files through a catalog list with wildcards (priority 100).
+	# A mod adds Polish voice files through a catalog manifest with a wildcard folder (priority 100).
 	var mod := ResourceLocalizationCatalog.new()
 	mod.set_localized_path(voice_path, "pl", DATA_DIR + "/mods/polish/voice/voice_pl.tres")
 	expect_equal(mod.save_to_file(DATA_DIR + "/mods/polish/voice/voice.lcat"), OK, "mod catalog saved as .lcat")
-	var list := LocalizationCatalogList.new()
-	list.add_entry(DATA_DIR + "/mods/*/voice/*.lcat", 100)
-	expect_equal(server.add_catalog_list(list), 1, "add_catalog_list() adds the mod")
-	LocalizationServer.set_locale("pl")
+	var manifest := FilesManifest.new()
+	manifest.type_hint = &"ResourceLocalizationCatalog"
+	manifest.folder_paths = PackedStringArray([DATA_DIR + "/mods/*/voice"])
+	expect_equal(server.add_catalog_manifest(manifest, 100), 1, "add_catalog_manifest() adds the mod")
+	TranslationServer.set_locale("pl")
 	await server.resources_relocalized
 	expect_equal(voice.resource_name, "pl", "Polish voice from the mod")
 	expect(server.get_available_locales().has("pl"), "pl available")
@@ -90,4 +90,4 @@ func _run_checks() -> void:
 
 	server.clear_catalogs()
 	await get_tree().process_frame
-	LocalizationServer.set_locale(previous_locale)
+	TranslationServer.set_locale(previous_locale)

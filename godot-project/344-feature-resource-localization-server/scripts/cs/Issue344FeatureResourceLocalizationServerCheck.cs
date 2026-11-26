@@ -41,12 +41,11 @@ public partial class Issue344FeatureResourceLocalizationServerCheck : FeatureChe
     {
         Expect(Engine.HasSingleton("ResourceLocalizationServer"), "ResourceLocalizationServer is a registered singleton");
         Expect(ClassDB.IsParentClass("ResourceLocalizationServer", "LocalizationServer"), "inherits LocalizationServer");
-        Expect(ProjectSettings.HasSetting("internationalization/localization/resource_catalogs"), "setting resource_catalogs");
-        Expect(ProjectSettings.HasSetting("internationalization/localization/resource_external_catalogs"), "setting resource_external_catalogs");
-        string previousLocale = LocalizationServer.GetLocale();
+        Expect(ProjectSettings.HasSetting("internationalization/localization/catalog_manifests"), "setting catalog_manifests");
+        string previousLocale = TranslationServer.GetLocale();
         // Inherited members are reached through the singleton instance.
         ResourceLocalizationServer.Singleton.ClearCatalogs();
-        LocalizationServer.SetLocale("en");
+        TranslationServer.SetLocale("en");
         WriteFiles();
 
         string voicePath = DataDir + "/voice.tres";
@@ -73,7 +72,7 @@ public partial class Issue344FeatureResourceLocalizationServerCheck : FeatureChe
         ExpectEqual(voice.ResourceName, "en", "Load() in English");
         ExpectEqual(logo.GetWidth(), 8, "English logo");
         Task<string[]> relocalized = Relocalized();
-        LocalizationServer.SetLocale("de");
+        TranslationServer.SetLocale("de");
         string[] relocalizedPaths = await relocalized;
         Expect(relocalizedPaths.Contains(voicePath) && relocalizedPaths.Contains(logoPath), "resources_relocalized(paths)");
         Expect(!ResourceLocalizationServer.IsRelocalizing(), "IsRelocalizing() false after the signal");
@@ -83,19 +82,18 @@ public partial class Issue344FeatureResourceLocalizationServerCheck : FeatureChe
 
         // A missing localized file: the original is loaded.
         relocalized = Relocalized();
-        LocalizationServer.SetLocale("fr");
+        TranslationServer.SetLocale("fr");
         await relocalized;
         ExpectEqual(logo.GetWidth(), 8, "missing fr file falls back to the original");
 
-        // A mod adds Polish voice files through a catalog list with wildcards (priority 100).
+        // A mod adds Polish voice files through a catalog manifest with a wildcard folder (priority 100).
         var mod = new ResourceLocalizationCatalog();
         mod.SetLocalizedPath(voicePath, "pl", DataDir + "/mods/polish/voice/voice_pl.tres");
         ExpectEqual(mod.SaveToFile(DataDir + "/mods/polish/voice/voice.lcat"), Error.Ok, "mod catalog saved as .lcat");
-        var list = new LocalizationCatalogList();
-        list.AddEntry(DataDir + "/mods/*/voice/*.lcat", 100);
-        ExpectEqual(ResourceLocalizationServer.Singleton.AddCatalogList(list), 1, "AddCatalogList() adds the mod");
+        var manifest = new FilesManifest { TypeHint = "ResourceLocalizationCatalog", FolderPaths = new[] { DataDir + "/mods/*/voice" } };
+        ExpectEqual(ResourceLocalizationServer.Singleton.AddCatalogManifest(manifest, 100), 1, "AddCatalogManifest() adds the mod");
         relocalized = Relocalized();
-        LocalizationServer.SetLocale("pl");
+        TranslationServer.SetLocale("pl");
         await relocalized;
         ExpectEqual(voice.ResourceName, "pl", "Polish voice from the mod");
         Expect(ResourceLocalizationServer.Singleton.GetAvailableLocales().Contains("pl"), "pl available");
@@ -110,6 +108,6 @@ public partial class Issue344FeatureResourceLocalizationServerCheck : FeatureChe
 
         ResourceLocalizationServer.Singleton.ClearCatalogs();
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        LocalizationServer.SetLocale(previousLocale);
+        TranslationServer.SetLocale(previousLocale);
     }
 }

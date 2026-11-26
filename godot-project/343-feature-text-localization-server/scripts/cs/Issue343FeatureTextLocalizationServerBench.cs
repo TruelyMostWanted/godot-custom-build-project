@@ -144,19 +144,16 @@ public partial class Issue343FeatureTextLocalizationServerBench : FeatureCheckCs
     private int UseAfter(DataSet set)
     {
         Reset();
-        var list = new LocalizationCatalogList();
-        foreach (var path in _data.Call("lcat_paths", set.Raw).AsStringArray())
-        {
-            list.AddEntry(path);
-        }
-        return TextLocalizationServer.Singleton.AddCatalogList(list);
+        var manifest = new FilesManifest();
+        manifest.FilePaths = _data.Call("lcat_paths", set.Raw).AsStringArray();
+        return TextLocalizationServer.Singleton.AddCatalogManifest(manifest);
     }
 
     private static void SetLocale(bool after, string locale)
     {
         if (after)
         {
-            LocalizationServer.SetLocale(locale);
+            TranslationServer.SetLocale(locale);
         }
         else
         {
@@ -302,7 +299,7 @@ public partial class Issue343FeatureTextLocalizationServerBench : FeatureCheckCs
             }
         }
         TextLocalizationServer.Singleton.AddCatalog(mod, ModPriority);
-        LocalizationServer.SetLocale("de");
+        TranslationServer.SetLocale("de");
         int wrongTranslate = 0, wrongTr = 0, wrongEn = 0;
         for (var i = 0; i < set.Keys; i++)
         {
@@ -471,13 +468,13 @@ public partial class Issue343FeatureTextLocalizationServerBench : FeatureCheckCs
             t.Dispose();
         }
 
-        // AFTER: add_catalog_list reads the directory of every catalog; only the chain locales (en + de) are loaded.
+        // AFTER: add_catalog_manifest reads the directory of every catalog; only the chain locales (en + de) are loaded.
         Reset();
         var a0 = Snap();
         var ta = Stopwatch.GetTimestamp();
         var added = UseAfterNoReset(set);
         AddRow(set, "after", "load_ms", Stopwatch.GetElapsedTime(ta).TotalMilliseconds, "ms");
-        ExpectEqual(added, set.Files, $"{set.Name}: add_catalog_list added all catalogs");
+        ExpectEqual(added, set.Files, $"{set.Name}: add_catalog_manifest added all catalogs");
         AddRow(set, "after", "messages", messages, "count");
         AddRow(set, "after", "locales_loaded", LoadedLocales(), "count");
         AddRow(set, "after", "locales_total", totalLocales, "count");
@@ -485,12 +482,12 @@ public partial class Issue343FeatureTextLocalizationServerBench : FeatureCheckCs
         AddRow(set, "after", "stringname_est", TextLocalizationServer.Singleton.GetKeyCount(), "count");
         EmitDelta(set, "after", "", a0, messages);
         var ts = Stopwatch.GetTimestamp();
-        LocalizationServer.SetLocale("fr");
+        TranslationServer.SetLocale("fr");
         AddRow(set, "after", "switch_fr_sync_ms", Stopwatch.GetElapsedTime(ts).TotalMilliseconds, "ms");
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         AddRow(set, "after", "locales_loaded_after_switch", LoadedLocales(), "count");
         EmitDelta(set, "after", "_after_switch", a0, messages);
-        LocalizationServer.SetLocale("de");
+        TranslationServer.SetLocale("de");
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         // Force every locale (LoadLocale), the worst case, equal to the BEFORE path.
         var tf = Stopwatch.GetTimestamp();
@@ -510,11 +507,8 @@ public partial class Issue343FeatureTextLocalizationServerBench : FeatureCheckCs
     // Like UseAfter, without the Reset() (the caller took its memory snapshot after its own Reset()).
     private int UseAfterNoReset(DataSet set)
     {
-        var list = new LocalizationCatalogList();
-        foreach (var path in _data.Call("lcat_paths", set.Raw).AsStringArray())
-        {
-            list.AddEntry(path);
-        }
-        return TextLocalizationServer.Singleton.AddCatalogList(list);
+        var manifest = new FilesManifest();
+        manifest.FilePaths = _data.Call("lcat_paths", set.Raw).AsStringArray();
+        return TextLocalizationServer.Singleton.AddCatalogManifest(manifest);
     }
 }
