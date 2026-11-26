@@ -1,0 +1,16 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://cirtvjm1w6jg6"
+
+[deps]
+
+source_file="res://343-feature-text-localization-server/results_gd.csv"
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true
