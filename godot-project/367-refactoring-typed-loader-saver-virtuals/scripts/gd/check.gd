@@ -1,9 +1,8 @@
 extends FeatureCheck
 ## GDScript checks of 367-refactoring-typed-loader-saver-virtuals. Check the same things as scripts/cs/Issue367RefactoringTypedLoaderSaverVirtualsCheck.cs.
 ##
-## Both format pairs store resource_name as one text line. The "A" pair overrides the virtuals with the OLD
-## `int` typing (cache_mode: int). The analyzer accepts an `int` parameter where the parent declares an enum,
-## so this class must analyze without warnings or errors. The "B" pair uses the new enum typing.
+## Both format pairs store resource_name as one text line. The virtuals keep Godot's `int` signatures.
+## The "A" pair declares `cache_mode: int`, the "B" pair `cache_mode: ResourceFormatLoader.CacheMode`; both must analyze without warnings.
 
 
 class LoaderA extends ResourceFormatLoader:

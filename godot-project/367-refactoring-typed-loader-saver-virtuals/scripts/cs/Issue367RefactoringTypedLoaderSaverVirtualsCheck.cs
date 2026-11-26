@@ -4,8 +4,7 @@ using TruelyInteractive.Checks;
 
 namespace TruelyInteractive.Issue367RefactoringTypedLoaderSaverVirtuals;
 
-// Note: the old signatures (int cacheMode / uint flags) no longer compile in C# (CS0115, no matching base method),
-// so only the new enum typing is checked here. The GDScript check covers the old int typing.
+// The virtuals keep Godot's int signatures (no breaking change); the int value is cast to the enum.
 
 /// <summary>Loader of the text format t367b. Records the cache mode it received.</summary>
 public partial class Issue367LoaderB : ResourceFormatLoader
@@ -18,9 +17,9 @@ public partial class Issue367LoaderB : ResourceFormatLoader
 
     public override string _GetResourceType(string path) => path.GetExtension() == "t367b" ? "Resource" : "";
 
-    public override Variant _Load(string path, string originalPath, bool useSubThreads, ResourceFormatLoader.CacheMode cacheMode)
+    public override Variant _Load(string path, string originalPath, bool useSubThreads, int cacheMode)
     {
-        LastCacheMode = cacheMode;
+        LastCacheMode = (ResourceFormatLoader.CacheMode)cacheMode; // int → enum, as shown in the class reference
         using var file = FileAccess.Open(path, FileAccess.ModeFlags.Read);
         if (file == null)
         {
@@ -41,9 +40,9 @@ public partial class Issue367SaverB : ResourceFormatSaver
 
     public override string[] _GetRecognizedExtensions(Resource resource) => new[] { "t367b" };
 
-    public override Error _Save(Resource resource, string path, ResourceSaver.SaverFlags flags)
+    public override Error _Save(Resource resource, string path, uint flags)
     {
-        LastFlags = flags;
+        LastFlags = (ResourceSaver.SaverFlags)flags;
         using var file = FileAccess.Open(path, FileAccess.ModeFlags.Write);
         if (file == null)
         {
