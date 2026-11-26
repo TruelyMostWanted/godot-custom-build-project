@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://367-refactoring-typed-loader-saver-virtuals/scripts/cs/Issue367RefactoringTypedLoaderSaverVirtualsCheck.cs" id="1"]
+
+[node name="CheckCs" type="Node"]
+script = ExtResource("1")
