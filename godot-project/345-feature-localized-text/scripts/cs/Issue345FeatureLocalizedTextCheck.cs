@@ -92,12 +92,12 @@ public partial class Issue345FeatureLocalizedTextCheck : FeatureCheckCs
         AddChild(label);
         AddChild(button);
         AddChild(rich);
-        greeting.Bind(label);
-        greeting.Bind(button);
+        greeting.Bind(label, "text");
+        greeting.Bind(button, "text");
         greeting.Bind(button, "tooltip_text");
-        greeting.Bind(rich);
+        greeting.Bind(rich, "text");
         ExpectEqual(label.Text, "Hallo Ada!", "Bind sets the text at once");
-        Expect(greeting.IsBound(label) && label.GetMeta("localized_text").AsGodotObject() == greeting, "binding is the metadata localized_text");
+        Expect(greeting.IsBound(label, "text") && label.GetMeta("localized_text").AsGodotObject() == greeting, "binding is the metadata localized_text");
         ExpectEqual(label.AutoTranslateMode, Node.AutoTranslateModeEnum.Disabled, "bound node is not translated twice");
         ExpectEqual(button.TooltipText, "Hallo Ada!", "other properties bind too");
         var buttonMeta = button.GetMeta("localized_text").AsGodotDictionary();
@@ -114,12 +114,12 @@ public partial class Issue345FeatureLocalizedTextCheck : FeatureCheckCs
         TranslationServer.SetLocale("en");
         await Settle();
         ExpectEqual(label.Text, "Hello Bob!", "locale change refreshes");
-        greeting.Unbind(label);
-        Expect(!greeting.IsBound(label) && !label.HasMeta("localized_text"), "Unbind removes the metadata");
+        greeting.Unbind(label, "text");
+        Expect(!greeting.IsBound(label, "text") && !label.HasMeta("localized_text"), "Unbind removes the metadata");
         ExpectEqual(label.AutoTranslateMode, Node.AutoTranslateModeEnum.Inherit, "Unbind restores auto translation");
-        greeting.Unbind(button);
+        greeting.Unbind(button, "text");
         greeting.Unbind(button, "tooltip_text");
-        greeting.Unbind(rich);
+        greeting.Unbind(rich, "text");
         greeting.TextChanged -= OnTextChanged;
 
         // Inspector binding: metadata saved in a scene.
@@ -127,7 +127,7 @@ public partial class Issue345FeatureLocalizedTextCheck : FeatureCheckCs
         AddChild(npc);
         ExpectEqual(npc.Text, "Hello Bob!", "metadata binding applies on entering the tree");
         var npcText = npc.GetMeta("localized_text").As<LocalizedText>();
-        Expect(npcText != null && npcText.IsBound(npc), "scene metadata holds a bound LocalizedText");
+        Expect(npcText != null && npcText.IsBound(npc, "text"), "scene metadata holds a bound LocalizedText");
         var answer = npc.GetNode<Button>("Answer");
         Expect(answer.Text == "Hello Bob!" && answer.TooltipText == "Hello Bob!", "dictionary metadata binds text and tooltip_text");
         TextInsertionServer.SetValue("player_name", "Cy");
@@ -141,7 +141,7 @@ public partial class Issue345FeatureLocalizedTextCheck : FeatureCheckCs
         LocalizedText ticker = MakeText("TICK");
         var tickLabel = new Label();
         AddChild(tickLabel);
-        ticker.Bind(tickLabel);
+        ticker.Bind(tickLabel, "text");
         await Settle();
         int before = _ticks;
         TextInsertionServer.SetValue("player_name", "Dee");
@@ -186,7 +186,7 @@ public partial class Issue345FeatureLocalizedTextCheck : FeatureCheckCs
         ulong start = Time.GetTicksUsec();
         for (int idx = 0; idx < count; idx++)
         {
-            texts[idx].Bind(labels[idx]);
+            texts[idx].Bind(labels[idx], "text");
         }
         ulong bindUsec = Time.GetTicksUsec() - start;
 
