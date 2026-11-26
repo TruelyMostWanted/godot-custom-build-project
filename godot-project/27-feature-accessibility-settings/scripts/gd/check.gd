@@ -89,8 +89,8 @@ func _check_ui_scale() -> void:
 	var base_factor := root.content_scale_factor
 	server.set_ui_scale(1.5)
 	expect(is_equal_approx(root.content_scale_factor, base_factor * 1.5), "UI scale 150 %% multiplies the root content scale factor (%f)" % root.content_scale_factor)
-	var video_window = Engine.get_singleton("VideoWindowSettingsServer")
-	expect(is_equal_approx(video_window.get_content_scale_factor(), base_factor), "the video window factor stays separate")
+	var window = Engine.get_singleton("WindowSettingsServer")
+	expect(is_equal_approx(window.get_content_scale_factor(), base_factor), "the window factor stays separate")
 	server.set_ui_scale(1.0)
 	expect(is_equal_approx(root.content_scale_factor, base_factor), "UI scale 100 % gives the factor back")
 
