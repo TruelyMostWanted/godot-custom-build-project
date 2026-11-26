@@ -31,6 +31,8 @@ public partial class Issue07FeatureFilesManifestCheck : FeatureCheckCs
         CheckSingleFiles();
         CheckMissingFolders();
         CheckPrefixes();
+        CheckOrder();
+        CheckWildcards();
         await CheckThreaded();
         CheckNull();
         await CheckPerformance();
@@ -225,6 +227,66 @@ public partial class Issue07FeatureFilesManifestCheck : FeatureCheckCs
         }
 
         PathPrefixServer.UnregisterPrefix(Prefix);
+    }
+
+    // Load order (#354): folders first in list order (files of one folder sorted by path), then files in list order;
+    // a path that appears again keeps its first position.
+    private void CheckOrder()
+    {
+        var manifest = new FilesManifest
+        {
+            Extensions = ["tres", "svg"],
+            FolderPaths = [D("b"), D("a")],
+            FilePaths = [D("b/info.json"), D("a/curve.tres")],
+        };
+        string[] expected = [D("b/gradient.tres"), D("b/sub/deep.tres"), D("a/curve.tres"), D("a/icon.svg"), D("b/info.json")];
+        ExpectPaths(ResourceLoader.GetManifestPaths(manifest), expected, "folders in list order, then files in list order, duplicates keep their first position");
+        ExpectPaths(ResourceLoader.LoadManifest(manifest).Keys.Select(key => (string)key).ToArray(), expected, "LoadManifest() keeps the load order");
+
+        manifest.FolderPaths = [D("a"), D("b")];
+        manifest.FilePaths = [D("b/info.json")];
+        ExpectEqual(ResourceLoader.GetManifestPaths(manifest).FirstOrDefault(), D("a/curve.tres"), "reordering FolderPaths changes the load order");
+
+        // Inside a folder, files are sorted by path with their subfolders: m/x.tres comes before z.tres.
+        DirAccess.MakeDirRecursiveAbsolute(Root + "order/m");
+        ResourceSaver.Save(new Curve(), Root + "order/z.tres");
+        ResourceSaver.Save(new Curve(), Root + "order/m/x.tres");
+        var sorted = new FilesManifest { FolderPaths = [Root + "order"] };
+        ExpectPaths(ResourceLoader.GetManifestPaths(sorted), [Root + "order/m/x.tres", Root + "order/z.tres"], "files of a folder are sorted by path, subfolders included");
+
+        FilesManifestServer.RegisterManifest("fm07cs_order", manifest);
+        ExpectPaths(FilesManifestServer.GetFilePaths("fm07cs_order"), ResourceLoader.GetManifestPaths(manifest), "FilesManifestServer.GetFilePaths() keeps the load order");
+        FilesManifestServer.UnregisterManifest("fm07cs_order");
+    }
+
+    // Wildcard folders (#354): `*` matches one folder level, matches sorted by name.
+    private void CheckWildcards()
+    {
+        foreach (string relative in new[] { "mods/b/tr/x.tres", "mods/a/tr/y.tres", "mods/a_extra/other/z.tres", "mods/c/tr/sub/w.tres" })
+        {
+            DirAccess.MakeDirRecursiveAbsolute((Root + relative).GetBaseDir());
+            ResourceSaver.Save(new Curve(), Root + relative);
+        }
+
+        var manifest = new FilesManifest { FolderPaths = [Root + "mods/*/tr"] };
+        ExpectPaths(ResourceLoader.GetManifestPaths(manifest), [Root + "mods/a/tr/y.tres", Root + "mods/b/tr/x.tres", Root + "mods/c/tr/sub/w.tres"], "mods/*/tr: one level, sorted by name, mods without tr skipped");
+        manifest.FolderPaths = [Root + "mods/a*"];
+        ExpectPaths(ResourceLoader.GetManifestPaths(manifest), [Root + "mods/a/tr/y.tres", Root + "mods/a_extra/other/z.tres"], "patterns inside a segment (a*)");
+        manifest.FolderPaths = [Root + "mods/*/nothing"];
+        ExpectEqual(ResourceLoader.GetManifestPaths(manifest).Length, 0, "no match is not an error");
+
+        ExpectEqual(PathPrefixServer.RegisterPrefixFolder(Prefix, Root + "mods"), Error.Ok, $"RegisterPrefixFolder({Prefix}) for wildcards");
+        manifest.FolderPaths = [Prefix + "*/tr"];
+        ExpectPaths(ResourceLoader.GetManifestPaths(manifest), [Prefix + "a/tr/y.tres", Prefix + "b/tr/x.tres", Prefix + "c/tr/sub/w.tres"], "wildcards behind a custom prefix");
+        PathPrefixServer.UnregisterPrefix(Prefix);
+
+        manifest.FolderPaths = [Root + "mods/*/tr", Root + "absent/*/tr"];
+        FilesManifestServer.RegisterManifest("fm07cs_wildcards", manifest);
+        FilesManifestValidation validation = FilesManifestServer.Validate("fm07cs_wildcards");
+        ExpectPaths(validation.MissingFolders, [Root + "absent/*/tr"], "Validate(): a wildcard folder is missing only if its base is");
+        ExpectEqual(FilesManifestServer.CreateMissingFolders("fm07cs_wildcards"), Error.Ok, "CreateMissingFolders() creates the wildcard base");
+        Expect(DirAccess.DirExistsAbsolute(Root + "missing"), "the wildcard base exists");
+        FilesManifestServer.UnregisterManifest("fm07cs_wildcards");
     }
 
     private async Task CheckThreaded()
