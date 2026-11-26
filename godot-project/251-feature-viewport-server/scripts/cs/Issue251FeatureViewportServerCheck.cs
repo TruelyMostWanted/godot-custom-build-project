@@ -95,6 +95,31 @@ public partial class Issue251FeatureViewportServerCheck : FeatureCheckCs
 
         ViewportServer.ViewportAdded -= OnViewportAdded;
         ViewportServer.ViewportRemoved -= OnViewportRemoved;
+
+        // Part 2: the graphics settings servers can target every registered viewport.
+        ExpectEqual(TextureSettingsServer.ViewportTarget, SettingsServer.ViewportTargetMode.Group, "TextureSettingsServer.ViewportTarget defaults to Group");
+        ExpectEqual(RenderQualitySettingsServer.ViewportTarget, SettingsServer.ViewportTargetMode.Group, "RenderQualitySettingsServer.ViewportTarget defaults to Group");
+        ExpectEqual(ShadowSettingsServer.ViewportTarget, SettingsServer.ViewportTargetMode.Group, "ShadowSettingsServer.ViewportTarget defaults to Group");
+        bool snap = !root.Snap2DTransformsToPixel;
+        var outside = new SubViewport { Snap2DTransformsToPixel = !snap };
+        AddChild(outside);
+        // A session override is not stored in the player's settings file.
+        TextureSettingsServer.Singleton.SetSessionOverride("snap_2d_transforms_to_pixel", snap);
+        ExpectEqual(root.Snap2DTransformsToPixel, snap, "the root gets the value");
+        ExpectEqual(outside.Snap2DTransformsToPixel, !snap, "Group: a viewport outside the group keeps its value");
+        TextureSettingsServer.ViewportTarget = SettingsServer.ViewportTargetMode.AllViewports;
+        ExpectEqual(TextureSettingsServer.ViewportTarget, SettingsServer.ViewportTargetMode.AllViewports, "ViewportTarget is AllViewports");
+        ExpectEqual(outside.Snap2DTransformsToPixel, snap, "AllViewports: every registered viewport gets the value at once");
+        var late = new SubViewport { Snap2DTransformsToPixel = !snap };
+        AddChild(late);
+        ExpectEqual(late.Snap2DTransformsToPixel, snap, "AllViewports: a viewport that enters the tree later gets the value");
+        TextureSettingsServer.ViewportTarget = SettingsServer.ViewportTargetMode.RootOnly;
+        TextureSettingsServer.Singleton.ClearSessionOverride("snap_2d_transforms_to_pixel");
+        ExpectEqual(root.Snap2DTransformsToPixel, !snap, "the root gets the stored value back");
+        ExpectEqual(late.Snap2DTransformsToPixel, snap, "RootOnly: the other viewports keep their values");
+        TextureSettingsServer.ViewportTarget = SettingsServer.ViewportTargetMode.Group;
+        late.Free();
+        outside.Free();
         return Task.CompletedTask;
     }
 }

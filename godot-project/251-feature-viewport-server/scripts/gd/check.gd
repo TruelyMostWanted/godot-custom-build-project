@@ -88,3 +88,30 @@ func _run_checks() -> void:
 
 	ViewportServer.viewport_added.disconnect(_on_viewport_added)
 	ViewportServer.viewport_removed.disconnect(_on_viewport_removed)
+
+	# Part 2: the graphics settings servers can target every registered viewport.
+	expect_equal(TextureSettingsServer.viewport_target, SettingsServer.VIEWPORT_TARGET_GROUP, "TextureSettingsServer.viewport_target defaults to VIEWPORT_TARGET_GROUP")
+	expect_equal(RenderQualitySettingsServer.viewport_target, SettingsServer.VIEWPORT_TARGET_GROUP, "RenderQualitySettingsServer.viewport_target defaults to VIEWPORT_TARGET_GROUP")
+	expect_equal(ShadowSettingsServer.viewport_target, SettingsServer.VIEWPORT_TARGET_GROUP, "ShadowSettingsServer.viewport_target defaults to VIEWPORT_TARGET_GROUP")
+	var snap: bool = not root.snap_2d_transforms_to_pixel
+	var outside := SubViewport.new()
+	outside.snap_2d_transforms_to_pixel = not snap
+	add_child(outside)
+	# A session override is not stored in the player's settings file.
+	TextureSettingsServer.set_session_override(&"snap_2d_transforms_to_pixel", snap)
+	expect_equal(root.snap_2d_transforms_to_pixel, snap, "the root gets the value")
+	expect_equal(outside.snap_2d_transforms_to_pixel, not snap, "VIEWPORT_TARGET_GROUP: a viewport outside the group keeps its value")
+	TextureSettingsServer.viewport_target = SettingsServer.VIEWPORT_TARGET_ALL_VIEWPORTS
+	expect_equal(TextureSettingsServer.viewport_target, SettingsServer.VIEWPORT_TARGET_ALL_VIEWPORTS, "viewport_target is VIEWPORT_TARGET_ALL_VIEWPORTS")
+	expect_equal(outside.snap_2d_transforms_to_pixel, snap, "VIEWPORT_TARGET_ALL_VIEWPORTS: every registered viewport gets the value at once")
+	var late := SubViewport.new()
+	late.snap_2d_transforms_to_pixel = not snap
+	add_child(late)
+	expect_equal(late.snap_2d_transforms_to_pixel, snap, "VIEWPORT_TARGET_ALL_VIEWPORTS: a viewport that enters the tree later gets the value")
+	TextureSettingsServer.viewport_target = SettingsServer.VIEWPORT_TARGET_ROOT_ONLY
+	TextureSettingsServer.clear_session_override(&"snap_2d_transforms_to_pixel")
+	expect_equal(root.snap_2d_transforms_to_pixel, not snap, "the root gets the stored value back")
+	expect_equal(late.snap_2d_transforms_to_pixel, snap, "VIEWPORT_TARGET_ROOT_ONLY: the other viewports keep their values")
+	TextureSettingsServer.viewport_target = SettingsServer.VIEWPORT_TARGET_GROUP
+	late.free()
+	outside.free()

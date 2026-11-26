@@ -103,7 +103,7 @@ func _check_serializer_options() -> void:
 	var json := ResourceTextSerializer.FORMAT_JSON
 	var defaults := _options()
 	expect(defaults.indent == "  " and defaults.enums_as_names and defaults.defaults == null and defaults.include_type_marker and not defaults.sort_keys and not defaults.full_precision_floats, "SerializerOptions.new(): common defaults")
-	expect(defaults.csv_delimiter == "," and defaults.csv_headers and not defaults.ini_plain_values and defaults.xml_declaration, "SerializerOptions.new(): format defaults")
+	expect(defaults.csv_delimiter == "," and defaults.csv_headers and defaults.ini_value_style == SerializerOptions.INI_VALUE_STYLE_GODOT_VARIANT and defaults.xml_declaration, "SerializerOptions.new(): format defaults")
 	expect_equal(ResourceTextSerializer.serialize(settings, json, defaults), ResourceTextSerializer.serialize(settings, json), "new() gives the same text as null (project settings)")
 
 	var options := _options()
@@ -152,7 +152,7 @@ func _check_serializer_options() -> void:
 	expect(back is Issue05GdBusList and back.entries.size() == 1 and _same_bus(back.entries[0], list.entries[0]), "csv_headers = false round trip")
 
 	options = _options()
-	options.ini_plain_values = true
+	options.ini_value_style = SerializerOptions.INI_VALUE_STYLE_PLAIN
 	var ini := ResourceTextSerializer.serialize(settings, ResourceTextSerializer.FORMAT_INI, options)
 	expect(ini.contains("cell=1, -2, 3"), "ini_plain_values")
 	_check_settings(ResourceTextSerializer.deserialize(ini, ResourceTextSerializer.FORMAT_INI), "ini_plain_values")
