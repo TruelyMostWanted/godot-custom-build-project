@@ -1,0 +1,5 @@
+[gd_resource type="VideoShadowSettings" format=3]
+
+[resource]
+directional_shadow_atlas_size = 8192
+positional_shadow_atlas_size = 8192

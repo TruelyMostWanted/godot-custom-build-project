@@ -39,12 +39,15 @@ godot-custom-build-project/
 1. Build the engine with Mono, generate the glue and push the C# packages to the local NuGet folder
    (see `truely/FEATURE-WORKFLOW.md`, section 3). The local folder is `../nuget-local` next to this repository
    (`P:/Projects/GitHub/nuget-local`).
+   For a release instead of a local build, `checks/use-engine.ps1 -Godot <editor exe>` copies the packages of the
+   release (`GodotSharp/Tools/nupkgs`) to the local folder and sets the SDK version in the csproj (e.g. `4.8.0-beta.5`).
 2. `dotnet build` in `godot-project/`.
 3. Run all checks:
    ```powershell
    ./godot-project/checks/run-checks.ps1 -Godot P:/Projects/GitHub/truelymostwanted-godot-engine/bin/godot.windows.editor.x86_64.mono.exe
    ```
-   Every check scene exits with code 0 (passed) or 1 (failed).
+   Every check scene exits with code 0 (passed) or 1 (failed). `run-checks.ps1` calls `use-engine.ps1` first
+   (not with `-NoBuild`), so the project always builds against the packages of the engine it tests.
 
 ## A new feature
 

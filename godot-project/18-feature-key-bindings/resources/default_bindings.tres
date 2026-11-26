@@ -1,0 +1,49 @@
+[gd_resource type="InputActions" format=3]
+
+[sub_resource type="InputEventKey" id="InputEventKey_b5rbq"]
+device = -1
+keycode = 65
+
+[sub_resource type="InputEventKey" id="InputEventKey_12jvr"]
+device = -1
+physical_keycode = 4194319
+
+[sub_resource type="InputEventJoypadMotion" id="InputEventJoypadMotion_ym38q"]
+device = -1
+axis_value = -1.0
+
+[sub_resource type="InputAction" id="InputAction_c7d06"]
+action = &"move_left"
+events = Array[InputEvent]([SubResource("InputEventKey_b5rbq"), SubResource("InputEventKey_12jvr"), SubResource("InputEventJoypadMotion_ym38q")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_jlxjm"]
+device = -1
+keycode = 68
+
+[sub_resource type="InputEventKey" id="InputEventKey_wb7kf"]
+device = -1
+physical_keycode = 4194321
+
+[sub_resource type="InputEventJoypadMotion" id="InputEventJoypadMotion_b44td"]
+device = -1
+axis_value = 1.0
+
+[sub_resource type="InputAction" id="InputAction_2wl08"]
+action = &"move_right"
+events = Array[InputEvent]([SubResource("InputEventKey_jlxjm"), SubResource("InputEventKey_wb7kf"), SubResource("InputEventJoypadMotion_b44td")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_2vme4"]
+device = -1
+ctrl_pressed = true
+physical_keycode = 67
+
+[sub_resource type="InputEventJoypadButton" id="InputEventJoypadButton_0b4s3"]
+device = -1
+button_index = 1
+
+[sub_resource type="InputAction" id="InputAction_8qu8g"]
+action = &"crouch"
+events = Array[InputEvent]([SubResource("InputEventKey_2vme4"), SubResource("InputEventJoypadButton_0b4s3")])
+
+[resource]
+actions = Array[InputAction]([SubResource("InputAction_c7d06"), SubResource("InputAction_2wl08"), SubResource("InputAction_8qu8g")])
