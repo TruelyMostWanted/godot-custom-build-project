@@ -1,0 +1,8 @@
+[gd_resource type="TextInsertionValues" format=3]
+
+[resource]
+values = Dictionary[StringName, Variant]({
+&"npc": "Smith",
+&"town": "Ashford"
+})
+priority = 5
