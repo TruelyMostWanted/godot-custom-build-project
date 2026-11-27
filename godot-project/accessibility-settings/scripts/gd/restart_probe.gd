@@ -1,10 +1,10 @@
 extends Node
-## Started as a separate process by the checks: prints the accessibility values that were loaded and applied to
+## Started as a separate process by the Test.gd: prints the accessibility values that were loaded and applied to
 ## the root window before the main scene was ready, then quits.
 
 
 func _ready() -> void:
-	var server = Engine.get_singleton("AccessibilitySettingsServer")
+	var server: Object = Engine.get_singleton("AccessibilitySettingsServer")
 	var button := Button.new()
 	button.text = "Play"
 	add_child(button)
@@ -24,5 +24,5 @@ func _ready() -> void:
 		"button_font_white": button.get_theme_color(&"font_color") == Color.WHITE,
 		"reduce_motion": server.is_reducing_motion(),
 	}
-	print("CHECK27_PROBE " + JSON.stringify(probe))
+	print("PROBE " + JSON.stringify(probe))
 	get_tree().quit(0)
