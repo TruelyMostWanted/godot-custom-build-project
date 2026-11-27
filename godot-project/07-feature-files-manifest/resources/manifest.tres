@@ -1,5 +1,0 @@
-[gd_resource type="FilesManifest" format=3]
-
-[resource]
-extensions = PackedStringArray(".tres", ".svg")
-folder_paths = PackedStringArray("res://07-feature-files-manifest/resources/data/a", "res://07-feature-files-manifest/resources/data/b")
