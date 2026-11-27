@@ -2,4 +2,4 @@
 
 [resource]
 extensions = PackedStringArray(".tres", ".svg")
-folder_paths = PackedStringArray("res://07-feature-files-manifest/resources/data/a", "res://07-feature-files-manifest/resources/data/b")
+folder_paths = PackedStringArray("res://file-manifests/resources/data/a", "res://file-manifests/resources/data/b")
