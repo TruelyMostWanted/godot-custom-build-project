@@ -1,0 +1,13 @@
+[gd_resource type="ProgressBarStyle" load_steps=3 format=3]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
+bg_color = Color(0, 0, 0, 0.6)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fill"]
+bg_color = Color(0, 1, 0, 1)
+
+[resource]
+size = Vector2(40, 5)
+offset = Vector2(0, -32)
+background = SubResource("StyleBoxFlat_bg")
+fill = SubResource("StyleBoxFlat_fill")

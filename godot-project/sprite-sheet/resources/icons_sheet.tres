@@ -1,0 +1,16 @@
+[gd_resource type="SpriteSheet" format=3]
+
+[ext_resource type="Texture2D" path="res://sprite-sheet/resources/sheet.png" id="1_2dquy"]
+
+[resource]
+texture = ExtResource("1_2dquy")
+texture_path = "res://sprite-sheet/resources/sheet.png"
+regions = Dictionary[StringName, Rect2i]({
+&"coin": Rect2i(0, 0, 16, 16),
+&"sword": Rect2i(16, 0, 24, 48),
+&"walk_0": Rect2i(48, 0, 16, 32),
+&"walk_1": Rect2i(64, 0, 16, 32),
+&"walk_10": Rect2i(96, 0, 16, 32),
+&"walk_2": Rect2i(80, 0, 16, 32)
+})
+region_order = PackedStringArray("coin", "sword", "walk_0", "walk_1", "walk_2", "walk_10")
