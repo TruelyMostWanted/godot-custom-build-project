@@ -30,7 +30,7 @@ func _on_preload_finished(_list: PreloadList, error: Error) -> void:
 	print("hero_sword: ", sword.resource_name)
 
 	# Find resources by pattern and type
-	# (the guide finds Item resources; the example items are plain Resources, so the type is Resource)
+	# (the guide finds DatabaseItem resources; the example items are plain Resources, so the type is Resource)
 	var swords: Array[Resource] = ResourceDatabase.find_resources("%sword%", "Resource")
 	var item_keys: PackedStringArray = ResourceDatabase.find_keys("%items/%")
 	print("Swords: ", swords.size(), ", item keys: ", item_keys.size())

@@ -2,7 +2,7 @@ using Godot;
 
 namespace TruelyInteractive.ResourceDatabase;
 
-/// <summary>Resource class with [GlobalClass], for the type filter of the database. Named ItemCs because Item is the GDScript class.</summary>
+/// <summary>Resource class with [GlobalClass], for the type filter of the database. Named ItemCs because DatabaseItem is the GDScript class.</summary>
 [GlobalClass]
 public partial class ItemCs : Resource
 {
