@@ -139,8 +139,8 @@ public partial class Issue172FeatureInputMapLayersCheck : FeatureCheckCs
         list.Clear();
         ExpectEqual(list.GetActionCount(), 0, "Clear()");
         list.Actions = new Godot.Collections.Array<InputAction> { jump, jump2 };
-        ExpectEqual(list.GetActionCount(), 1, "set Actions: the later action of a name wins");
-        Expect(list.GetAction("l172_jump") == jump2, "set Actions: the later one is kept");
+        ExpectEqual(list.GetActionCount(), 2, "set Actions: both entries of a name are kept (#398)");
+        Expect(list.GetAction("l172_jump") == jump2, "set Actions: the later action of a name wins");
     }
 
     private void CheckResourceFiles()

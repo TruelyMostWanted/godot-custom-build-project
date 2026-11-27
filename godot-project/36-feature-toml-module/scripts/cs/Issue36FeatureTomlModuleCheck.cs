@@ -94,7 +94,7 @@ public partial class Issue36FeatureTomlModuleCheck : FeatureCheckCs
 
         // Key order.
         string text = Toml.Serialize(MakeSettings());
-        string[] order = { "\"$type\" = ", "\"$format_version\" = 1", "volume = ", "title = ", "spare = \"\"", "numbers = [4, -7]", "tint = ", "\n[main]\n", "\n[main.child]\n", "\n[[entries]]\n", "\n[entries.child]\n", "\n[extra]\n" };
+        string[] order = { "\"$type\" = ", "\"$format_version\" = 1", "volume = ", "title = ", "numbers = [4, -7]", "tint = ", "\n[main]\n", "\n[main.child]\n", "\n[[entries]]\n", "\n[entries.child]\n", "\n[extra]\n" };
         int last = -1;
         bool ordered = true;
         foreach (string key in order)
@@ -108,6 +108,7 @@ public partial class Issue36FeatureTomlModuleCheck : FeatureCheckCs
             last = at;
         }
         Expect(ordered, "keys in the file follow the property order (plain keys, then tables)");
+        Expect(!text.Contains("spare"), "a null property is left out (#402)");
         Expect(text.Split("\n[[entries]]\n").Length == 3, "array of resources is written as an array of tables");
 
         // String API.

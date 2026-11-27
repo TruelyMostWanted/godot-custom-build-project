@@ -44,7 +44,7 @@ public partial class Issue268RefactoringTextDataFormatResourcesCheck : FeatureCh
         {
             Expect(ClassDB.ClassHasMethod("TextDataFormat", method), $"TextDataFormat.{method}()");
         }
-        Expect(new Ini().GetRecognizedExtensions().Length == 1 && new Ini().GetRecognizedExtensions()[0] == "ini", "INI extensions");
+        Expect(string.Join(",", new Ini().GetRecognizedExtensions()) == "ini,cfg", "INI extensions: ini and cfg (#392)");
         string[] yamlExtensions = new Yaml().GetRecognizedExtensions();
         Expect(yamlExtensions.Length == 2 && yamlExtensions[0] == "yaml" && yamlExtensions[1] == "yml", "YAML extensions include yml");
     }

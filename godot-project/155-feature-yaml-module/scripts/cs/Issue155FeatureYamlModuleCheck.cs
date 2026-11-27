@@ -157,8 +157,9 @@ public partial class Issue155FeatureYamlModuleCheck : FeatureCheckCs
         ExpectEqual(bad.GetErrorLine(), 1, "error line of the unclosed flow sequence (where it starts)");
         Expect(bad.GetErrorMessage().Contains("not closed"), "error message of the unclosed flow sequence");
         ExpectEqual(bad.Parse("a: &x 1\nb: *x\n"), Error.ParseError, "anchors and aliases are rejected");
-        ExpectEqual(bad.Parse("a: 1\n---\nb: 2\n"), Error.ParseError, "a second document is rejected");
-        ExpectEqual(bad.GetErrorLine(), 2, "error line of the second document");
+        ExpectEqual(bad.Parse("a: 1\n---\nb: 2\n"), Error.Ok, "a second document is read (#268)");
+        ExpectEqual(bad.GetDocumentCount(), 2, "both documents are kept");
+        ExpectEqual(bad.GetDocument(1).AsGodotDictionary()["b"].AsInt32(), 2, "the second document");
 
         // Stringify.
         var input = new Dictionary

@@ -36,7 +36,7 @@ func _check_api() -> void:
 	expect(ClassDB.is_parent_class("XMLElement", "RefCounted"), "XMLElement is RefCounted")
 	for method in ["parse", "encode_to_text", "clear", "load", "save", "get_parsed_text", "get_error_message", "get_error_line", "get_error_column", "get_recognized_extensions"]:
 		expect(ClassDB.class_has_method("TextDataFormat", method), "TextDataFormat.%s()" % method)
-	expect(INI.new().get_recognized_extensions() == PackedStringArray(["ini"]), "INI extensions")
+	expect(INI.new().get_recognized_extensions() == PackedStringArray(["ini", "cfg"]), "INI extensions: ini and cfg (#392)")
 	expect(YAML.new().get_recognized_extensions() == PackedStringArray(["yaml", "yml"]), "YAML extensions include yml")
 
 

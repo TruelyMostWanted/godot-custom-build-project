@@ -120,8 +120,8 @@ func _check_input_actions() -> void:
 	list.clear()
 	expect_equal(list.get_action_count(), 0, "clear()")
 	list.actions = [jump, jump2]
-	expect_equal(list.get_action_count(), 1, "set_actions(): the later action of a name wins")
-	expect_equal(list.get_action(&"l172_jump"), jump2, "set_actions(): the later one is kept")
+	expect_equal(list.get_action_count(), 2, "set_actions(): both entries of a name are kept (#398)")
+	expect_equal(list.get_action(&"l172_jump"), jump2, "set_actions(): the later action of a name wins")
 
 
 func _check_resource_files() -> void:

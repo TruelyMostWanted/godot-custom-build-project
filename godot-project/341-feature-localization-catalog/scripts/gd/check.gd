@@ -338,12 +338,12 @@ func _measure() -> void:
 	DirAccess.remove_absolute(path)
 
 
-# Translator notes (_ columns, #357) are never stored in .lcat.
+# Translator notes (_ columns, #357) and the list of note columns (?catalog "notes", #403) are never stored in .lcat.
 func _without_notes(value: Variant) -> Variant:
 	if value is Dictionary:
 		var result := {}
 		for key in value:
-			if not (key is String and key.begins_with("_") and key not in ["_key", "_context"]) :
+			if not (key is String and ((key.begins_with("_") and key not in ["_key", "_context"]) or key == "notes")):
 				result[key] = _without_notes(value[key])
 		return result
 	if value is Array:

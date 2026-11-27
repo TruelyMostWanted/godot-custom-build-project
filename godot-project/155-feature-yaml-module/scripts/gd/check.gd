@@ -145,8 +145,9 @@ func _check_errors() -> void:
 	expect_equal(yaml.get_error_line(), 1, "error line of the unclosed flow sequence (where it starts)")
 	expect(yaml.get_error_message().contains("not closed"), "error message of the unclosed flow sequence")
 	expect_equal(yaml.parse("a: &x 1\nb: *x\n"), ERR_PARSE_ERROR, "anchors and aliases are rejected")
-	expect_equal(yaml.parse("a: 1\n---\nb: 2\n"), ERR_PARSE_ERROR, "a second document is rejected")
-	expect_equal(yaml.get_error_line(), 2, "error line of the second document")
+	expect_equal(yaml.parse("a: 1\n---\nb: 2\n"), OK, "a second document is read (#268)")
+	expect_equal(yaml.get_document_count(), 2, "both documents are kept")
+	expect_equal(yaml.get_document(1), {"b": 2}, "the second document")
 
 
 func _check_stringify() -> void:

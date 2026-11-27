@@ -75,7 +75,7 @@ func _check_file_round_trip() -> void:
 
 func _check_key_order() -> void:
 	var text := TOML.serialize(_make_settings())
-	var order := ["\"$type\" = ", "\"$format_version\" = 1", "volume = ", "title = ", "spare = \"\"", "numbers = [4, -7]", "tint = ", "\n[main]\n", "\n[main.child]\n", "\n[[entries]]\n", "\n[entries.child]\n", "\n[extra]\n"]
+	var order := ["\"$type\" = ", "\"$format_version\" = 1", "volume = ", "title = ", "numbers = [4, -7]", "tint = ", "\n[main]\n", "\n[main.child]\n", "\n[[entries]]\n", "\n[entries.child]\n", "\n[extra]\n"]
 	var last := -1
 	var ordered := true
 	for key in order:
@@ -85,6 +85,7 @@ func _check_key_order() -> void:
 			print("  out of order or missing: ", key)
 		last = at
 	expect(ordered, "keys in the file follow the property order (plain keys, then tables)")
+	expect(not text.contains("spare"), "a null property is left out (#402)")
 	expect(text.count("\n[[entries]]\n") == 2, "array of resources is written as an array of tables")
 
 

@@ -44,7 +44,8 @@ public partial class Issue341FeatureLocalizationCatalogCheck : FeatureCheckCs
     private static bool SameData(GodotObject a, GodotObject b)
         => WithoutNotes(a.Get("data").AsGodotDictionary()).RecursiveEqual(WithoutNotes(b.Get("data").AsGodotDictionary()));
 
-    /// <summary>Translator notes (_ fields, #357) are never stored in .lcat: compared without them.</summary>
+    /// <summary>Translator notes (_ fields, #357) and the list of note columns (?catalog "notes", #403) are never
+    /// stored in .lcat: compared without them.</summary>
     private static Godot.Collections.Dictionary WithoutNotes(Godot.Collections.Dictionary data)
     {
         var result = new Godot.Collections.Dictionary();
@@ -56,7 +57,7 @@ public partial class Issue341FeatureLocalizationCatalogCheck : FeatureCheckCs
                 foreach (var field in pair.Value.AsGodotDictionary())
                 {
                     string name = field.Key.AsString();
-                    if (!name.StartsWith('_') || name == "_key" || name == "_context")
+                    if ((!name.StartsWith('_') || name == "_key" || name == "_context") && name != "notes")
                     {
                         entry[field.Key] = field.Value;
                     }
