@@ -1,0 +1,14 @@
+[gd_resource type="FlowGraph" format=3]
+
+[sub_resource type="FlowStartNode" id="FlowStartNode_start"]
+
+[sub_resource type="FlowEndNode" id="FlowEndNode_bought"]
+editor_position = Vector2(220, 0)
+end_name = &"bought"
+
+[resource]
+start_node_id = 0
+node_ids = PackedInt32Array(0, 1)
+nodes = Array[FlowNode]([SubResource("FlowStartNode_start"), SubResource("FlowEndNode_bought")])
+connections = [0, &"out", 1, &"in"]
+next_node_id = 2

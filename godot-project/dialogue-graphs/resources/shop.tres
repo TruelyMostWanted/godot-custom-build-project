@@ -1,0 +1,52 @@
+[gd_resource type="FlowGraph" format=3]
+
+[sub_resource type="FlowVariable" id="FlowVariable_gold"]
+name = &"gold"
+type = 2
+default_value = 5
+
+[sub_resource type="FlowStartNode" id="FlowStartNode_start"]
+
+[sub_resource type="DialogueLineNode" id="DialogueLineNode_hello"]
+editor_position = Vector2(220, 0)
+speaker = &"merchant"
+speaker_name = "Merchant"
+text = "Welcome, traveler!"
+
+[sub_resource type="DialogueOption" id="DialogueOption_buy"]
+port = &"buy"
+text = "Buy a sword"
+condition = "gold >= 10"
+
+[sub_resource type="DialogueOption" id="DialogueOption_chat"]
+port = &"chat"
+text = "Any news?"
+once = true
+
+[sub_resource type="DialogueOption" id="DialogueOption_bye"]
+text = "Bye"
+
+[sub_resource type="DialogueChoiceNode" id="DialogueChoiceNode_choice"]
+editor_position = Vector2(500, 0)
+options = Array[DialogueOption]([SubResource("DialogueOption_buy"), SubResource("DialogueOption_chat"), SubResource("DialogueOption_bye")])
+
+[sub_resource type="FlowEndNode" id="FlowEndNode_bought"]
+editor_position = Vector2(800, -80)
+end_name = &"bought"
+
+[sub_resource type="FlowEndNode" id="FlowEndNode_bye"]
+editor_position = Vector2(800, 80)
+end_name = &"bye"
+
+[sub_resource type="DialogueLineNode" id="DialogueLineNode_news"]
+editor_position = Vector2(500, 200)
+speaker = &"merchant"
+text = "The king is coming."
+
+[resource]
+variables = Array[FlowVariable]([SubResource("FlowVariable_gold")])
+start_node_id = 0
+node_ids = PackedInt32Array(0, 1, 2, 3, 4, 5)
+nodes = Array[FlowNode]([SubResource("FlowStartNode_start"), SubResource("DialogueLineNode_hello"), SubResource("DialogueChoiceNode_choice"), SubResource("FlowEndNode_bought"), SubResource("FlowEndNode_bye"), SubResource("DialogueLineNode_news")])
+connections = [0, &"out", 1, &"in", 1, &"out", 2, &"in", 2, &"buy", 3, &"in", 2, &"chat", 5, &"in", 5, &"out", 2, &"in", 2, &"option_2", 4, &"in"]
+next_node_id = 6
