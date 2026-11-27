@@ -7,7 +7,7 @@ extends EditorScript
 ## built synchronously) and the time until the next frame. Works on builds with and without the data file view, for
 ## a before/after comparison.
 
-const RES := "res://361-feature-data-file-inspector/resources/"
+const RES := "res://data-file-inspector/resources/"
 const BIG := RES + "big/"
 const RUNS := 5
 
@@ -19,7 +19,7 @@ func _run() -> void:
 		print("Wrote the measurement files. Run the script again after the import.")
 		return
 	print("file | load ms | inspect_object() ms | until next frame ms")
-	for path in [BIG + "units_20000.csv", BIG + "deep.json", RES + "units.csv", RES + "enemies.json", RES + "level.xml"]:
+	for path in [BIG + "units_20000.csv", BIG + "deep.json", "res://csv/resources/units.csv", "res://json/resources/enemies.json", "res://xml/resources/level.xml"]:
 		await _measure(path)
 
 
