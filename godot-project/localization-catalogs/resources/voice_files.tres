@@ -1,0 +1,13 @@
+[gd_resource type="ResourceLocalizationCatalog" format=3]
+
+[resource]
+data = {
+"?catalog": {
+"channel": &"",
+"locales": ["de"]
+},
+"res://voice/intro.ogg": {
+"_type": "AudioStream",
+"de": "res://voice/de/intro.ogg"
+}
+}
