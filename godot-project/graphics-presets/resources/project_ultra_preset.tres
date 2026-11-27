@@ -1,0 +1,20 @@
+[gd_resource type="GraphicsPreset" load_steps=5 format=3]
+
+[sub_resource type="RenderQualitySettings" id="RenderQualitySettings_ultra"]
+msaa_3d = 2
+use_taa = true
+
+[sub_resource type="TextureSettings" id="TextureSettings_ultra"]
+anisotropic_filtering_level = 4
+
+[sub_resource type="ShadowSettings" id="ShadowSettings_ultra"]
+directional_shadow_atlas_size = 8192
+
+[sub_resource type="RenderEffectSettings" id="RenderEffectSettings_ultra"]
+
+[resource]
+preset_name = "Ultra"
+render_quality = SubResource("RenderQualitySettings_ultra")
+texture = SubResource("TextureSettings_ultra")
+shadow = SubResource("ShadowSettings_ultra")
+render_effect = SubResource("RenderEffectSettings_ultra")

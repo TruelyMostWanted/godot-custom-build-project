@@ -1,0 +1,7 @@
+[gd_resource type="TextureStreamingSettings" format=3]
+
+[resource]
+enabled = true
+memory_budget_enabled = true
+memory_budget_mb = 1024
+min_lod = 1
