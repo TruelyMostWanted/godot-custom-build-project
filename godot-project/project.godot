@@ -65,4 +65,4 @@ locale/translations=PackedStringArray("res://17-feature-language-settings/resour
 
 [settings]
 
-startup/custom_servers=PackedStringArray("res://15-feature-settings-server/scripts/gd/check_domain.gd", "res://15-feature-settings-server/scripts/cs/Issue15CheckDomainCs.cs")
+startup/custom_servers=PackedStringArray("res://settings-servers/scripts/gd/test_domain.gd", "res://settings-servers/scripts/cs/TestDomain.cs")
