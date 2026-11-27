@@ -1,5 +1,5 @@
 extends SceneTree
-## Started by the checks of 88-feature-streaming-assets-server in a second process with
+## Started by the test of Streaming Assets in a second process with
 ## --streaming-assets-path=<folder>. Prints what StreamingAssetsServer resolved, then quits.
 
 
