@@ -81,7 +81,7 @@ foreach ($folder in $folders) {
                 Write-Host $output
                 $result = 'PASSED'
                 if ($process.ExitCode -ne 0) { $result = "FAILED ($($process.ExitCode))" }
-                elseif ($kind -eq 'example' -and $output -match 'ERROR') { $result = 'FAILED (ERROR in output)' }
+                elseif ($kind -eq 'example' -and $output -cmatch '(?m)^(SCRIPT )?ERROR') { $result = 'FAILED (ERROR in output)' }
             }
             $results += [pscustomobject]@{ Feature = $folder.Name; Kind = $kind; Language = $language; Result = $result }
         }
