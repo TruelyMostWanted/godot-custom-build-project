@@ -1,5 +1,5 @@
 extends Node
-## Started as a separate process by the checks: prints the personas that the TTS persona settings domain
+## Started as a separate process by Test.gd: prints the personas that the TTS persona settings domain
 ## applied to TTSServer before the main scene was ready, then quits.
 
 
@@ -14,5 +14,5 @@ func _ready() -> void:
 		"helper_rate": helper.rate if helper != null else 0.0,
 		"default_persona": String(TTSServer.get_default_persona_name()),
 	}
-	print("CHECK29_PROBE " + JSON.stringify(probe))
+	print("PROBE " + JSON.stringify(probe))
 	get_tree().quit(0)
