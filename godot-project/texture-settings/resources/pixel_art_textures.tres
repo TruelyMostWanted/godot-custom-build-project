@@ -1,4 +1,4 @@
-[gd_resource type="VideoTextureSettings" format=3]
+[gd_resource type="TextureSettings" format=3]
 
 [resource]
 anisotropic_filtering_level = 0
