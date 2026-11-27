@@ -1,10 +1,10 @@
 using Godot;
 
-namespace TruelyInteractive.Issue34FeatureLoaderExtensionIndex;
+namespace TruelyInteractive.LoaderIndex;
 
-/// <summary>Path-based loader for 34-feature-loader-extension-index: overrides _RecognizePath() and declares no extension.
+/// <summary>Path-based loader: overrides _RecognizePath(), so the engine asks it for every path.
 /// It recognizes every path that ends with PathEnding.</summary>
-public partial class Issue34PathLoader : ResourceFormatLoader
+public partial class PathLoader : ResourceFormatLoader
 {
     public string Tag { get; set; } = "";
     public string PathEnding { get; set; } = "";
@@ -16,11 +16,17 @@ public partial class Issue34PathLoader : ResourceFormatLoader
 
     public override bool _HandlesType(StringName type) => type == "Resource";
 
-    public override string _GetResourceType(string path) => path.EndsWith(PathEnding) ? TypeName : "";
+    public override string _GetResourceType(string path)
+    {
+        if (path.EndsWith(PathEnding))
+        {
+            return TypeName;
+        }
+        return "";
+    }
 
     public override Variant _Load(string path, string originalPath, bool useSubThreads, int cacheMode)
     {
-        var res = new Resource { ResourceName = Tag };
-        return res;
+        return new Resource { ResourceName = Tag };
     }
 }
