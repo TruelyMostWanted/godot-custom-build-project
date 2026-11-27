@@ -1,0 +1,40 @@
+[gd_resource type="DataSchema" format=3]
+
+[sub_resource type="DataField" id="DataField_name"]
+name = &"name"
+type = 4
+required = true
+allow_empty = false
+
+[sub_resource type="DataField" id="DataField_hp"]
+name = &"hp"
+type = 2
+required = true
+hint = 1
+hint_string = "1,200,1"
+
+[sub_resource type="DataField" id="DataField_speed"]
+name = &"speed"
+type = 3
+
+[sub_resource type="DataField" id="DataField_drops"]
+name = &"drops"
+type = 28
+element_type = 4
+
+[sub_resource type="DataField" id="DataField_flying"]
+name = &"flying"
+type = 1
+
+[sub_resource type="DataSchema" id="DataSchema_enemy"]
+fields = Array[DataField]([SubResource("DataField_name"), SubResource("DataField_hp"), SubResource("DataField_speed"), SubResource("DataField_drops"), SubResource("DataField_flying")])
+
+[sub_resource type="DataField" id="DataField_enemies"]
+name = &"enemies"
+type = 28
+required = true
+element_schema = SubResource("DataSchema_enemy")
+
+[resource]
+fields = Array[DataField]([SubResource("DataField_enemies")])
+extra_fields = 1
