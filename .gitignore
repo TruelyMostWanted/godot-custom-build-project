@@ -27,4 +27,4 @@ godot-exports/*
 !godot-exports/.gitkeep
 
 # Test translations of the language settings checks (binary, made from .tres in a clean project)
-!godot-project/17-feature-language-settings/resources/*.translation
+!godot-project/language-settings/resources/*.translation

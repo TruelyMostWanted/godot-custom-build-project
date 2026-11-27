@@ -17,7 +17,7 @@ config/icon="res://icon.svg"
 
 [audio]
 
-buses/default_bus_layout="res://16-feature-audio-settings/resources/bus_layout.tres"
+buses/default_bus_layout="res://audio-bus-settings/resources/bus_layout.tres"
 
 [dotnet]
 
@@ -61,7 +61,7 @@ l172_attack={
 
 [internationalization]
 
-locale/translations=PackedStringArray("res://17-feature-language-settings/resources/hello_de.translation", "res://17-feature-language-settings/resources/hello_fr.translation")
+locale/translations=PackedStringArray("res://language-settings/resources/hello_de.translation", "res://language-settings/resources/hello_fr.translation")
 
 [settings]
 
