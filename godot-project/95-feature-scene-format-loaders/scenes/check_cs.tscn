@@ -1,6 +1,0 @@
-[gd_scene load_steps=2 format=3]
-
-[ext_resource type="Script" path="res://95-feature-scene-format-loaders/scripts/cs/Issue95FeatureSceneFormatLoadersCheck.cs" id="1"]
-
-[node name="CheckCs" type="Node"]
-script = ExtResource("1")
