@@ -1,7 +1,0 @@
-[gd_resource type="TTSPersona" format=3]
-
-[resource]
-persona_name = &"narrator"
-language = "en"
-volume = 80
-rate = 0.9

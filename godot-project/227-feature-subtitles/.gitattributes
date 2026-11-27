@@ -1,2 +1,0 @@
-# Keep the CRLF line endings of the SubRip sample: the checks read them.
-resources/video_editor_export.srt -text

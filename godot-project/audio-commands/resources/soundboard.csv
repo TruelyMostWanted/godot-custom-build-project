@@ -1,0 +1,4 @@
+command_name,channel,command,stream_path,fade_time
+horn,pad_1,Toggle,res://audio-commands/resources/tone.tres,0.0
+drums,pad_2,Toggle,res://audio-commands/resources/tone.tres,0.5
+applause,pad_3,Toggle,res://audio-commands/resources/tone.tres,1.0

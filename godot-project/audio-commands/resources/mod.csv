@@ -1,0 +1,2 @@
+command_name,channel,command,stream_path
+horn,pad_1,Toggle,res://audio-commands/resources/mod_horn.tres

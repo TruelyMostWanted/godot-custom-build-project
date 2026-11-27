@@ -1,6 +1,0 @@
-[gd_scene load_steps=2 format=3]
-
-[ext_resource type="Script" path="res://362-feature-audio-player-fades-playlist/scripts/cs/Issue362FeatureAudioPlayerFadesPlaylistCheck.cs" id="1"]
-
-[node name="CheckCs" type="Node"]
-script = ExtResource("1")

@@ -1,0 +1,4 @@
+group,channel,command,stream_path,fade_time,fade_curve,loop_mode
+forest,ambience,Fade In,res://audio-commands/resources/tone.tres,3.0,Equal Power,On
+forest,wind,Fade In,res://audio-commands/resources/tone.tres,3.0,Equal Power,On
+forest,music,Cross Fade,res://audio-commands/resources/tone.tres,4.0,Equal Power,On

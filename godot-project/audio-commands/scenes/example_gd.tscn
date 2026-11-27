@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://audio-commands/scripts/gd/Example.gd" id="1"]
+
+[node name="ExampleGd" type="Node"]
+script = ExtResource("1")
+
+[node name="Pads" type="Node" parent="."]
