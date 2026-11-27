@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<items>
-	<item id="1" name="Sword">
-		<hp>10</hp>
-	</item>
-	<!-- comment -->
-	<item id="2" name="Axe"/>
-</items>

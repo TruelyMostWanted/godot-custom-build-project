@@ -32,4 +32,4 @@ pattern = "[A-Z]{2}[0-9]+"
 
 [resource]
 fields = Array[DataField]([SubResource("DataField_id"), SubResource("DataField_name"), SubResource("DataField_rarity"), SubResource("DataField_hp"), SubResource("DataField_code")])
-file_patterns = PackedStringArray("*/items.csv")
+file_patterns = PackedStringArray("res://data-schemas/resources/items.csv")
