@@ -25,4 +25,4 @@ type = 1
 
 [resource]
 fields = Array[DataField]([SubResource("DataField_name"), SubResource("DataField_class"), SubResource("DataField_hp"), SubResource("DataField_ranged")])
-file_patterns = PackedStringArray("*/361-feature-data-file-inspector/resources/units.csv")
+file_patterns = PackedStringArray("res://csv/resources/units.csv")

@@ -6,7 +6,7 @@ uid="uid://caoyp3s4wo1gv"
 
 [deps]
 
-source_file="res://281-bug-csv-locale-warnings/resources/units.csv"
+source_file="res://csv/resources/stats.csv"
 
 [params]
 

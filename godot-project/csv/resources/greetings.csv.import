@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://dy80gsnounnpy"
+
+[deps]
+
+files=["res://csv/resources/greetings.en.translation", "res://csv/resources/greetings.de.translation"]
+
+source_file="res://csv/resources/greetings.csv"
+dest_files=["res://csv/resources/greetings.en.translation", "res://csv/resources/greetings.de.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true
