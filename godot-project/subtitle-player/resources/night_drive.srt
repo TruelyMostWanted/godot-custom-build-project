@@ -1,0 +1,7 @@
+1
+00:00:00,200 --> 00:00:01,000
+The road is empty tonight.
+
+2
+00:00:01,200 --> 00:00:01,900
+Only the radio keeps me company.
