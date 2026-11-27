@@ -1,0 +1,8 @@
+[gd_resource type="TextInsertionValues" format=3]
+
+[resource]
+values = Dictionary[StringName, Variant]({
+&"game_name": "Ashfall",
+&"max_level": 50,
+&"player_name": "Traveler"
+})

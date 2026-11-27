@@ -1,0 +1,6 @@
+keys,?context,?plural,en,de,ja
+NPC_GREETING,casual,,Hey {player_name}!,Hallo {player_name}!,
+ENEMIES_LEFT,,ENEMIES_LEFT.plural,{enemy.count} enemy left,{enemy.count} Gegner übrig,
+,,,{enemy.count} enemies left,{enemy.count} Gegner übrig,
+NPC_GREETING_TIP,,,Say hello,Grüß ihn,
+CUTSCENE_01,,,The gate opens.,Das Tor öffnet sich.,門が開く。
