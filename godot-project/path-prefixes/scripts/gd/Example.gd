@@ -47,8 +47,8 @@ func _ready() -> void:
 		push_error(safe.error_message)
 
 	# Point a prefix into res:// or user://.
-	PathPrefixServer.register_prefix_folder("streaming://", "res://path-prefixes/resources")
-	print(PathPrefixServer.resolve_engine_path("streaming://level.tres"))
-	var level: Resource = load("streaming://level.tres")
+	PathPrefixServer.register_prefix_folder("levels://", "res://path-prefixes/resources")
+	print(PathPrefixServer.resolve_engine_path("levels://level.tres"))
+	var level: Resource = load("levels://level.tres")
 	print("Level: ", level.resource_name)
 	get_tree().quit()

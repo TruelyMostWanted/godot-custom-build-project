@@ -54,9 +54,9 @@ public partial class Example : Node
         }
 
         // Point a prefix into res:// or user://.
-        PathPrefixServer.RegisterPrefixFolder("streaming://", "res://path-prefixes/resources");
-        GD.Print(PathPrefixServer.ResolveEnginePath("streaming://level.tres"));
-        Resource level = GD.Load("streaming://level.tres");
+        PathPrefixServer.RegisterPrefixFolder("levels://", "res://path-prefixes/resources");
+        GD.Print(PathPrefixServer.ResolveEnginePath("levels://level.tres"));
+        Resource level = GD.Load("levels://level.tres");
         GD.Print("Level: ", level.ResourceName);
         GetTree().Quit();
     }
