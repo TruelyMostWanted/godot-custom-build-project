@@ -1,12 +1,10 @@
-extends FeatureCheck
-## GDScript checks of 198-feature-input-icons. Check the same things as scripts/cs/Issue198FeatureInputIconsCheck.cs.
+extends FeatureTest
+## Full API test of Input Icons: InputIconServer and InputIconSet. Same tests as scripts/cs/Test.cs.
 ## The icons are made at runtime (solid colors, CC0): the size tells them apart.
 
-const SAVE_PATH := "user://checks/198_input_icons_gd.tres"
-
-
-func _get_check_name() -> String:
-	return "198-feature-input-icons"
+const DIR := "user://input-icons-test-gd"
+const SAVE_PATH := "user://input-icons-test-gd/icons.tres"
+const EXAMPLE_ICONS := "res://input-icons/resources/example_icons.tres"
 
 
 func _make_icon(size: int) -> Texture2D:
@@ -36,16 +34,23 @@ func _joy_axis(axis: JoyAxis, value: float) -> InputEventJoypadMotion:
 	return event
 
 
-func _run_checks() -> void:
-	_check_classes()
-	_check_set_lookup()
-	_check_text_and_inspector()
-	_check_save_load()
-	_check_server()
+func _run_tests() -> void:
+	_test_classes()
+	_test_set_lookup()
+	_test_text_and_inspector()
+	_test_save_load()
+	_test_server()
+	_test_device_family()
+	_test_project_settings()
+	_test_example_resource()
 	_reset_server()
+	for file_name: String in DirAccess.get_files_at(DIR):
+		DirAccess.remove_absolute(DIR.path_join(file_name))
+	DirAccess.remove_absolute(DIR)
 
 
-func _check_classes() -> void:
+func _test_classes() -> void:
+	DirAccess.make_dir_recursive_absolute(DIR)
 	expect(ClassDB.class_exists("InputIconSet"), "InputIconSet class exists")
 	expect(ClassDB.is_parent_class("InputIconSet", "Resource"), "InputIconSet is a Resource")
 	expect(Engine.has_singleton("InputIconServer"), "InputIconServer singleton exists")
@@ -54,7 +59,7 @@ func _check_classes() -> void:
 	expect(InputIconServer.INPUT_ICON_FAMILY_MAX == 5, "five icon families")
 
 
-func _check_set_lookup() -> void:
+func _test_set_lookup() -> void:
 	var icons := InputIconSet.new()
 	var space := _make_icon(10)
 	var left := _make_icon(11)
@@ -88,7 +93,7 @@ func _check_set_lookup() -> void:
 	expect(icons.get_icon(_key(KEY_SPACE)) == null, "clear removes all icons")
 
 
-func _check_text_and_inspector() -> void:
+func _test_text_and_inspector() -> void:
 	var icons := InputIconSet.new()
 	var press := _make_icon(20)
 	var up := _make_icon(21)
@@ -111,8 +116,8 @@ func _check_text_and_inspector() -> void:
 	expect(names.has("gamepad_axes/RightTrigger"), "Inspector lists gamepad_axes/RightTrigger")
 
 
-func _check_save_load() -> void:
-	DirAccess.make_dir_recursive_absolute("user://checks")
+func _test_save_load() -> void:
+	DirAccess.make_dir_recursive_absolute(DIR)
 	var icons := InputIconSet.new()
 	icons.set_key_icon(KEY_ESCAPE, _make_icon(30))
 	icons.set_joy_axis_icon(JOY_AXIS_RIGHT_X, 1.0, _make_icon(31))
@@ -127,7 +132,7 @@ func _check_save_load() -> void:
 	expect(stick != null and stick.get_width() == 31, "loaded axis icon")
 
 
-func _check_server() -> void:
+func _test_server() -> void:
 	var keyboard := InputIconSet.new()
 	var generic := InputIconSet.new()
 	var playstation := InputIconSet.new()
@@ -180,3 +185,47 @@ func _reset_server() -> void:
 	for family in InputIconServer.INPUT_ICON_FAMILY_MAX:
 		InputIconServer.reset_icon_set(family)
 	InputIconServer.gamepad_family = InputIconServer.INPUT_ICON_FAMILY_AUTO
+
+
+func _test_device_family() -> void:
+	var family: int = InputIconServer.get_device_family(0)
+	expect(family >= InputIconServer.INPUT_ICON_FAMILY_GENERIC_GAMEPAD, "get_device_family gives a gamepad family")
+	expect(family < InputIconServer.INPUT_ICON_FAMILY_MAX, "get_device_family is below INPUT_ICON_FAMILY_MAX")
+	expect_equal(InputIconServer.get_event_family(_joy_button(JOY_BUTTON_A)), InputIconServer.get_device_family(-1), "get_event_family of a gamepad event follows the device")
+	InputIconServer.gamepad_family = InputIconServer.INPUT_ICON_FAMILY_NINTENDO
+	expect_equal(InputIconServer.get_event_family(_joy_button(JOY_BUTTON_A)), InputIconServer.INPUT_ICON_FAMILY_NINTENDO, "gamepad_family forces the family of a gamepad event")
+	expect_equal(InputIconServer.gamepad_family, InputIconServer.INPUT_ICON_FAMILY_NINTENDO, "gamepad_family property")
+	InputIconServer.gamepad_family = InputIconServer.INPUT_ICON_FAMILY_AUTO
+
+
+func _test_project_settings() -> void:
+	for family_name: String in ["keyboard_mouse", "generic_gamepad", "xbox", "playstation", "nintendo"]:
+		expect(ProjectSettings.has_setting("input_devices/icons/" + family_name), "project setting input_devices/icons/%s exists" % family_name)
+	var changed: Array[int] = []
+	var on_changed := func(family: int) -> void: changed.append(family)
+	InputIconServer.icon_set_changed.connect(on_changed)
+	ProjectSettings.set_setting("input_devices/icons/xbox", EXAMPLE_ICONS)
+	var xbox: InputIconSet = InputIconServer.get_icon_set(InputIconServer.INPUT_ICON_FAMILY_XBOX)
+	expect(xbox != null, "the set of the project setting is loaded")
+	expect(not InputIconServer.has_icon_set_override(InputIconServer.INPUT_ICON_FAMILY_XBOX), "a project set is no override")
+	expect(xbox.get_key_icon(KEY_SPACE) != null, "the set of the project setting has the example icons")
+	ProjectSettings.set_setting("input_devices/icons/xbox", "")
+	InputIconServer.icon_set_changed.disconnect(on_changed)
+
+
+func _test_example_resource() -> void:
+	var icons: InputIconSet = load(EXAMPLE_ICONS)
+	expect(icons.get_key_icon(KEY_ESCAPE) != null, "the example set has an Escape icon")
+	expect(icons.get_mouse_button_icon(MOUSE_BUTTON_LEFT) != null, "the example set has a left mouse button icon")
+	expect(icons.get_joy_button_icon(JOY_BUTTON_A) != null, "the example set has an A button icon")
+	expect(icons.get_joy_axis_icon(JOY_AXIS_LEFT_Y, -1.0) != null, "the example set has a left stick up icon")
+	expect(icons.fallback_key_icon != null, "the example set has a fallback key icon")
+	expect(icons.fallback_mouse_button_icon == null, "the example set has no fallback mouse icon")
+	expect(icons.fallback_joy_button_icon == null, "the example set has no fallback joy button icon")
+	expect(icons.fallback_joy_axis_icon == null, "the example set has no fallback joy axis icon")
+	expect(icons.get_fallback_icon(_key(KEY_A)) == icons.fallback_key_icon, "get_fallback_icon of a key")
+	expect(icons.get_fallback_icon(_joy_button(JOY_BUTTON_A)) == null, "get_fallback_icon without a fallback is null")
+	expect(icons.key_icons.has("Space"), "key_icons is keyed by names")
+	expect(icons.mouse_button_icons.has("Left"), "mouse_button_icons is keyed by names")
+	expect(icons.joy_button_icons.has("A"), "joy_button_icons is keyed by names")
+	expect(icons.joy_axis_icons.has("LeftStickUp"), "joy_axis_icons is keyed by names")

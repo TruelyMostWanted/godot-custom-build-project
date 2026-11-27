@@ -3,26 +3,34 @@ using System.Threading.Tasks;
 using Godot;
 using TruelyInteractive.Checks;
 
-namespace TruelyInteractive.Issue198FeatureInputIcons;
+namespace TruelyInteractive.InputIcons;
 
 /// <summary>
-/// C# checks of 198-feature-input-icons. Check the same things as scripts/gd/check.gd.
+/// Full API test of Input Icons: InputIconServer and InputIconSet. Same tests as scripts/gd/Test.gd.
 /// The icons are made at runtime (solid colors, CC0): the size tells them apart.
 /// </summary>
-public partial class Issue198FeatureInputIconsCheck : FeatureCheckCs
+public partial class Test : FeatureTest
 {
-    private const string SavePath = "user://checks/198_input_icons_cs.tres";
+    private const string Dir = "user://input-icons-test-cs";
+    private const string SavePath = "user://input-icons-test-cs/icons.tres";
+    private const string ExampleIcons = "res://input-icons/resources/example_icons.tres";
 
-    protected override string CheckName => "198-feature-input-icons";
-
-    protected override Task RunChecks()
+    protected override Task RunTests()
     {
-        CheckClasses();
-        CheckSetLookup();
-        CheckTextAndInspector();
-        CheckSaveLoad();
-        CheckServer();
+        TestClasses();
+        TestSetLookup();
+        TestTextAndInspector();
+        TestSaveLoad();
+        TestServer();
+        TestDeviceFamily();
+        TestProjectSettings();
+        TestExampleResource();
         ResetServer();
+        foreach (string fileName in DirAccess.GetFilesAt(Dir))
+        {
+            DirAccess.RemoveAbsolute(Dir.PathJoin(fileName));
+        }
+        DirAccess.RemoveAbsolute(Dir);
         return Task.CompletedTask;
     }
 
@@ -48,8 +56,9 @@ public partial class Issue198FeatureInputIconsCheck : FeatureCheckCs
         return new InputEventJoypadMotion { Axis = axis, AxisValue = value, Device = -1 };
     }
 
-    private void CheckClasses()
+    private void TestClasses()
     {
+        DirAccess.MakeDirRecursiveAbsolute(Dir);
         Expect(ClassDB.ClassExists("InputIconSet"), "InputIconSet class exists");
         Expect(ClassDB.IsParentClass("InputIconSet", "Resource"), "InputIconSet is a Resource");
         Expect(Engine.HasSingleton("InputIconServer"), "InputIconServer singleton exists");
@@ -58,7 +67,7 @@ public partial class Issue198FeatureInputIconsCheck : FeatureCheckCs
         Expect((int)InputIconServer.InputIconFamily.Max == 5, "five icon families");
     }
 
-    private void CheckSetLookup()
+    private void TestSetLookup()
     {
         var icons = new InputIconSet();
         Texture2D space = MakeIcon(10);
@@ -93,7 +102,7 @@ public partial class Issue198FeatureInputIconsCheck : FeatureCheckCs
         Expect(icons.GetIcon(KeyEvent(Key.Space)) == null, "clear removes all icons");
     }
 
-    private void CheckTextAndInspector()
+    private void TestTextAndInspector()
     {
         var icons = new InputIconSet();
         Texture2D press = MakeIcon(20);
@@ -120,9 +129,9 @@ public partial class Issue198FeatureInputIconsCheck : FeatureCheckCs
         Expect(names.Contains("gamepad_axes/RightTrigger"), "Inspector lists gamepad_axes/RightTrigger");
     }
 
-    private void CheckSaveLoad()
+    private void TestSaveLoad()
     {
-        DirAccess.MakeDirRecursiveAbsolute("user://checks");
+        DirAccess.MakeDirRecursiveAbsolute(Dir);
         var icons = new InputIconSet();
         icons.SetKeyIcon(Key.Escape, MakeIcon(30));
         icons.SetJoyAxisIcon(JoyAxis.RightX, 1.0f, MakeIcon(31));
@@ -139,7 +148,7 @@ public partial class Issue198FeatureInputIconsCheck : FeatureCheckCs
         Expect(stick != null && stick.GetWidth() == 31, "loaded axis icon");
     }
 
-    private void CheckServer()
+    private void TestServer()
     {
         var keyboard = new InputIconSet();
         var generic = new InputIconSet();
@@ -197,5 +206,50 @@ public partial class Issue198FeatureInputIconsCheck : FeatureCheckCs
             InputIconServer.ResetIconSet((InputIconServer.InputIconFamily)i);
         }
         InputIconServer.GamepadFamily = InputIconServer.InputIconFamily.Auto;
+    }
+
+    private void TestDeviceFamily()
+    {
+        InputIconServer.InputIconFamily family = InputIconServer.GetDeviceFamily(0);
+        Expect(family >= InputIconServer.InputIconFamily.GenericGamepad, "GetDeviceFamily gives a gamepad family");
+        Expect(family < InputIconServer.InputIconFamily.Max, "GetDeviceFamily is below Max");
+        ExpectEqual(InputIconServer.GetEventFamily(JoyButtonEvent(JoyButton.A)), InputIconServer.GetDeviceFamily(-1), "GetEventFamily of a gamepad event follows the device");
+        InputIconServer.GamepadFamily = InputIconServer.InputIconFamily.Nintendo;
+        ExpectEqual(InputIconServer.GetEventFamily(JoyButtonEvent(JoyButton.A)), InputIconServer.InputIconFamily.Nintendo, "GamepadFamily forces the family of a gamepad event");
+        ExpectEqual(InputIconServer.GamepadFamily, InputIconServer.InputIconFamily.Nintendo, "GamepadFamily property");
+        InputIconServer.GamepadFamily = InputIconServer.InputIconFamily.Auto;
+    }
+
+    private void TestProjectSettings()
+    {
+        foreach (string familyName in new[] { "keyboard_mouse", "generic_gamepad", "xbox", "playstation", "nintendo" })
+        {
+            Expect(ProjectSettings.HasSetting("input_devices/icons/" + familyName), $"project setting input_devices/icons/{familyName} exists");
+        }
+        ProjectSettings.SetSetting("input_devices/icons/xbox", ExampleIcons);
+        InputIconSet xbox = InputIconServer.GetIconSet(InputIconServer.InputIconFamily.Xbox);
+        Expect(xbox != null, "the set of the project setting is loaded");
+        Expect(!InputIconServer.HasIconSetOverride(InputIconServer.InputIconFamily.Xbox), "a project set is no override");
+        Expect(xbox.GetKeyIcon(Key.Space) != null, "the set of the project setting has the example icons");
+        ProjectSettings.SetSetting("input_devices/icons/xbox", "");
+    }
+
+    private void TestExampleResource()
+    {
+        var icons = GD.Load<InputIconSet>(ExampleIcons);
+        Expect(icons.GetKeyIcon(Key.Escape) != null, "the example set has an Escape icon");
+        Expect(icons.GetMouseButtonIcon(MouseButton.Left) != null, "the example set has a left mouse button icon");
+        Expect(icons.GetJoyButtonIcon(JoyButton.A) != null, "the example set has an A button icon");
+        Expect(icons.GetJoyAxisIcon(JoyAxis.LeftY, -1.0f) != null, "the example set has a left stick up icon");
+        Expect(icons.FallbackKeyIcon != null, "the example set has a fallback key icon");
+        Expect(icons.FallbackMouseButtonIcon == null, "the example set has no fallback mouse icon");
+        Expect(icons.FallbackJoyButtonIcon == null, "the example set has no fallback joy button icon");
+        Expect(icons.FallbackJoyAxisIcon == null, "the example set has no fallback joy axis icon");
+        Expect(icons.GetFallbackIcon(KeyEvent(Key.A)) == icons.FallbackKeyIcon, "GetFallbackIcon of a key");
+        Expect(icons.GetFallbackIcon(JoyButtonEvent(JoyButton.A)) == null, "GetFallbackIcon without a fallback is null");
+        Expect(icons.KeyIcons.ContainsKey("Space"), "KeyIcons is keyed by names");
+        Expect(icons.MouseButtonIcons.ContainsKey("Left"), "MouseButtonIcons is keyed by names");
+        Expect(icons.JoyButtonIcons.ContainsKey("A"), "JoyButtonIcons is keyed by names");
+        Expect(icons.JoyAxisIcons.ContainsKey("LeftStickUp"), "JoyAxisIcons is keyed by names");
     }
 }
