@@ -42,7 +42,7 @@ func _test_data_file() -> void:
 	expect_equal(settings.get_value("audio", "missing", 7), 7, "get_value() returns the default of a missing key")
 	var extensions: PackedStringArray = ResourceLoader.get_recognized_extensions_for_type("INI")
 	expect(extensions.has("ini"), "INI loads .ini files")
-	expect(not extensions.has("cfg"), ".cfg files are not claimed by INI")
+	expect(extensions.has("cfg"), "INI also loads .cfg files (#392)")
 
 
 func _test_parse() -> void:

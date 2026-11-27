@@ -1,4 +1,4 @@
-class_name Item
+class_name DatabaseItem
 extends Resource
 ## Resource class with a class_name, for the type filter of the database.
 

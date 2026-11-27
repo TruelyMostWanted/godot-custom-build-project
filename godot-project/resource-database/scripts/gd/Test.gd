@@ -2,7 +2,7 @@ extends FeatureTest
 ## Full API test of Resource Database (ResourceDatabase and PreloadList). Same tests as scripts/cs/Test.cs.
 
 const ROOT := "user://resource-database/gd/"
-const TYPE := &"Item"
+const TYPE := &"DatabaseItem"
 const THREAD_COUNT := 4
 const ITEMS_PER_THREAD := 100
 
@@ -33,8 +33,8 @@ func _run_tests() -> void:
 	_cleanup()
 
 
-func _item(item_name: String) -> Item:
-	var item := Item.new()
+func _item(item_name: String) -> DatabaseItem:
+	var item := DatabaseItem.new()
 	item.resource_name = item_name
 	return item
 

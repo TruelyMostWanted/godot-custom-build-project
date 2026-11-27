@@ -59,7 +59,7 @@ public partial class Test : FeatureTest
         ExpectEqual((int)settings.GetValue("audio", "missing", 7), 7, "GetValue() returns the default of a missing key");
         string[] extensions = ResourceLoader.GetRecognizedExtensionsForType("INI");
         Expect(extensions.Contains("ini"), "Ini loads .ini files");
-        Expect(!extensions.Contains("cfg"), ".cfg files are not claimed by Ini");
+        Expect(extensions.Contains("cfg"), "Ini also loads .cfg files (#392)");
     }
 
     private void TestParse()

@@ -34,7 +34,7 @@ public partial class Example : Node
         GD.Print("hero_sword: ", sword.ResourceName);
 
         // Find resources by pattern and type
-        // (the guide finds Item resources; the example items are plain Resources, so the type is Resource)
+        // (the guide finds DatabaseItem resources; the example items are plain Resources, so the type is Resource)
         var swords = Database.FindResources("%sword%", "Resource");
         string[] itemKeys = Database.FindKeys("%items/%");
         GD.Print("Swords: ", swords.Count, ", item keys: ", itemKeys.Length);

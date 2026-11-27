@@ -366,8 +366,8 @@ public partial class Test : FeatureTest
             Expect(ClassDB.IsParentClass(formatClass, "TextDataFormat"), $"{formatClass} is a TextDataFormat");
         }
         Expect(!ClassDB.IsParentClass("JSON", "TextDataFormat"), "JSON is Godot's own class");
-        Expect(new Ini().GetRecognizedExtensions().SequenceEqual(["ini"]), "Ini extensions");
-        Expect(new Csv().GetRecognizedExtensions().SequenceEqual(["csv"]), "Csv extensions");
+        Expect(new Ini().GetRecognizedExtensions().SequenceEqual(["ini", "cfg"]), "Ini extensions (#392)");
+        Expect(new Csv().GetRecognizedExtensions().SequenceEqual(["csv", "tsv"]), "Csv extensions (#392)");
         Expect(new Xml().GetRecognizedExtensions().SequenceEqual(["xml"]), "Xml extensions");
         Expect(new Toml().GetRecognizedExtensions().SequenceEqual(["toml"]), "Toml extensions");
         Expect(new Yaml().GetRecognizedExtensions().SequenceEqual(["yaml", "yml"]), "Yaml extensions");

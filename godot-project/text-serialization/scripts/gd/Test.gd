@@ -303,8 +303,8 @@ func _test_text_data_format() -> void:
 	for format_class: String in ["INI", "CSV", "XML", "TOML", "YAML"]:
 		expect(ClassDB.is_parent_class(format_class, "TextDataFormat"), "%s is a TextDataFormat" % format_class)
 	expect(not ClassDB.is_parent_class("JSON", "TextDataFormat"), "JSON is Godot's own class")
-	expect_equal(INI.new().get_recognized_extensions(), PackedStringArray(["ini"]), "INI extensions")
-	expect_equal(CSV.new().get_recognized_extensions(), PackedStringArray(["csv"]), "CSV extensions")
+	expect_equal(INI.new().get_recognized_extensions(), PackedStringArray(["ini", "cfg"]), "INI extensions (#392)")
+	expect_equal(CSV.new().get_recognized_extensions(), PackedStringArray(["csv", "tsv"]), "CSV extensions (#392)")
 	expect_equal(XML.new().get_recognized_extensions(), PackedStringArray(["xml"]), "XML extensions")
 	expect_equal(TOML.new().get_recognized_extensions(), PackedStringArray(["toml"]), "TOML extensions")
 	expect_equal(YAML.new().get_recognized_extensions(), PackedStringArray(["yaml", "yml"]), "YAML extensions")

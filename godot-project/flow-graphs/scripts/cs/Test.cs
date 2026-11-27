@@ -342,7 +342,9 @@ public partial class Test : FeatureTest
         Expect(HasIssue(validation, FlowGraphValidation.IssueKind.UndeclaredVariable, ghostId), "IssueKind.UndeclaredVariable");
         Expect(HasIssue(validation, FlowGraphValidation.IssueKind.DataCycle, firstId), "IssueKind.DataCycle");
         Expect(HasIssue(validation, FlowGraphValidation.IssueKind.NodeWarning, silent), "IssueKind.NodeWarning");
-        ExpectEqual((int)FlowGraphValidation.IssueKind.Max, 8, "IssueKind.Max");
+        ExpectEqual((int)FlowGraphValidation.IssueKind.MultipleStart, 8, "IssueKind.MultipleStart (#401)");
+        ExpectEqual((int)FlowGraphValidation.IssueKind.InvalidStart, 9, "IssueKind.InvalidStart (#401)");
+        ExpectEqual((int)FlowGraphValidation.IssueKind.Max, 10, "IssueKind.Max");
         ExpectEqual(validation.GetIssuesForNode(ghostId).Length, 2, "GetIssuesForNode: undeclared and unreachable");
         Expect(!string.IsNullOrEmpty(validation.GetIssueMessage(0)), "GetIssueMessage");
     }
