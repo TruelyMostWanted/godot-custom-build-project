@@ -1,0 +1,9 @@
+[gd_resource type="AudioBusSettingsRows" load_steps=2 format=3]
+
+[sub_resource type="AudioBusSettingsRow" id="AudioBusSettingsRow_sfx"]
+bus_name = "Sfx"
+volume_db = -6.0
+mute = true
+
+[resource]
+buses = Array[AudioBusSettingsRow]([SubResource("AudioBusSettingsRow_sfx")])

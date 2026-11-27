@@ -1,0 +1,10 @@
+[gd_resource type="PreloadList" format=3]
+
+[ext_resource type="FilesManifest" path="res://resource-database/resources/armor_manifest.tres" id="1_armor"]
+
+[resource]
+paths = PackedStringArray("res://resource-database/resources/items/sword.tres", "res://resource-database/resources/items/shield.tres")
+manifests = Array[FilesManifest]([ExtResource("1_armor")])
+keys = Dictionary[String, String]({
+"hero_sword": "res://resource-database/resources/items/sword.tres"
+})

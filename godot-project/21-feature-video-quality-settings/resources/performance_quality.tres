@@ -1,5 +1,0 @@
-[gd_resource type="VideoQualitySettings" format=3]
-
-[resource]
-scaling_3d_scale = 0.75
-screen_space_aa = 1

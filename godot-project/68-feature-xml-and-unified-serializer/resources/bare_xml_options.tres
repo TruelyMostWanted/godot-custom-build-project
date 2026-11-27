@@ -1,5 +1,0 @@
-[gd_resource type="SerializerOptions" format=3]
-
-[resource]
-include_type_marker = false
-xml_declaration = false

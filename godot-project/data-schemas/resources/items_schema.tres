@@ -1,0 +1,35 @@
+[gd_resource type="DataSchema" format=3]
+
+[sub_resource type="DataField" id="DataField_id"]
+name = &"id"
+type = 2
+required = true
+unique = true
+description = "Unique item id."
+
+[sub_resource type="DataField" id="DataField_name"]
+name = &"name"
+type = 4
+allow_empty = false
+
+[sub_resource type="DataField" id="DataField_rarity"]
+name = &"rarity"
+type = 4
+hint = 2
+hint_string = "common,rare"
+
+[sub_resource type="DataField" id="DataField_hp"]
+name = &"hp"
+type = 2
+hint = 1
+hint_string = "0,100,1"
+default_value = 10
+
+[sub_resource type="DataField" id="DataField_code"]
+name = &"code"
+type = 4
+pattern = "[A-Z]{2}[0-9]+"
+
+[resource]
+fields = Array[DataField]([SubResource("DataField_id"), SubResource("DataField_name"), SubResource("DataField_rarity"), SubResource("DataField_hp"), SubResource("DataField_code")])
+file_patterns = PackedStringArray("res://data-schemas/resources/items.csv")

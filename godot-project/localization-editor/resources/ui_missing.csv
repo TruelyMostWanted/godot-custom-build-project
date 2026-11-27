@@ -1,0 +1,6 @@
+keys,?plural,_notes,en,de,fr
+menu.play,,button,Play,Spielen,Jouer
+menu.quit,,button,Quit,Beenden,
+npc.greeting,,provider,"Greetings, {player_name}!","Sei gegrüßt, {player_name}!",
+enemy.count,enemy.count.plural,plural,{count} enemy,{count} Gegner,{count} ennemi
+,,,{count} enemies,{count} Gegner,{count} ennemis

@@ -1,0 +1,17 @@
+[gd_resource type="TileSet" format=3]
+
+[ext_resource type="Texture2D" path="res://tileset-coordinate-axes/resources/axis_tiles_isometric.png" id="1_7y1hr"]
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_4ohd0"]
+texture = ExtResource("1_7y1hr")
+texture_region_size = Vector2i(64, 32)
+0:0/0 = 0
+1:0/0 = 0
+2:0/0 = 0
+
+[resource]
+tile_shape = 1
+tile_layout = 4
+swap_x_and_y_axis = true
+tile_size = Vector2i(64, 32)
+sources/0 = SubResource("TileSetAtlasSource_4ohd0")

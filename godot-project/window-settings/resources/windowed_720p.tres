@@ -1,0 +1,4 @@
+[gd_resource type="WindowSettings" format=3]
+
+[resource]
+window_size = Vector2i(1280, 720)

@@ -1,7 +1,0 @@
-[gd_resource type="FilesManifest" format=3]
-
-[resource]
-type_hint = &"Resource"
-extensions = PackedStringArray(".tres", ".res")
-folder_paths = PackedStringArray("user://mods")
-create_missing_folders = true

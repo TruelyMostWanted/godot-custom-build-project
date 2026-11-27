@@ -1,0 +1,23 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://localized-text/scripts/cs/Example.cs" id="1"]
+
+[sub_resource type="LocalizedText" id="LocalizedText_1"]
+key = &"NPC_GREETING"
+context = &"casual"
+args = {
+&"player_name": "Ada"
+}
+
+[node name="ExampleCs" type="Node"]
+script = ExtResource("1")
+
+[node name="SceneGreetingLabel" type="Label" parent="."]
+text = "NPC_GREETING"
+metadata/localized_text = SubResource("LocalizedText_1")
+
+[node name="GreetingLabel" type="Label" parent="."]
+
+[node name="EnemiesLabel" type="Label" parent="."]
+
+[node name="SubtitleLabel" type="Label" parent="."]
