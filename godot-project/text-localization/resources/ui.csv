@@ -1,0 +1,6 @@
+keys,?plural,_notes,en,de
+menu.play,,Main menu button,Play,Spielen
+menu.quit,,Main menu button,Quit,Beenden
+npc.greeting,,{player_name} comes from TextInsertionServer,"Greetings, {player_name}!","Sei gegrüßt, {player_name}!"
+enemy.count,enemy.count.plural,,{count} enemy,{count} Gegner
+,,,{count} enemies,{count} Gegner
