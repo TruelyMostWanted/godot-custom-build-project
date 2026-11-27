@@ -1,5 +1,0 @@
-# plain YAML file
-name: Demo
-a:
-  - b: 1
-  - b: 2
