@@ -1,5 +1,5 @@
 extends Node
-## Started as a separate process by the checks: prints the engine values that the engine settings domain applied
+## Started as a separate process by Test.gd: prints the engine values that the engine settings domain applied
 ## before the main scene was ready, then quits.
 
 
@@ -16,5 +16,5 @@ func _ready() -> void:
 		"max_fps_overridden": EngineSettingsServer.has_session_override(&"max_fps"),
 		"time_scale_overridden": EngineSettingsServer.has_session_override(&"time_scale"),
 	}
-	print("CHECK26_PROBE " + JSON.stringify(probe))
+	print("PROBE " + JSON.stringify(probe))
 	get_tree().quit(0)
