@@ -1,0 +1,14 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://audio-track-information/scripts/cs/Example.cs" id="1"]
+
+[node name="ExampleCs" type="Control"]
+script = ExtResource("1")
+
+[node name="ItemList" type="ItemList" parent="."]
+
+[node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="."]
+
+[node name="Cover" type="TextureRect" parent="."]
+
+[node name="Label" type="Label" parent="."]
