@@ -1,0 +1,27 @@
+[gd_resource type="TextLocalizationCatalog" format=3]
+
+[resource]
+data = {
+"?catalog": {
+"channel": &"interface",
+"locales": ["en", "de"]
+},
+"enemy.count": {
+"_plural": "enemy.count.plural",
+"de": ["{count} Gegner", "{count} Gegner"],
+"en": ["{count} enemy", "{count} enemies"]
+},
+"menu.play": {
+"_notes": "Main menu button",
+"de": "Spielen",
+"en": "Play"
+},
+"menu.quit": {
+"de": "Beenden",
+"en": "Quit"
+},
+"npc.greeting": {
+"de": "Sei gegrüßt, {player_name}!",
+"en": "Greetings, {player_name}!"
+}
+}

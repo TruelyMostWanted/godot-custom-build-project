@@ -1,0 +1,6 @@
+keys,?plural,fr
+menu.play,,Jouer
+menu.quit,,Quitter
+npc.greeting,,"Salutations, {player_name} !"
+enemy.count,enemy.count.plural,{count} ennemi
+,,{count} ennemis
