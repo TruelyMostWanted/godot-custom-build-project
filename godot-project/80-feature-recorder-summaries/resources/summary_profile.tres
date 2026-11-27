@@ -1,5 +1,0 @@
-[gd_resource type="PerformanceRecordingProfile" format=3]
-
-[resource]
-hitch_threshold_usec = 33333
-write_summary_json = true
