@@ -1,7 +1,7 @@
 extends Object
-## Stands in for OpenXRInterface in the checks of 30-feature-xr-settings: the same properties, methods and
+## Stands in for OpenXRInterface in the tests of xr-settings: the same properties, methods and
 ## signals that XRSettingsServer uses, but no OpenXR runtime. Passed to XRSettingsServer.set_interface_override().
-## Used by scripts/gd/check.gd and scripts/cs/Issue30FeatureXrSettingsCheck.cs. Free it with free().
+## Used by scripts/gd/Test.gd and scripts/cs/Test.cs. Free it with free().
 
 signal session_begun
 signal session_stopping
