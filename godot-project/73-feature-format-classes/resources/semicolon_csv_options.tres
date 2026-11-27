@@ -1,5 +1,0 @@
-[gd_resource type="SerializerOptions" format=3]
-
-[resource]
-csv_delimiter = ";"
-ini_value_style = 0
