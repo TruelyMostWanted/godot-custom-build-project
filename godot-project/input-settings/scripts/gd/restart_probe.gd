@@ -1,5 +1,5 @@
 extends Node
-## Started as a separate process by the checks: prints the input values that the input settings domain
+## Started as a separate process by the tests: prints the input values that the input settings domain
 ## loaded and applied before the main scene was ready, then quits.
 
 
@@ -13,5 +13,5 @@ func _ready() -> void:
 		"look_y": look.y,
 		"use_accumulated_input": Input.use_accumulated_input,
 	}
-	print("CHECK19_PROBE " + JSON.stringify(probe))
+	print("PROBE " + JSON.stringify(probe))
 	get_tree().quit(0)
