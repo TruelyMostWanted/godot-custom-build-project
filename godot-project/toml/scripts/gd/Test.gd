@@ -112,7 +112,8 @@ func _test_copy() -> void:
 func _test_stringify() -> void:
 	var data := { "name": "Game", "window": { "width": 1280, "scale": 1.5 }, "volume": 0.1, "tags": PackedStringArray(["a", "b"]), "nothing": null }
 	var text: String = TOML.stringify(data)
-	expect(text.begins_with("name = \"Game\"\nvolume = 0.1\ntags = [\"a\", \"b\"]\nnothing = \"\"\n"), "stringify(): plain keys first, in order, null as \"\"")
+	expect(text.begins_with("name = \"Game\"\nvolume = 0.1\ntags = [\"a\", \"b\"]\n"), "stringify(): plain keys first, in order")
+	expect(not text.contains("nothing"), "stringify(): a null key is left out (#402)")
 	expect(text.contains("\n[window]\nwidth = 1280\nscale = 1.5\n"), "stringify(): a nested Dictionary is a table")
 	var back: Dictionary = TOML.parse_string(text)
 	expect_equal(back["window"], { "width": 1280, "scale": 1.5 }, "stringify() reads back")

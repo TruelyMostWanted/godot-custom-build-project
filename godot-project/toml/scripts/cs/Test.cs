@@ -149,7 +149,8 @@ public partial class Test : FeatureTest
             ["nothing"] = default,
         };
         string text = Toml.Stringify(data);
-        Expect(text.StartsWith("name = \"Game\"\nvolume = 0.1\ntags = [\"a\", \"b\"]\nnothing = \"\"\n"), "Stringify(): plain keys first, in order, null as \"\"");
+        Expect(text.StartsWith("name = \"Game\"\nvolume = 0.1\ntags = [\"a\", \"b\"]\n"), "Stringify(): plain keys first, in order");
+        Expect(!text.Contains("nothing"), "Stringify(): a null key is left out (#402)");
         Expect(text.Contains("\n[window]\nwidth = 1280\nscale = 1.5\n"), "Stringify(): a nested Dictionary is a table");
         Dictionary window = Toml.ParseString(text)["window"].AsGodotDictionary();
         Expect((int)window["width"] == 1280 && (double)window["scale"] == 1.5, "Stringify() reads back");

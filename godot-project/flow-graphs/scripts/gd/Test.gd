@@ -343,7 +343,9 @@ func _test_validation() -> void:
 	expect(_has_issue(validation, FlowGraphValidation.ISSUE_KIND_UNDECLARED_VARIABLE, ghost_id), "ISSUE_KIND_UNDECLARED_VARIABLE")
 	expect(_has_issue(validation, FlowGraphValidation.ISSUE_KIND_DATA_CYCLE, first_id), "ISSUE_KIND_DATA_CYCLE")
 	expect(_has_issue(validation, FlowGraphValidation.ISSUE_KIND_NODE_WARNING, silent), "ISSUE_KIND_NODE_WARNING")
-	expect_equal(FlowGraphValidation.ISSUE_KIND_MAX, 8, "ISSUE_KIND_MAX")
+	expect_equal(FlowGraphValidation.ISSUE_KIND_MULTIPLE_START, 8, "ISSUE_KIND_MULTIPLE_START (#401)")
+	expect_equal(FlowGraphValidation.ISSUE_KIND_INVALID_START, 9, "ISSUE_KIND_INVALID_START (#401)")
+	expect_equal(FlowGraphValidation.ISSUE_KIND_MAX, 10, "ISSUE_KIND_MAX")
 	expect_equal(validation.get_issues_for_node(ghost_id).size(), 2, "get_issues_for_node: undeclared and unreachable")
 	expect(not validation.get_issue_message(0).is_empty(), "get_issue_message")
 
