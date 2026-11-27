@@ -1,0 +1,14 @@
+[gd_resource type="InputMapSettingsAction" load_steps=3 format=3]
+
+[sub_resource type="InputMapSettingsEvent" id="InputMapSettingsEvent_key"]
+input = "W"
+
+[sub_resource type="InputMapSettingsEvent" id="InputMapSettingsEvent_pad"]
+device = 2
+input = "B"
+
+[resource]
+action = &"jump"
+deadzone = 0.2
+layer = 1
+input_events = Array[InputMapSettingsEvent]([SubResource("InputMapSettingsEvent_key"), SubResource("InputMapSettingsEvent_pad")])

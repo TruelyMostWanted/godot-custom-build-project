@@ -1,0 +1,6 @@
+[gd_resource type="InputMapSettingsEventRow" format=3]
+
+[resource]
+action = &"jump"
+device = 2
+input = "B"

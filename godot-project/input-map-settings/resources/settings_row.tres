@@ -1,0 +1,5 @@
+[gd_resource type="InputMapSettingsRow" format=3]
+
+[resource]
+action = &"jump"
+bindings = "Keyboard:W; Gamepad:B"
