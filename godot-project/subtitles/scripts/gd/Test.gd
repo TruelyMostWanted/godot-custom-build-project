@@ -33,6 +33,9 @@ func _run_tests() -> void:
 	_test_format_round_trips()
 	_test_sample_resource()
 	_test_display_text()
+	await _test_subtitles_channel()
+	_test_translatable_strings()
+	_test_keys_srt()
 	_test_own_clock()
 	_test_settings()
 	await _test_time_source()
@@ -231,6 +234,58 @@ func _test_display_text() -> void:
 	subtitle.auto_translate = true
 	expect_equal(SubtitleServer.get_display_text(subtitle, greeting), "Hello", "auto_translate translates with translation_context")
 	domain.remove_translation(translation)
+
+
+func _test_subtitles_channel() -> void:
+	# Voices in English, subtitles in German: the subtitles channel has its own locale.
+	var catalog := TextLocalizationCatalog.new()
+	catalog.channel = &"subtitles"
+	catalog.set_text("LINE_1", "en", "Where are we?")
+	catalog.set_text("LINE_1", "de", "Wo sind wir?")
+	catalog.set_text("LINE_1", "de", "Wo bin ich?", &"alone")
+	TextLocalizationServer.add_catalog(catalog)
+	var locale: String = TranslationServer.get_locale()
+	TranslationServer.set_locale("en")
+	await get_tree().process_frame
+	var subtitle := Subtitle.new()
+	subtitle.auto_translate = true
+	var line: SubtitleSegment = _segment(0.0, 1.0, "LINE_1")
+	expect_equal(SubtitleServer.get_display_text(subtitle, line), "Where are we?", "subtitles follow the general locale")
+	TranslationServer.set_locale_for(&"subtitles", "de")
+	expect_equal(TranslationServer.get_locale_for(&"interface"), "en", "the interface stays English")
+	expect_equal(SubtitleServer.get_display_text(subtitle, line), "Wo sind wir?", "subtitles follow the subtitles channel")
+	var alone: SubtitleSegment = _segment(0.0, 1.0, "LINE_1")
+	alone.translation_context = &"alone"
+	expect_equal(SubtitleServer.get_display_text(subtitle, alone), "Wo bin ich?", "translation_context selects the context")
+	expect_equal(tr("LINE_1"), "LINE_1", "the key is not in the main domain")
+	subtitle.auto_translate = false
+	expect_equal(SubtitleServer.get_display_text(subtitle, line), "LINE_1", "auto_translate off shows the key")
+	TranslationServer.clear_locale_for(&"subtitles")
+	TextLocalizationServer.remove_catalog(catalog)
+	TranslationServer.set_locale(locale)
+
+
+func _test_translatable_strings() -> void:
+	var subtitle := Subtitle.new()
+	subtitle.add_segment(_segment(0.0, 1.0, "Hello"))
+	var spoken: SubtitleSegment = _segment(0.0, 1.0, "Run!")
+	spoken.translation_context = &"chase"
+	spoken.speaker = &"Anna"
+	subtitle.add_segment(spoken)
+	subtitle.add_segment(_segment(0.0, 1.0, ""))
+	var strings: Array = subtitle.get_translatable_strings()
+	expect_equal(strings.size(), 2, "get_translatable_strings skips segments without text")
+	expect_equal(strings[0], PackedStringArray(["Hello", "", "", ""]), "entry: text, empty context")
+	expect_equal(strings[1], PackedStringArray(["Run!", "chase", "", "Speaker: Anna"]), "entry: text, context, speaker comment")
+
+
+func _test_keys_srt() -> void:
+	var subtitle: Subtitle = load(RES + "line_keys.srt")
+	expect(subtitle != null, "line_keys.srt loads as Subtitle")
+	expect(not subtitle.auto_translate, "a loaded .srt starts with auto_translate off")
+	var strings: Array = subtitle.get_translatable_strings()
+	expect_equal(strings.size(), 2, "line_keys.srt gives one entry per cue")
+	expect_equal(strings[1][0], "LINE_2", "cue text of line_keys.srt")
 
 
 func _test_own_clock() -> void:

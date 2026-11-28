@@ -44,6 +44,9 @@ public partial class Test : FeatureTest
         TestFormatRoundTrips();
         TestSampleResource();
         TestDisplayText();
+        await TestSubtitlesChannel();
+        TestTranslatableStrings();
+        TestKeysSrt();
         TestOwnClock();
         TestSettings();
         await TestTimeSource();
@@ -259,6 +262,59 @@ public partial class Test : FeatureTest
         subtitle.AutoTranslate = true;
         ExpectEqual(SubtitleServer.GetDisplayText(subtitle, greeting), "Hello", "AutoTranslate translates with TranslationContext");
         domain.RemoveTranslation(translation);
+    }
+
+    private async Task TestSubtitlesChannel()
+    {
+        // Voices in English, subtitles in German: the subtitles channel has its own locale.
+        var catalog = new TextLocalizationCatalog { Channel = "subtitles" };
+        catalog.SetText("LINE_1", "en", "Where are we?");
+        catalog.SetText("LINE_1", "de", "Wo sind wir?");
+        catalog.SetText("LINE_1", "de", "Wo bin ich?", "alone");
+        TextLocalizationServer.Singleton.AddCatalog(catalog);
+        string locale = TranslationServer.GetLocale();
+        TranslationServer.SetLocale("en");
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        var subtitle = new Subtitle { AutoTranslate = true };
+        SubtitleSegment line = Segment(0.0, 1.0, "LINE_1");
+        ExpectEqual(SubtitleServer.GetDisplayText(subtitle, line), "Where are we?", "subtitles follow the general locale");
+        TranslationServer.SetLocaleFor("subtitles", "de");
+        ExpectEqual(TranslationServer.GetLocaleFor("interface"), "en", "the interface stays English");
+        ExpectEqual(SubtitleServer.GetDisplayText(subtitle, line), "Wo sind wir?", "subtitles follow the subtitles channel");
+        SubtitleSegment alone = Segment(0.0, 1.0, "LINE_1");
+        alone.TranslationContext = "alone";
+        ExpectEqual(SubtitleServer.GetDisplayText(subtitle, alone), "Wo bin ich?", "TranslationContext selects the context");
+        ExpectEqual(Tr("LINE_1"), "LINE_1", "the key is not in the main domain");
+        subtitle.AutoTranslate = false;
+        ExpectEqual(SubtitleServer.GetDisplayText(subtitle, line), "LINE_1", "AutoTranslate off shows the key");
+        TranslationServer.ClearLocaleFor("subtitles");
+        TextLocalizationServer.Singleton.RemoveCatalog(catalog);
+        TranslationServer.SetLocale(locale);
+    }
+
+    private void TestTranslatableStrings()
+    {
+        var subtitle = new Subtitle();
+        subtitle.AddSegment(Segment(0.0, 1.0, "Hello"));
+        SubtitleSegment spoken = Segment(0.0, 1.0, "Run!");
+        spoken.TranslationContext = "chase";
+        spoken.Speaker = "Anna";
+        subtitle.AddSegment(spoken);
+        subtitle.AddSegment(Segment(0.0, 1.0, ""));
+        var strings = subtitle.GetTranslatableStrings();
+        ExpectEqual(strings.Count, 2, "GetTranslatableStrings skips segments without text");
+        ExpectEqual(string.Join("|", strings[0]), "Hello|||", "entry: text, empty context");
+        ExpectEqual(string.Join("|", strings[1]), "Run!|chase||Speaker: Anna", "entry: text, context, speaker comment");
+    }
+
+    private void TestKeysSrt()
+    {
+        var subtitle = GD.Load<Subtitle>(Res + "line_keys.srt");
+        Expect(subtitle != null, "line_keys.srt loads as Subtitle");
+        Expect(!subtitle.AutoTranslate, "a loaded .srt starts with auto_translate off");
+        var strings = subtitle.GetTranslatableStrings();
+        ExpectEqual(strings.Count, 2, "line_keys.srt gives one entry per cue");
+        ExpectEqual(strings[1][0], "LINE_2", "cue text of line_keys.srt");
     }
 
     private void TestOwnClock()
