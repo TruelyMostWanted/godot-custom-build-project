@@ -426,6 +426,11 @@ public partial class Test : FeatureTest
         Expect(TimerServer.TimerIsValid(rid), "running TimerInstance stays alive without a reference");
         await Wait(0.5);
         ExpectEqual(counts.Timeout, 1, "dropped running TimerInstance still times out");
+        // In C#, the wrapper holds the last reference until it is collected; its finalizer thread frees the RID
+        // deferred on the main thread.
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         Expect(!TimerServer.TimerIsValid(rid), "TimerInstance is freed after it ends");
     }
 
