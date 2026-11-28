@@ -4,10 +4,10 @@ using System.Threading.Tasks;
 using Godot;
 using TruelyInteractive.Checks;
 
-namespace TruelyInteractive.AudioCommands;
+namespace TruelyInteractive.AudioCommandsGuide;
 
 /// <summary>
-/// Full API test of Audio Commands (AudioCommand, AudioCommandList and the command part of AudioMixerServer).
+/// Full API test of Audio Commands (AudioCommand, AudioCommands and the command part of AudioMixerServer).
 /// Same tests as scripts/gd/Test.gd. Runs headless with the dummy audio driver: it checks state, not sound.
 /// The error tests print the expected errors.
 /// </summary>
@@ -41,6 +41,7 @@ public partial class Test : FeatureTest
         TestErrors();
         TestNamedCommands();
         TestGroups();
+        TestLegacyType();
         AudioMixerServer.Singleton.CommandExecuted -= OnCommandExecuted;
         AudioMixerServer.ApplyLayout(new AudioMixerLayout());
         return Task.CompletedTask;
@@ -58,7 +59,7 @@ public partial class Test : FeatureTest
 
     private void TestCommandList()
     {
-        var list = new AudioCommandList();
+        var list = new AudioCommands();
         AudioCommand horn = Command(AudioCommand.CommandEnum.Toggle, "pad_1");
         horn.CommandName = "horn";
         list.AddCommand(horn);
@@ -81,28 +82,28 @@ public partial class Test : FeatureTest
         full.Position = 1.5f;
         full.LoopMode = AudioCommand.LoopModeEnum.On;
         full.ClipName = "Battle";
-        var list = new AudioCommandList();
+        var list = new AudioCommands();
         list.AddCommand(full);
         list.AddCommand(Command(AudioCommand.CommandEnum.StopAll, ""));
         string csvPath = DataDir.PathJoin("commands.csv");
-        ExpectEqual(ResourceSaver.Save(list, csvPath), Error.Ok, "ResourceSaver saves an AudioCommandList as CSV");
+        ExpectEqual(ResourceSaver.Save(list, csvPath), Error.Ok, "ResourceSaver saves an AudioCommands as CSV");
         string csvText = FileAccess.GetFileAsString(csvPath);
         ExpectEqual(csvText.StripEdges().Split("\n").Length, 3, "the CSV has a header and one row per command");
         Expect(csvText.Contains("Cross Fade"), "the CSV writes the command by name");
         Expect(csvText.Contains("Equal Power"), "the CSV writes the fade curve by name");
-        var csvList = ResourceLoader.Load<AudioCommandList>(csvPath, "AudioCommandList", ResourceLoader.CacheMode.Ignore);
+        var csvList = ResourceLoader.Load<AudioCommands>(csvPath, "AudioCommands", ResourceLoader.CacheMode.Ignore);
         Expect(SameCommand(csvList.Commands[0], full), "every property survives the CSV round trip");
         string json = ResourceTextSerializer.Serialize(list, ResourceTextSerializer.Format.Json);
-        var jsonList = (AudioCommandList)ResourceTextSerializer.Deserialize(json, ResourceTextSerializer.Format.Json, "AudioCommandList");
+        var jsonList = (AudioCommands)ResourceTextSerializer.Deserialize(json, ResourceTextSerializer.Format.Json, "AudioCommands");
         Expect(SameCommand(jsonList.Commands[0], full), "every property survives the JSON round trip");
         string ini = ResourceTextSerializer.Serialize(list, ResourceTextSerializer.Format.Ini);
-        var iniList = (AudioCommandList)ResourceTextSerializer.Deserialize(ini, ResourceTextSerializer.Format.Ini, "AudioCommandList");
+        var iniList = (AudioCommands)ResourceTextSerializer.Deserialize(ini, ResourceTextSerializer.Format.Ini, "AudioCommands");
         Expect(SameCommand(iniList.Commands[0], full), "every property survives the INI round trip");
     }
 
     private void TestPreloadStreams()
     {
-        var list = new AudioCommandList();
+        var list = new AudioCommands();
         list.AddCommand(Command(AudioCommand.CommandEnum.Play, "pad_1", _streamA));
         list.AddCommand(Command(AudioCommand.CommandEnum.Play, "pad_2", _streamB));
         ExpectEqual(list.PreloadStreams(), Error.Ok, "PreloadStreams returns Ok");
@@ -196,7 +197,7 @@ public partial class Test : FeatureTest
 
     private void TestNamedCommands()
     {
-        var board = new AudioCommandList();
+        var board = new AudioCommands();
         foreach (StringName pad in new StringName[] { "pad_1", "pad_2" })
         {
             AudioCommand toggle = Command(AudioCommand.CommandEnum.Toggle, pad, _streamA);
@@ -213,7 +214,7 @@ public partial class Test : FeatureTest
         AudioMixerServer.ExecuteNamed("pad_1");
         Expect(!AudioMixerServer.IsPlaying("pad_1"), "the second Toggle stops the channel");
         ExpectEqual(AudioMixerServer.ExecuteNamed("none"), Error.DoesNotExist, "ExecuteNamed of an unknown name returns DoesNotExist");
-        var mod = new AudioCommandList();
+        var mod = new AudioCommands();
         AudioCommand stop = Command(AudioCommand.CommandEnum.Stop, "pad_2");
         stop.CommandName = "pad_2";
         mod.AddCommand(stop);
@@ -230,7 +231,7 @@ public partial class Test : FeatureTest
     private void TestGroups()
     {
         AudioMixerServer.StopAll();
-        var ambience = new AudioCommandList();
+        var ambience = new AudioCommands();
         foreach (StringName channelName in new StringName[] { "birds", "wind" })
         {
             AudioCommand forest = Command(AudioCommand.CommandEnum.Play, channelName, _streamA);
@@ -246,9 +247,9 @@ public partial class Test : FeatureTest
         Expect(AudioMixerServer.IsPlaying("wind"), "ExecuteGroup runs the second command of the group");
         Expect(!AudioMixerServer.IsPlaying("music"), "ExecuteGroup skips other groups");
         AudioMixerServer.UnregisterCommands(ambience);
-        var stopList = new AudioCommandList();
+        var stopList = new AudioCommands();
         stopList.AddCommand(Command(AudioCommand.CommandEnum.StopAll, ""));
-        ExpectEqual(AudioMixerServer.ExecuteList(stopList), Error.Ok, "ExecuteList runs StopAll");
+        ExpectEqual(AudioMixerServer.ExecuteCommands(stopList), Error.Ok, "ExecuteCommands runs StopAll");
         Expect(!AudioMixerServer.IsPlaying("birds"), "StopAll stops every channel");
     }
 
@@ -279,5 +280,13 @@ public partial class Test : FeatureTest
     private void OnCommandExecuted(StringName commandName, AudioCommand command)
     {
         _executed.Add(commandName);
+    }
+
+    /// <summary>The old name AudioCommandList is deprecated: a .tres with that type loads as AudioCommands.</summary>
+    private void TestLegacyType()
+    {
+        var legacy = GD.Load<AudioCommands>("res://audio-commands/resources/legacy_audio_command_list.tres");
+        Expect(legacy != null && legacy.GetClass() == "AudioCommands", "a .tres with the old type AudioCommandList loads as AudioCommands");
+        ExpectEqual(legacy.Commands.Count, 4, "the legacy .tres keeps its commands");
     }
 }

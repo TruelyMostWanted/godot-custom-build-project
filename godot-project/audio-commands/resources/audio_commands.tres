@@ -1,0 +1,32 @@
+[gd_resource type="AudioCommands" format=3]
+
+[sub_resource type="AudioCommand" id="AudioCommand_0b7o2"]
+command_name = &"forest_in"
+group = &"forest"
+channel = &"birds"
+command = 11
+fade_time = 2.5
+fade_curve = 3
+loop_mode = 1
+
+[sub_resource type="AudioCommand" id="AudioCommand_7j520"]
+command_name = &"forest_out"
+group = &"forest"
+channel = &"birds"
+command = 12
+fade_time = 2.5
+
+[sub_resource type="AudioCommand" id="AudioCommand_y0twa"]
+command_name = &"music_quiet"
+group = &"board"
+channel = &"music"
+command = 14
+volume_db = -12.0
+
+[sub_resource type="AudioCommand" id="AudioCommand_28o7f"]
+command_name = &"stop_all"
+group = &"board"
+command = 19
+
+[resource]
+commands = Array[AudioCommand]([SubResource("AudioCommand_0b7o2"), SubResource("AudioCommand_7j520"), SubResource("AudioCommand_y0twa"), SubResource("AudioCommand_28o7f")])

@@ -13,21 +13,21 @@ public partial class Example : Node
     {
         // Preload the items of the game
         var armor = new FilesManifest { FolderPaths = ["res://resource-database/resources/armor"], Extensions = ["tres"] };
-        var list = new PreloadList
+        var list = new Preloads
         {
             Paths = [Items + "sword.tres", Items + "shield.tres"],
             Manifests = [armor],
             Keys = new Godot.Collections.Dictionary<string, string> { { "hero_sword", Items + "sword.tres" } },
         };
         Database.Singleton.PreloadFinished += OnPreloadFinished;
-        Database.PreloadFromList(list);
+        Database.PreloadFrom(list);
 
         // Preload at startup
-        // Nothing to run here: the PreloadList is saved as resources/preload_list.tres and added to the project setting
-        // filesystem/resources/preload_lists. This example does not change the project settings.
+        // Nothing to run here: the Preloads is saved as resources/preloads.tres and added to the project setting
+        // filesystem/resources/preloads. This example does not change the project settings.
     }
 
-    private void OnPreloadFinished(PreloadList list, Error error)
+    private void OnPreloadFinished(Preloads list, Error error)
     {
         GD.Print("Preload finished: ", error);
         Resource sword = Database.GetResource("hero_sword");

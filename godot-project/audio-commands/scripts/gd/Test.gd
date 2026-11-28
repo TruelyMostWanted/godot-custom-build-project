@@ -1,5 +1,5 @@
 extends FeatureTest
-## Full API test of Audio Commands (AudioCommand, AudioCommandList and the command part of AudioMixerServer).
+## Full API test of Audio Commands (AudioCommand, AudioCommands and the command part of AudioMixerServer).
 ## Same tests as scripts/cs/Test.cs. Runs headless with the dummy audio driver: it checks state, not sound.
 ## The error tests print the expected errors.
 
@@ -31,6 +31,7 @@ func _run_tests() -> void:
 	_test_errors()
 	_test_named_commands()
 	_test_groups()
+	_test_legacy_type()
 	AudioMixerServer.command_executed.disconnect(_on_command_executed)
 	AudioMixerServer.apply_layout(AudioMixerLayout.new())
 
@@ -45,7 +46,7 @@ func _test_defaults() -> void:
 
 
 func _test_command_list() -> void:
-	var list := AudioCommandList.new()
+	var list := AudioCommands.new()
 	var horn: AudioCommand = _command(AudioCommand.COMMAND_TOGGLE, &"pad_1")
 	horn.command_name = &"horn"
 	list.add_command(horn)
@@ -67,27 +68,27 @@ func _test_text_formats() -> void:
 	full.position = 1.5
 	full.loop_mode = AudioCommand.LOOP_MODE_ON
 	full.clip_name = &"Battle"
-	var list := AudioCommandList.new()
+	var list := AudioCommands.new()
 	list.add_command(full)
 	list.add_command(_command(AudioCommand.COMMAND_STOP_ALL, &""))
 	var csv_path: String = DATA_DIR.path_join("commands.csv")
-	expect_equal(ResourceSaver.save(list, csv_path), OK, "ResourceSaver saves an AudioCommandList as CSV")
+	expect_equal(ResourceSaver.save(list, csv_path), OK, "ResourceSaver saves an AudioCommands as CSV")
 	var csv_text: String = FileAccess.get_file_as_string(csv_path)
 	expect_equal(csv_text.strip_edges().split("\n").size(), 3, "the CSV has a header and one row per command")
 	expect(csv_text.contains("Cross Fade"), "the CSV writes the command by name")
 	expect(csv_text.contains("Equal Power"), "the CSV writes the fade curve by name")
-	var csv_list: AudioCommandList = ResourceLoader.load(csv_path, "AudioCommandList", ResourceLoader.CACHE_MODE_IGNORE)
+	var csv_list: AudioCommands = ResourceLoader.load(csv_path, "AudioCommands", ResourceLoader.CACHE_MODE_IGNORE)
 	expect(_same_command(csv_list.commands[0], full), "every property survives the CSV round trip")
 	var json: String = ResourceTextSerializer.serialize(list, ResourceTextSerializer.FORMAT_JSON)
-	var json_list: AudioCommandList = ResourceTextSerializer.deserialize(json, ResourceTextSerializer.FORMAT_JSON, "AudioCommandList")
+	var json_list: AudioCommands = ResourceTextSerializer.deserialize(json, ResourceTextSerializer.FORMAT_JSON, "AudioCommands")
 	expect(_same_command(json_list.commands[0], full), "every property survives the JSON round trip")
 	var ini: String = ResourceTextSerializer.serialize(list, ResourceTextSerializer.FORMAT_INI)
-	var ini_list: AudioCommandList = ResourceTextSerializer.deserialize(ini, ResourceTextSerializer.FORMAT_INI, "AudioCommandList")
+	var ini_list: AudioCommands = ResourceTextSerializer.deserialize(ini, ResourceTextSerializer.FORMAT_INI, "AudioCommands")
 	expect(_same_command(ini_list.commands[0], full), "every property survives the INI round trip")
 
 
 func _test_preload_streams() -> void:
-	var list := AudioCommandList.new()
+	var list := AudioCommands.new()
 	list.add_command(_command(AudioCommand.COMMAND_PLAY, &"pad_1", _stream_a))
 	list.add_command(_command(AudioCommand.COMMAND_PLAY, &"pad_2", _stream_b))
 	expect_equal(list.preload_streams(), OK, "preload_streams returns OK")
@@ -177,7 +178,7 @@ func _test_errors() -> void:
 
 
 func _test_named_commands() -> void:
-	var board := AudioCommandList.new()
+	var board := AudioCommands.new()
 	for pad: StringName in [&"pad_1", &"pad_2"]:
 		var toggle: AudioCommand = _command(AudioCommand.COMMAND_TOGGLE, pad, _stream_a)
 		toggle.command_name = pad
@@ -192,7 +193,7 @@ func _test_named_commands() -> void:
 	AudioMixerServer.execute_named(&"pad_1")
 	expect(not AudioMixerServer.is_playing(&"pad_1"), "the second TOGGLE stops the channel")
 	expect_equal(AudioMixerServer.execute_named(&"none"), ERR_DOES_NOT_EXIST, "execute_named of an unknown name returns ERR_DOES_NOT_EXIST")
-	var mod := AudioCommandList.new()
+	var mod := AudioCommands.new()
 	var stop: AudioCommand = _command(AudioCommand.COMMAND_STOP, &"pad_2")
 	stop.command_name = &"pad_2"
 	mod.add_command(stop)
@@ -208,7 +209,7 @@ func _test_named_commands() -> void:
 
 func _test_groups() -> void:
 	AudioMixerServer.stop_all()
-	var ambience := AudioCommandList.new()
+	var ambience := AudioCommands.new()
 	for channel_name: StringName in [&"birds", &"wind"]:
 		var forest: AudioCommand = _command(AudioCommand.COMMAND_PLAY, channel_name, _stream_a)
 		forest.group = &"forest"
@@ -222,9 +223,9 @@ func _test_groups() -> void:
 	expect(AudioMixerServer.is_playing(&"wind"), "execute_group runs the second command of the group")
 	expect(not AudioMixerServer.is_playing(&"music"), "execute_group skips other groups")
 	AudioMixerServer.unregister_commands(ambience)
-	var stop_list := AudioCommandList.new()
+	var stop_list := AudioCommands.new()
 	stop_list.add_command(_command(AudioCommand.COMMAND_STOP_ALL, &""))
-	expect_equal(AudioMixerServer.execute_list(stop_list), OK, "execute_list runs STOP_ALL")
+	expect_equal(AudioMixerServer.execute_commands(stop_list), OK, "execute_commands runs STOP_ALL")
 	expect(not AudioMixerServer.is_playing(&"birds"), "STOP_ALL stops every channel")
 
 
@@ -259,3 +260,10 @@ func _same_command(a: AudioCommand, b: AudioCommand) -> bool:
 
 func _on_command_executed(command_name: StringName, _command_ref: AudioCommand) -> void:
 	_executed.append(command_name)
+
+
+## The old name AudioCommandList is deprecated: a .tres with that type loads as AudioCommands.
+func _test_legacy_type() -> void:
+	var legacy: AudioCommands = load("res://audio-commands/resources/legacy_audio_command_list.tres")
+	expect(legacy != null and legacy.get_class() == "AudioCommands", "a .tres with the old type AudioCommandList loads as AudioCommands")
+	expect_equal(legacy.commands.size(), 4, "the legacy .tres keeps its commands")

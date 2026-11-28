@@ -11,20 +11,20 @@ func _ready() -> void:
 	armor.folder_paths = PackedStringArray(["res://resource-database/resources/armor"])
 	armor.extensions = PackedStringArray(["tres"])
 
-	var list := PreloadList.new()
+	var list := Preloads.new()
 	list.paths = PackedStringArray([ITEMS + "sword.tres", ITEMS + "shield.tres"])
 	list.manifests = [armor]
 	list.keys = { "hero_sword": ITEMS + "sword.tres" }
 
 	ResourceDatabase.preload_finished.connect(_on_preload_finished)
-	ResourceDatabase.preload_from_list(list)
+	ResourceDatabase.preload_from(list)
 
 	# Preload at startup
-	# Nothing to run here: the PreloadList is saved as resources/preload_list.tres and added to the project setting
-	# filesystem/resources/preload_lists. This example does not change the project settings.
+	# Nothing to run here: the Preloads is saved as resources/preloads.tres and added to the project setting
+	# filesystem/resources/preloads. This example does not change the project settings.
 
 
-func _on_preload_finished(_list: PreloadList, error: Error) -> void:
+func _on_preload_finished(_list: Preloads, error: Error) -> void:
 	print("Preload finished: ", error)
 	var sword: Resource = ResourceDatabase.get_resource("hero_sword")
 	print("hero_sword: ", sword.resource_name)

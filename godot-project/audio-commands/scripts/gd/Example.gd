@@ -24,7 +24,7 @@ func _ready() -> void:
 	print("Ambience playing: ", AudioMixerServer.is_playing(&"ambience"))
 
 	# Build a soundboard from a CSV file.
-	var board: AudioCommandList = ResourceLoader.load("user://soundboard.csv", "AudioCommandList")
+	var board: AudioCommands = ResourceLoader.load("user://soundboard.csv", "AudioCommands")
 	AudioMixerServer.register_commands(board)
 	for command: AudioCommand in board.commands:
 		var button := Button.new()
@@ -34,7 +34,7 @@ func _ready() -> void:
 	print("Pads: ", $Pads.get_child_count())
 
 	# Start the ambience of a level.
-	var forest: AudioCommandList = ResourceLoader.load("user://forest.csv", "AudioCommandList")
+	var forest: AudioCommands = ResourceLoader.load("user://forest.csv", "AudioCommands")
 	AudioMixerServer.register_commands(forest)
 	AudioMixerServer.execute_group(&"forest")
 	print("Music playing: ", AudioMixerServer.is_playing(&"music"))
@@ -42,8 +42,8 @@ func _ready() -> void:
 	AudioMixerServer.unregister_commands(forest)
 
 	# Let a mod replace a sound.
-	var base_game: AudioCommandList = board
-	var mod: AudioCommandList = ResourceLoader.load("user://mod.csv", "AudioCommandList")
+	var base_game: AudioCommands = board
+	var mod: AudioCommands = ResourceLoader.load("user://mod.csv", "AudioCommands")
 	AudioMixerServer.register_commands(base_game) # "horn" plays tone.tres
 	AudioMixerServer.register_commands(mod) # "horn" plays mod_horn.tres
 	AudioMixerServer.execute_named(&"horn") # the mod's horn
