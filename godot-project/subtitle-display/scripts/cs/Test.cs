@@ -12,6 +12,7 @@ public partial class Test : FeatureTest
 {
     protected override async Task RunTests()
     {
+        RunTableLabel();
         TestDefaults();
         TestPlayerAndSpeakers();
         TestAccessibility();
@@ -142,5 +143,83 @@ public partial class Test : FeatureTest
         label.QueueFree();
         AccessibilitySettingsServer.SetSubtitlesEnabled(enabled);
         AccessibilitySettingsServer.SetCaptionsEnabled(captions);
+    }
+
+    private void RunTableLabel()
+    {
+        TestPreviewProperties();
+        TestTranslatableSpeakers();
+        TestTranslatedSpeaker();
+    }
+
+    private static SubtitleSegment SegmentTableLabel(double start, double end, string text, string speaker = "", SubtitleSegment.KindEnum kind = SubtitleSegment.KindEnum.Dialog)
+    {
+        return new SubtitleSegment { StartTime = start, EndTime = end, Text = text, Speaker = speaker, Kind = kind };
+    }
+
+    private void TestPreviewProperties()
+    {
+        var label = new SubtitleLabel();
+        ExpectEqual((string)label.PreviewSpeaker, "Speaker", "preview_speaker default");
+        ExpectEqual(label.PreviewText, "The subtitle line appears here.", "preview_text default");
+        label.PreviewSpeaker = "Anna";
+        label.PreviewText = "Hello";
+        ExpectEqual((string)label.PreviewSpeaker, "Anna", "preview_speaker is set");
+        ExpectEqual(label.PreviewText, "Hello", "preview_text is set");
+        label.Refresh();
+        ExpectEqual(label.Text, "", "no preview while the game runs");
+        label.Free();
+    }
+
+    private void TestTranslatableSpeakers()
+    {
+        var subtitle = new Subtitle();
+        subtitle.AddSegment(SegmentTableLabel(0.0, 1.0, "Hello", "Anna"));
+        subtitle.AddSegment(SegmentTableLabel(1.0, 2.0, "Run!", "Ben"));
+        subtitle.AddSegment(SegmentTableLabel(2.0, 3.0, "Again", "Anna"));
+        subtitle.AddSegment(SegmentTableLabel(3.0, 4.0, "Door", "Door", SubtitleSegment.KindEnum.Sound));
+        var strings = subtitle.GetTranslatableStrings();
+        ExpectEqual(strings.Count, 6, "four texts, then two speakers");
+        ExpectEqual(strings[5][0], "Ben", "speaker entry");
+        ExpectEqual(strings[5][1], "speaker", "with the context speaker");
+        ExpectEqual(strings[4][0], "Anna", "each speaker once");
+        int speakers = 0;
+        foreach (var entry in strings)
+        {
+            if (entry[1] == "speaker")
+            {
+                speakers++;
+            }
+        }
+        ExpectEqual(speakers, 2, "the speaker of a caption is not listed");
+    }
+
+    private void TestTranslatedSpeaker()
+    {
+        var german = new Translation { Locale = "de" };
+        german.AddMessage("Anna", "Annchen", "speaker");
+        var domain = TranslationServer.GetOrAddDomain("subtitles");
+        domain.AddTranslation(german);
+        var subtitle = new Subtitle();
+        var segment = SegmentTableLabel(0.0, 1.0, "Hello", "Anna");
+        subtitle.AddSegment(segment);
+        ExpectEqual(SubtitleServer.GetDisplaySpeaker(subtitle, segment), "Anna", "auto_translate off: the name as is");
+        subtitle.AutoTranslate = true;
+        TranslationServer.SetLocaleFor("subtitles", "de");
+        ExpectEqual(SubtitleServer.GetDisplaySpeaker(subtitle, segment), "Annchen", "translated through the subtitles channel");
+        var player = new SubtitlePlayer { Subtitle = subtitle };
+        AddChild(player);
+        var label = new SubtitleLabel();
+        AddChild(label);
+        label.FollowAccessibilitySettings = false;
+        label.Player = label.GetPathTo(player);
+        player.Play(0.5);
+        ExpectEqual(label.Text, $"[font_size={label.GetDisplayFontSize()}]Annchen: Hello[/font_size]", "the label shows the translated name");
+        TranslationServer.SetLocaleFor("subtitles", "en");
+        ExpectEqual(SubtitleServer.GetDisplaySpeaker(subtitle, segment), "Anna", "back to the source name");
+        TranslationServer.ClearLocaleFor("subtitles");
+        label.QueueFree();
+        player.QueueFree();
+        domain.RemoveTranslation(german);
     }
 }

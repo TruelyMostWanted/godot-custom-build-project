@@ -59,6 +59,19 @@ public partial class Example : Node
             GD.Print("Too fast to read: ", string.Join(", ", check.FastReadingSegments));
         }
 
+        // Timing tools of the Subtitles dock as methods.
+        var timed = new Subtitle();
+        var first = new SubtitleSegment();
+        first.StartTime = 1.5;
+        first.EndTime = 3.0;
+        first.Text = "Hello there";
+        timed.AddSegment(first);
+        timed.ShiftTimes(-0.5);
+        timed.SyncTimes(1.0, 2.0, 59.5, 62.5);
+        int secondIndex = timed.SplitSegment(0, 2.5);
+        timed.MergeSegments(0);
+        GD.Print("Split made segment ", secondIndex, ", segments after merge: ", timed.GetSegmentCount());
+
         SubtitleServer.TextChanged -= OnSubtitleTextChanged;
         GetTree().Quit();
     }

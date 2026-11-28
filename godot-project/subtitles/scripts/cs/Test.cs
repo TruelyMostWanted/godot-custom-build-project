@@ -22,6 +22,7 @@ public partial class Test : FeatureTest
 
     protected override async Task RunTests()
     {
+        RunDockTools();
         SubtitleServer.TrackStarted += (id, subtitle) => _events.Add("track_started");
         SubtitleServer.SegmentStarted += (id, segment, text) => _events.Add("segment_started " + text);
         SubtitleServer.SegmentEnded += (id, segment) => _events.Add("segment_ended " + segment.Text);
@@ -302,7 +303,7 @@ public partial class Test : FeatureTest
         subtitle.AddSegment(spoken);
         subtitle.AddSegment(Segment(0.0, 1.0, ""));
         var strings = subtitle.GetTranslatableStrings();
-        ExpectEqual(strings.Count, 2, "GetTranslatableStrings skips segments without text");
+        ExpectEqual(strings.Count, 3, "GetTranslatableStrings skips segments without text, adds one entry per speaker");
         ExpectEqual(string.Join("|", strings[0]), "Hello|||", "entry: text, empty context");
         ExpectEqual(string.Join("|", strings[1]), "Run!|chase||Speaker: Anna", "entry: text, context, speaker comment");
     }
@@ -397,5 +398,106 @@ public partial class Test : FeatureTest
         string result = string.Join(", ", _events);
         _events.Clear();
         return result;
+    }
+
+    private void RunDockTools()
+    {
+        TestMethods();
+        Example();
+        TestShiftAndSync();
+        TestSplit();
+        TestMerge();
+    }
+
+    private static SubtitleSegment SegmentDockTools(double start, double end, string text)
+    {
+        var segment = new SubtitleSegment();
+        segment.StartTime = start;
+        segment.EndTime = end;
+        segment.Text = text;
+        return segment;
+    }
+
+    private void TestMethods()
+    {
+        Expect(ClassDB.ClassHasMethod("Subtitle", "sync_times"), "Subtitle.sync_times() exists");
+        Expect(ClassDB.ClassHasMethod("Subtitle", "split_segment"), "Subtitle.split_segment() exists");
+        Expect(ClassDB.ClassHasMethod("Subtitle", "merge_segments"), "Subtitle.merge_segments() exists");
+    }
+
+    // The snippet of the wiki guide "Subtitles dock", section "From scripts".
+    private void Example()
+    {
+        var subtitle = new Subtitle();
+        subtitle.AddSegment(SegmentDockTools(1.5, 3.0, "Hello there"));
+        subtitle.AddSegment(SegmentDockTools(60.0, 61.0, "Bye"));
+        subtitle.ShiftTimes(-0.5);
+        subtitle.SyncTimes(1.0, 2.0, 59.5, 62.5);
+        int second = subtitle.SplitSegment(0, 2.5);
+        subtitle.MergeSegments(0);
+        Expect(second == 1, "example: SplitSegment() returns the index of the new segment");
+        Expect(subtitle.GetSegmentCount() == 2, "example: MergeSegments() undoes the split");
+        Expect(Mathf.IsEqualApprox(subtitle.GetSegment(1).StartTime, 62.5, 1e-9), "example: the last line starts at its sync target");
+    }
+
+    private void TestShiftAndSync()
+    {
+        var subtitle = new Subtitle();
+        subtitle.AddSegment(SegmentDockTools(10.0, 12.0, "a"));
+        subtitle.AddSegment(SegmentDockTools(20.0, 22.0, "b"));
+        subtitle.AddSegment(SegmentDockTools(30.0, 31.0, "c"));
+        subtitle.SyncTimes(10.0, 11.0, 30.0, 51.0);
+        Expect(Mathf.IsEqualApprox(subtitle.GetSegment(0).StartTime, 11.0, 1e-9), "SyncTimes(): the first point moves to its target");
+        Expect(Mathf.IsEqualApprox(subtitle.GetSegment(0).EndTime, 15.0, 1e-9), "SyncTimes(): times are stretched (scale 2)");
+        Expect(Mathf.IsEqualApprox(subtitle.GetSegment(1).StartTime, 31.0, 1e-9), "SyncTimes(): times in between are mapped linearly");
+        Expect(Mathf.IsEqualApprox(subtitle.GetSegment(2).StartTime, 51.0, 1e-9), "SyncTimes(): the second point moves to its target");
+        int changes = 0;
+        subtitle.Changed += () => changes++;
+        subtitle.SyncTimes(11.0, 12.0, 51.0, 52.0);
+        Expect(changes >= 1, "SyncTimes(): emits Changed");
+        Expect(Mathf.IsEqualApprox(subtitle.GetSegment(2).EndTime, 54.0, 1e-9), "SyncTimes(): equal offsets are a shift");
+    }
+
+    private void TestSplit()
+    {
+        var subtitle = new Subtitle();
+        var first = SegmentDockTools(0.0, 4.0, "First line\nSecond line");
+        first.Speaker = "Ann";
+        first.Kind = SubtitleSegment.KindEnum.Narration;
+        subtitle.AddSegment(first);
+        subtitle.AddSegment(SegmentDockTools(10.0, 14.0, "one two three four"));
+        int index = subtitle.SplitSegment(0, 1.5);
+        Expect(index == 1, "SplitSegment(): returns the index of the second part");
+        Expect(subtitle.GetSegmentCount() == 3, "SplitSegment(): adds one segment");
+        Expect(subtitle.GetSegment(0).EndTime == 1.5, "SplitSegment(): the first part ends at the split");
+        Expect(subtitle.GetSegment(1).StartTime == 1.5, "SplitSegment(): the second part starts at the split");
+        Expect(subtitle.GetSegment(1).EndTime == 4.0, "SplitSegment(): the second part keeps the end");
+        Expect(subtitle.GetSegment(0).Text == "First line", "SplitSegment(): the text is divided at the line break");
+        Expect(subtitle.GetSegment(1).Text == "Second line", "SplitSegment(): the second line goes to the second part");
+        Expect(subtitle.GetSegment(1).Speaker == "Ann", "SplitSegment(): the speaker is kept");
+        Expect(subtitle.GetSegment(1).Kind == SubtitleSegment.KindEnum.Narration, "SplitSegment(): the kind is kept");
+        Expect(subtitle.GetSegment(1) != first, "SplitSegment(): the second part is a new segment");
+        subtitle.SplitSegment(2, 13.0);
+        Expect(subtitle.GetSegment(2).Text == "one two three", "SplitSegment(): one line is divided at the nearest space");
+        Expect(subtitle.GetSegment(3).Text == "four", "SplitSegment(): the rest goes to the second part");
+    }
+
+    private void TestMerge()
+    {
+        var subtitle = new Subtitle();
+        subtitle.AddSegment(SegmentDockTools(0.0, 1.0, "a"));
+        subtitle.AddSegment(SegmentDockTools(1.5, 2.0, "b"));
+        subtitle.AddSegment(SegmentDockTools(3.0, 4.0, "c"));
+        subtitle.AddSegment(SegmentDockTools(5.0, 6.0, "d"));
+        var first = subtitle.GetSegment(0);
+        Expect(subtitle.MergeSegments(0) == Error.Ok, "MergeSegments(): merges two segments by default");
+        Expect(subtitle.GetSegmentCount() == 3, "MergeSegments(): removes the merged segment");
+        Expect(subtitle.GetSegment(0) == first, "MergeSegments(): keeps the first segment");
+        Expect(subtitle.GetSegment(0).EndTime == 2.0, "MergeSegments(): spans to the last end");
+        Expect(subtitle.GetSegment(0).Text == "a\nb", "MergeSegments(): joins the texts one per line");
+        Expect(subtitle.MergeSegments(0, 3) == Error.Ok, "MergeSegments(): merges a count of segments");
+        Expect(subtitle.GetSegmentCount() == 1, "MergeSegments(): one segment is left");
+        Expect(subtitle.GetSegment(0).EndTime == 6.0, "MergeSegments(): the merged segment ends at the last end");
+        Expect(subtitle.GetSegment(0).Text == "a\nb\nc\nd", "MergeSegments(): all texts are kept");
     }
 }

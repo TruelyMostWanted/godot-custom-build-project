@@ -77,6 +77,8 @@ public partial class Test : FeatureTest
 
     protected override async Task RunTests()
     {
+        await RunTemplates();
+        await RunAnimationProgress();
         TestDefaults();
         await TestOverlayFlow();
         await TestAutoFinish();
@@ -438,5 +440,262 @@ public partial class Test : FeatureTest
         await NextFrame();
         ExpectEqual(tree.ChangeSceneWithTransition(NextScene), Error.Busy, "a second transition returns ERR_BUSY");
         Expect(await WaitUntil(() => !GodotObject.IsInstanceValid(overlay)), "the running overlay finishes");
+    }
+
+
+    private Preloads _watched;
+    private readonly List<double> _progressValues = new();
+    private readonly List<string> _order = new();
+
+    private void OnPreloadProgress(Preloads source, LoadProgress progress)
+    {
+        if (source == _watched)
+        {
+            _progressValues.Add(progress.GetRatio());
+            _order.Add("progress");
+        }
+    }
+
+    private void OnPreloadFinished(Preloads source, Error error)
+    {
+        if (source == _watched)
+        {
+            _order.Add("finished");
+        }
+    }
+
+    private async Task<bool> WaitUntilAnimationProgress(Func<bool> condition, int timeoutMsec = 8000)
+    {
+        ulong start = Time.GetTicksMsec();
+        while (!condition())
+        {
+            if (Time.GetTicksMsec() - start > (ulong)timeoutMsec)
+            {
+                return false;
+            }
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+        return true;
+    }
+
+    /// <summary>A screen with an AnimationPlayer child that has "intro" and "outro" animations of the given lengths.</summary>
+    private static TransitionScreen MakeScreen(double introLength, double outroLength)
+    {
+        var screen = new TransitionScreen();
+        var player = new AnimationPlayer { Name = "Player" };
+        var library = new AnimationLibrary();
+        var intro = new Animation { Length = (float)introLength };
+        library.AddAnimation("intro", intro);
+        var outro = new Animation { Length = (float)outroLength };
+        library.AddAnimation("outro", outro);
+        player.AddAnimationLibrary("", library);
+        screen.AddChild(player);
+        screen.AnimationPlayer = "Player";
+        return screen;
+    }
+
+    private async Task RunAnimationProgress()
+    {
+        TestDefaultsAnimationProgress();
+        await TestAnimationFlow();
+        await TestFallbacks();
+        await TestPreloadProgress();
+        await TestManifestProgress();
+        await TestScreenProgress();
+    }
+
+    private void TestDefaultsAnimationProgress()
+    {
+        var screen = new TransitionScreen();
+        Expect(screen.AnimationPlayer.IsEmpty, "default animation_player is empty");
+        ExpectEqual(screen.IntroAnimation.ToString(), "", "default intro_animation");
+        ExpectEqual(screen.OutroAnimation.ToString(), "", "default outro_animation");
+        screen.AnimationPlayer = "Player";
+        screen.IntroAnimation = "intro";
+        screen.OutroAnimation = "outro";
+        ExpectEqual(screen.AnimationPlayer.ToString(), "Player", "animation_player is stored");
+        ExpectEqual(screen.IntroAnimation.ToString(), "intro", "intro_animation is stored");
+        ExpectEqual(screen.OutroAnimation.ToString(), "outro", "outro_animation is stored");
+        screen.Free();
+        Expect(ClassDB.ClassHasSignal("ResourceDatabase", "preload_progress"), "ResourceDatabase has preload_progress");
+        Expect(ClassDB.ClassHasMethod("ResourceDatabase", "get_preload_progress"), "ResourceDatabase has get_preload_progress");
+    }
+
+    /// <summary>The intro and outro animations replace the fade: the player plays them, their length is the duration.</summary>
+    private async Task TestAnimationFlow()
+    {
+        TransitionScreen screen = MakeScreen(0.2, 0.2);
+        screen.IntroAnimation = "intro";
+        screen.OutroAnimation = "outro";
+        screen.FadeInDuration = 30.0;
+        screen.FadeOutDuration = 30.0;
+        var player = screen.GetNode<AnimationPlayer>("Player");
+        var played = new List<string>();
+        player.AnimationStarted += animationName => played.Add(animationName.ToString());
+        GetTree().Root.AddChild(screen);
+        ulong start = Time.GetTicksMsec();
+        Expect(await WaitUntilAnimationProgress(() => !IsInstanceValid(screen)), "an animated screen completes");
+        Expect(Time.GetTicksMsec() - start < 5000, "the animation length replaces the 30 s fade durations");
+        ExpectEqual(string.Join(",", played), "intro,outro", "the player plays intro, then outro");
+    }
+
+    /// <summary>A missing animation or player falls back to the built-in fade; intro and outro can be mixed.</summary>
+    private async Task TestFallbacks()
+    {
+        TransitionScreen screen = MakeScreen(0.2, 0.2);
+        screen.IntroAnimation = "missing";
+        screen.OutroAnimation = "outro";
+        screen.FadeInDuration = 0.1;
+        GetTree().Root.AddChild(screen);
+        Expect(await WaitUntilAnimationProgress(() => !IsInstanceValid(screen)), "a missing intro animation falls back to the fade");
+
+        var noPlayer = new TransitionScreen { IntroAnimation = "intro", OutroAnimation = "outro", FadeInDuration = 0.1, FadeOutDuration = 0.1 };
+        GetTree().Root.AddChild(noPlayer);
+        Expect(await WaitUntilAnimationProgress(() => !IsInstanceValid(noPlayer)), "animation names without a player fall back to the fade");
+    }
+
+    /// <summary>Godot.ResourceDatabase.PreloadProgress: one emission per file, ending at 1.0 before PreloadFinished.</summary>
+    private async Task TestPreloadProgress()
+    {
+        ExpectEqual((float)Godot.ResourceDatabase.GetPreloadProgress().GetRatio(), 1.0f, "no preload: progress is 1.0");
+        _watched = new Preloads { Paths = [NextScene, "res://icon.svg"] };
+        _progressValues.Clear();
+        _order.Clear();
+        Godot.ResourceDatabase.Singleton.PreloadProgress += OnPreloadProgress;
+        Godot.ResourceDatabase.Singleton.PreloadFinished += OnPreloadFinished;
+        ExpectEqual(Godot.ResourceDatabase.PreloadFrom(_watched, false), Error.Ok, "PreloadFrom returns Ok");
+        Expect(await WaitUntilAnimationProgress(() => _order.Contains("finished")), "PreloadFinished follows");
+        Godot.ResourceDatabase.Singleton.PreloadProgress -= OnPreloadProgress;
+        Godot.ResourceDatabase.Singleton.PreloadFinished -= OnPreloadFinished;
+        ExpectEqual(_progressValues.Count, 2, "one PreloadProgress per file");
+        Expect(_progressValues.Count == 2 && Mathf.IsEqualApprox(_progressValues[0], 0.5) && Mathf.IsEqualApprox(_progressValues[1], 1.0), "progress is 0.5, then 1.0");
+        ExpectEqual(_order[_order.Count - 1], "finished", "PreloadFinished comes after the last progress");
+        ExpectEqual((float)Godot.ResourceDatabase.GetPreloadProgress().GetRatio(), 1.0f, "finished: progress is 1.0");
+        Godot.ResourceDatabase.Clear();
+    }
+
+    /// <summary>ResourceLoader.LoadThreadedGetManifestStatus(): n / X loaded for a FilesManifest, advancing every call.</summary>
+    private async Task TestManifestProgress()
+    {
+        var manifest = new FilesManifest { FilePaths = [NextScene, "res://icon.svg"] };
+        LoadProgress progress = ResourceLoader.LoadThreadedGetManifestStatus(manifest);
+        ExpectEqual((int)progress.GetLoadedCount(), 0, "the status is a query: nothing is loaded before the request");
+        ResourceLoader.LoadThreadedRequestManifest(manifest);
+        progress = ResourceLoader.LoadThreadedStepManifest(manifest);
+        ExpectEqual(progress.GetTotalCount(), 2, "the manifest has 2 files");
+        float lastRatio = progress.GetRatio();
+        bool ascending = true;
+        ulong start = Time.GetTicksMsec();
+        while (!progress.IsFinished() && Time.GetTicksMsec() - start < 8000)
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            progress = ResourceLoader.LoadThreadedStepManifest(manifest);
+            ascending = ascending && progress.GetRatio() >= lastRatio;
+            lastRatio = progress.GetRatio();
+        }
+        Expect(progress.IsFinished(), "the manifest load finishes");
+        Expect(ascending, "the manifest progress never goes back");
+        ExpectEqual(progress.GetLoadedCount(), 2, "2 / 2 loaded");
+        Expect(Mathf.IsEqualApprox(progress.GetRatio(), 1.0f), "the ratio is 1.0");
+        Godot.Collections.Dictionary resources = ResourceLoader.LoadThreadedGetManifest(manifest);
+        ExpectEqual(resources.Count, 2, "LoadThreadedGetManifest returns both resources");
+        Expect(resources.ContainsKey("res://icon.svg"), "the result is keyed by path");
+    }
+
+    /// <summary>A screen with PreloadAssets reports one progress for the scene and the assets.</summary>
+    private async Task TestScreenProgress()
+    {
+        var screen = new LoadingScreen { FadeInDuration = 0.0, FadeOutDuration = 0.0 };
+        var counter = new Label { Name = "Count" };
+        screen.AddChild(counter);
+        screen.CountLabel = "Count";
+        string lastCount = "";
+        screen.PreloadAssets = new Preloads { Paths = ["res://icon.svg"] };
+        var values = new List<double>();
+        screen.ProgressChanged += progress =>
+        {
+            values.Add(progress);
+            lastCount = counter.Text;
+        };
+        GetTree().Root.AddChild(screen);
+        Expect(await WaitUntilAnimationProgress(() => !IsInstanceValid(screen)), "a screen with PreloadAssets completes");
+        bool ascending = true;
+        for (int idx = 1; idx < values.Count; idx++)
+        {
+            ascending = ascending && values[idx] >= values[idx - 1];
+        }
+        Expect(ascending, "the progress never goes back");
+        Expect(values.Count > 0 && Mathf.IsEqualApprox(values[values.Count - 1], 1.0), "the progress ends at 1.0");
+        ExpectEqual(lastCount, "1 / 1", "the count label shows 1 / 1 at the end");
+        Expect(Godot.ResourceDatabase.HasResource("res://icon.svg"), "the preload assets are loaded");
+        Godot.ResourceDatabase.Clear();
+    }
+
+    private async Task RunTemplates()
+    {
+        TestSplashTemplate();
+        TestLoadingTemplate();
+        await NextFrame();
+        await TestSaveAndRun();
+        TestCountLabelEmptyUntilTotal();
+    }
+
+    private void TestSplashTemplate()
+    {
+        PackedScene scene = TransitionScreen.CreateTemplate(TransitionScreen.Template.Splash);
+        Expect(scene != null, "splash template is created");
+        Node screen = scene.Instantiate();
+        Expect(screen is SplashScreen, "splash template root is a SplashScreen");
+        Expect(screen.GetNodeOrNull("Background") is ColorRect, "splash has a Background");
+        Expect(screen.GetNodeOrNull("Content/Column") != null, "splash has a Content/Column");
+        var splash = (SplashScreen)screen;
+        var player = splash.GetNode<AnimationPlayer>(splash.AnimationPlayer);
+        Expect(player.HasAnimation(splash.IntroAnimation), "splash has its intro animation");
+        Expect(player.HasAnimation(splash.OutroAnimation), "splash has its outro animation");
+        Expect(player.GetAnimation(splash.IntroAnimation).Length > 0.0, "the intro animation has a length");
+        screen.Free();
+    }
+
+    private void TestLoadingTemplate()
+    {
+        PackedScene scene = TransitionScreen.CreateTemplate(TransitionScreen.Template.Loading);
+        var screen = scene.Instantiate() as LoadingScreen;
+        Expect(screen != null, "loading template root is a LoadingScreen");
+        Expect(screen.GetNode(screen.ProgressBar) is ProgressBar, "progress_bar points to a ProgressBar");
+        Expect(screen.GetNode(screen.TipLabel) is Label, "tip_label points to a Label");
+        Expect(screen.GetNode(screen.CountLabel) is Label, "count_label points to a Label");
+        Expect(screen.Tips.Length > 0, "the loading template has tips");
+        screen.Free();
+    }
+
+    private async Task TestSaveAndRun()
+    {
+        string path = "user://template_loading_screen_cs.tscn";
+        PackedScene scene = TransitionScreen.CreateTemplate(TransitionScreen.Template.Loading);
+        ExpectEqual(ResourceSaver.Save(scene, path).ToString(), Error.Ok.ToString(), "the template is saved as a scene file");
+        var loaded = ResourceLoader.Load<PackedScene>(path);
+        Expect(loaded != null, "the saved template loads again");
+        var screen = loaded.Instantiate<LoadingScreen>();
+        screen.MinDuration = 0.0;
+        bool done = false;
+        screen.Finished += () => done = true;
+        GetTree().Root.AddChild(screen);
+        ulong start = Time.GetTicksMsec();
+        while (!done && Time.GetTicksMsec() - start < 8000)
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+        Expect(done, "the template screen runs and finishes");
+        DirAccess.RemoveAbsolute(path);
+    }
+
+    private void TestCountLabelEmptyUntilTotal()
+    {
+        var screen = new LoadingScreen();
+        var label = new Label { Name = "Count" };
+        screen.AddChild(label);
+        screen.CountLabel = "Count";
+        ExpectEqual(label.Text, "", "the count label is empty before the total is known");
+        screen.Free();
     }
 }

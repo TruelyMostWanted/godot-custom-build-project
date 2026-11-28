@@ -20,6 +20,7 @@ func _run_tests() -> void:
 	_test_schema_status()
 	_test_tree_types()
 	_test_stored_properties()
+	_test_per_format()
 
 
 func _stored(object: Object) -> PackedStringArray:
@@ -96,3 +97,96 @@ func _test_stored_properties() -> void:
 	csv.header = PackedStringArray(["x", "y"])
 	expect_equal(csv.get_cell(0, 1), "b", "data stays scriptable")
 	expect_equal(csv.find_column("y"), 1, "header stays scriptable")
+
+
+const INI_TEXT := "version=2\n\n[player]\nname=\"knight\"\nhp=100\n\n[audio]\nvolume=0.8\n"
+const XML_TEXT := "<units version=\"1\"><unit id=\"knight\" hp=\"100\"/><unit id=\"archer\" hp=\"80\"/></units>\n"
+const YAML_TEXT := "name: knight\n---\nname: archer\n---\n- 1\n- 2\n"
+const TOML_TEXT := "title = \"Game\"\n\n[server]\nport = 8080\n\n[[unit]]\nname = \"knight\"\n\n[[unit]]\nname = \"archer\"\n"
+const CSV_TEXT := "name,hp\nknight,100\narcher,80\n"
+
+
+func _test_per_format() -> void:
+	_test_ini()
+	_test_xml()
+	_test_yaml()
+	_test_toml()
+	_test_csv()
+	_test_text_document()
+
+
+func _test_ini() -> void:
+	var ini := INI.new()
+	expect(ini.parse(INI_TEXT) == OK, "INI parses")
+	var sections: Dictionary = ini.data
+	expect(sections.size() == 3, "INI: 3 sections (one without a name)")
+	expect(sections.has(""), "INI: keys without a section are in section \"\"")
+	expect(ini.get_value("", "version") == 2, "INI: version without a section")
+	expect(typeof(ini.get_value("player", "hp")) == TYPE_INT, "INI: hp is an int")
+	expect(typeof(ini.get_value("audio", "volume")) == TYPE_FLOAT, "INI: volume is a float")
+
+
+func _test_xml() -> void:
+	var xml := XML.new()
+	expect(xml.parse(XML_TEXT) == OK, "XML parses")
+	var root: Dictionary = xml.data
+	expect(root["name"] == "units", "XML: root element units")
+	expect(root["children"].size() == 2, "XML: 2 child nodes")
+	expect(root["children"][1]["attributes"]["id"] == "archer", "XML: attribute id of the second unit")
+
+
+func _test_yaml() -> void:
+	var yaml := YAML.new()
+	expect(yaml.parse(YAML_TEXT) == OK, "YAML parses")
+	expect(yaml.get_document_count() == 3, "YAML: 3 documents")
+	expect(yaml.data["name"] == "knight", "YAML: data is the first document")
+	expect(yaml.get_document(1)["name"] == "archer", "YAML: second document")
+	expect(yaml.get_document(2).size() == 2, "YAML: third document has 2 items")
+
+
+func _test_toml() -> void:
+	var toml := TOML.new()
+	expect(toml.parse(TOML_TEXT) == OK, "TOML parses")
+	var root: Dictionary = toml.data
+	expect(root["server"] is Dictionary, "TOML: [server] is a table")
+	expect(root["unit"] is Array, "TOML: [[unit]] is an array")
+	expect(root["unit"].size() == 2, "TOML: 2 units")
+	expect(root["unit"][1] is Dictionary, "TOML: each unit is a table")
+	expect(root["title"] == "Game", "TOML: title is a key")
+
+
+func _test_csv() -> void:
+	var csv := CSV.new()
+	expect(csv.parse(CSV_TEXT) == OK, "CSV parses")
+	expect(csv.header == PackedStringArray(["name", "hp"]), "CSV: header stays stored")
+	expect(csv.get_row_count() == 2, "CSV: 2 rows")
+	expect(csv.get_column_count() == 2, "CSV: 2 columns")
+
+
+func _test_text_document() -> void:
+	var texts := {
+		"CSV": CSV_TEXT,
+		"INI": INI_TEXT,
+		"XML": XML_TEXT,
+		"TOML": TOML_TEXT,
+		"YAML": YAML_TEXT,
+	}
+	for cls in texts:
+		var format = ClassDB.instantiate(cls)
+		expect(format is TextDataFormat, cls + " is a TextDataFormat")
+		expect(format.parse(texts[cls], true) == OK, cls + " parses with kept text")
+		expect(format.get_parsed_text() == texts[cls], cls + " keeps the parsed text")
+		expect(not format.encode_to_text().is_empty(), cls + " encodes its data")
+		expect(not format.get_recognized_extensions().is_empty(), cls + " has file extensions")
+
+	var broken := {
+		"INI": "[broken\n",
+		"XML": "<a>",
+		"TOML": "[a\n",
+		"YAML": "a: [1,\n",
+	}
+	for cls in broken:
+		var format = ClassDB.instantiate(cls)
+		expect(format.parse(broken[cls]) != OK, cls + " reports a parse error")
+		expect(not format.get_error_message().is_empty(), cls + " has an error message")
+		expect(format.get_error_line() > 0, cls + " has an error line")

@@ -28,6 +28,7 @@ func _run_tests() -> void:
 	_test_translation_header()
 	_test_serialize()
 	_test_many_rows()
+	_test_streaming()
 
 
 func _tab_options() -> SerializerOptions:
@@ -284,3 +285,66 @@ func _test_many_rows() -> void:
 	var elapsed_ms: float = (Time.get_ticks_usec() - start) / 1000.0
 	expect_equal(page.size(), 500, "get_cells() reads a page of 500 rows")
 	expect(elapsed_ms < PAGE_MS, "page read and cell edit in 100 000 rows under %d ms (%.2f ms)" % [PAGE_MS, elapsed_ms])
+
+
+const FILE_PATH := "user://csv_reader_check.csv"
+const BAD_PATH := "user://csv_reader_check_bad.csv"
+const ROWS := 2500
+
+
+func _write(path: String, text: String) -> void:
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	file.store_string(text)
+	file.close()
+
+
+func _test_streaming() -> void:
+	# Streaming reader.
+	var text := "name,level\n"
+	for i in ROWS:
+		text += "player%d,%d\n" % [i, i % 50]
+	text += "\"Bob, the 2nd\",7\n"
+	_write(FILE_PATH, text)
+	var reader := CSVReader.open(FILE_PATH)
+	expect(reader != null, "open returns a reader")
+	expect(reader.get_header() == PackedStringArray(["name", "level"]), "get_header")
+	var first := reader.read_row()
+	expect(first == PackedStringArray(["player0", "0"]), "read_row returns the first row")
+	expect(reader.get_row_index() == 1, "get_row_index counts the rows read")
+	var record := reader.read_record()
+	expect(record["name"] == "player1" and record["level"] == "1", "read_record keys by header")
+	var page := reader.read_rows(3)
+	expect(page.size() == 3 and page[0][0] == "player2", "read_rows returns Array of PackedStringArray")
+
+	expect(reader.count_rows() == ROWS + 1, "count_rows")
+	expect(reader.get_row_index() == 5, "count_rows keeps the position")
+	expect(reader.seek_row(2000) == OK, "seek_row far ahead")
+	expect(reader.read_row()[0] == "player2000", "row after seek_row")
+	expect(reader.seek_row(10) == OK, "seek_row back")
+	expect(reader.read_row()[0] == "player10", "row after seek back")
+	expect(reader.skip_rows(5) == OK, "skip_rows")
+	expect(reader.read_row()[0] == "player16", "row after skip_rows")
+	expect(reader.seek_row(ROWS) == OK, "seek_row to the last row")
+	expect(reader.read_row() == PackedStringArray(["Bob, the 2nd", "7"]), "quoted cell with the delimiter")
+	expect(not reader.is_eof(), "not at the end before the next read")
+	expect(reader.read_row().is_empty(), "empty row at the end")
+	expect(reader.is_eof(), "is_eof after the end")
+	expect(reader.seek_row(ROWS + 100) == ERR_FILE_EOF, "seek_row past the end")
+	var csv := CSV.new()
+	csv.parse(text)
+	expect(reader.seek_row(1234) == OK and reader.read_row() == csv.get_row(1234), "same row as CSV")
+	expect(reader.get_error() == OK, "no error")
+	reader.close()
+	expect(not reader.is_open(), "close")
+	expect(reader.seek_row(0) == ERR_UNCONFIGURED, "seek_row after close")
+
+	_write(BAD_PATH, "a,b\n1,2\n3,4,5\n")
+	var bad := CSVReader.open(BAD_PATH)
+	expect(bad.read_row() == PackedStringArray(["1", "2"]), "row before the error")
+	expect(bad.read_row().is_empty(), "invalid row stops the reader")
+	expect(bad.get_error() == ERR_PARSE_ERROR and bad.get_error_line() == 3, "get_error, get_error_line")
+	expect(bad.get_error_message().contains("3 cells"), "get_error_message")
+	expect(bad.count_rows() == -1, "count_rows on an invalid file")
+	expect(bad.seek_row(0) == OK and bad.get_error() == OK, "seek_row clears the error")
+	DirAccess.remove_absolute(FILE_PATH)
+	DirAccess.remove_absolute(BAD_PATH)

@@ -60,4 +60,17 @@ func _ready() -> void:
 		ResourceSaver.save(items, "user://items.csv")
 	var loaded := ResourceLoader.load("user://items.csv", "ItemTable") as ItemTable
 	print(loaded.entries[0].name)
+	# Reading a big file row by row
+	var file := FileAccess.open("user://big.csv", FileAccess.WRITE)
+	file.store_string("name,level\nplayer0,0\nplayer1,1\nplayer2,2\n")
+	file.close()
+	var reader := CSVReader.open("user://big.csv")
+	print(reader.get_header())
+	print(reader.read_row())
+	print(reader.read_record())
+	print(reader.count_rows())
+	reader.seek_row(2)
+	print(reader.read_rows(1))
+	reader.close()
+
 	get_tree().quit()

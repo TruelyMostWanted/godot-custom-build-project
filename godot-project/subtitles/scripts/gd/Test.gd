@@ -39,6 +39,7 @@ func _run_tests() -> void:
 	_test_own_clock()
 	_test_settings()
 	await _test_time_source()
+	_test_dock_tools()
 
 
 func _test_constants() -> void:
@@ -274,7 +275,7 @@ func _test_translatable_strings() -> void:
 	subtitle.add_segment(spoken)
 	subtitle.add_segment(_segment(0.0, 1.0, ""))
 	var strings: Array = subtitle.get_translatable_strings()
-	expect_equal(strings.size(), 2, "get_translatable_strings skips segments without text")
+	expect_equal(strings.size(), 3, "get_translatable_strings skips segments without text, adds one entry per speaker")
 	expect_equal(strings[0], PackedStringArray(["Hello", "", "", ""]), "entry: text, empty context")
 	expect_equal(strings[1], PackedStringArray(["Run!", "chase", "", "Speaker: Anna"]), "entry: text, context, speaker comment")
 
@@ -367,3 +368,97 @@ func _take() -> String:
 	var result: String = ", ".join(_events)
 	_events.clear()
 	return result
+
+
+func _test_dock_tools() -> void:
+	_test_methods()
+	_example()
+	_test_shift_and_sync()
+	_test_split()
+	_test_merge()
+
+
+func _segment_dock_tools(start: float, end: float, text: String) -> SubtitleSegment:
+	var segment := SubtitleSegment.new()
+	segment.start_time = start
+	segment.end_time = end
+	segment.text = text
+	return segment
+
+
+func _test_methods() -> void:
+	expect(ClassDB.class_has_method("Subtitle", "sync_times"), "Subtitle.sync_times() exists")
+	expect(ClassDB.class_has_method("Subtitle", "split_segment"), "Subtitle.split_segment() exists")
+	expect(ClassDB.class_has_method("Subtitle", "merge_segments"), "Subtitle.merge_segments() exists")
+
+
+# The snippet of the wiki guide "Subtitles dock", section "From scripts".
+func _example() -> void:
+	var subtitle := Subtitle.new()
+	subtitle.add_segment(_segment_dock_tools(1.5, 3.0, "Hello there"))
+	subtitle.add_segment(_segment_dock_tools(60.0, 61.0, "Bye"))
+	subtitle.shift_times(-0.5)
+	subtitle.sync_times(1.0, 2.0, 59.5, 62.5)
+	var second := subtitle.split_segment(0, 2.5)
+	subtitle.merge_segments(0)
+	expect_equal(second, 1, "example: split_segment() returns the index of the new segment")
+	expect_equal(subtitle.get_segment_count(), 2, "example: merge_segments() undoes the split")
+	expect(is_equal_approx(subtitle.get_segment(1).start_time, 62.5), "example: the last line starts at its sync target")
+
+
+func _test_shift_and_sync() -> void:
+	var subtitle := Subtitle.new()
+	subtitle.add_segment(_segment_dock_tools(10.0, 12.0, "a"))
+	subtitle.add_segment(_segment_dock_tools(20.0, 22.0, "b"))
+	subtitle.add_segment(_segment_dock_tools(30.0, 31.0, "c"))
+	subtitle.sync_times(10.0, 11.0, 30.0, 51.0)
+	expect(is_equal_approx(subtitle.get_segment(0).start_time, 11.0), "sync_times(): the first point moves to its target")
+	expect(is_equal_approx(subtitle.get_segment(0).end_time, 15.0), "sync_times(): times are stretched (scale 2)")
+	expect(is_equal_approx(subtitle.get_segment(1).start_time, 31.0), "sync_times(): times in between are mapped linearly")
+	expect(is_equal_approx(subtitle.get_segment(2).start_time, 51.0), "sync_times(): the second point moves to its target")
+	var changes := [0]
+	subtitle.changed.connect(func(): changes[0] += 1)
+	subtitle.sync_times(11.0, 12.0, 51.0, 52.0)
+	expect(changes[0] >= 1, "sync_times(): emits changed")
+	expect(is_equal_approx(subtitle.get_segment(2).end_time, 54.0), "sync_times(): equal offsets are a shift")
+
+
+func _test_split() -> void:
+	var subtitle := Subtitle.new()
+	var first := _segment_dock_tools(0.0, 4.0, "First line\nSecond line")
+	first.speaker = &"Ann"
+	first.kind = SubtitleSegment.KIND_NARRATION
+	subtitle.add_segment(first)
+	subtitle.add_segment(_segment_dock_tools(10.0, 14.0, "one two three four"))
+	var index := subtitle.split_segment(0, 1.5)
+	expect_equal(index, 1, "split_segment(): returns the index of the second part")
+	expect_equal(subtitle.get_segment_count(), 3, "split_segment(): adds one segment")
+	expect_equal(subtitle.get_segment(0).end_time, 1.5, "split_segment(): the first part ends at the split")
+	expect_equal(subtitle.get_segment(1).start_time, 1.5, "split_segment(): the second part starts at the split")
+	expect_equal(subtitle.get_segment(1).end_time, 4.0, "split_segment(): the second part keeps the end")
+	expect_equal(subtitle.get_segment(0).text, "First line", "split_segment(): the text is divided at the line break")
+	expect_equal(subtitle.get_segment(1).text, "Second line", "split_segment(): the second line goes to the second part")
+	expect_equal(subtitle.get_segment(1).speaker, &"Ann", "split_segment(): the speaker is kept")
+	expect_equal(subtitle.get_segment(1).kind, SubtitleSegment.KIND_NARRATION, "split_segment(): the kind is kept")
+	expect(subtitle.get_segment(1) != first, "split_segment(): the second part is a new segment")
+	subtitle.split_segment(2, 13.0)
+	expect_equal(subtitle.get_segment(2).text, "one two three", "split_segment(): one line is divided at the nearest space")
+	expect_equal(subtitle.get_segment(3).text, "four", "split_segment(): the rest goes to the second part")
+
+
+func _test_merge() -> void:
+	var subtitle := Subtitle.new()
+	subtitle.add_segment(_segment_dock_tools(0.0, 1.0, "a"))
+	subtitle.add_segment(_segment_dock_tools(1.5, 2.0, "b"))
+	subtitle.add_segment(_segment_dock_tools(3.0, 4.0, "c"))
+	subtitle.add_segment(_segment_dock_tools(5.0, 6.0, "d"))
+	var first := subtitle.get_segment(0)
+	expect_equal(subtitle.merge_segments(0), OK, "merge_segments(): merges two segments by default")
+	expect_equal(subtitle.get_segment_count(), 3, "merge_segments(): removes the merged segment")
+	expect(subtitle.get_segment(0) == first, "merge_segments(): keeps the first segment")
+	expect_equal(subtitle.get_segment(0).end_time, 2.0, "merge_segments(): spans to the last end")
+	expect_equal(subtitle.get_segment(0).text, "a\nb", "merge_segments(): joins the texts one per line")
+	expect_equal(subtitle.merge_segments(0, 3), OK, "merge_segments(): merges a count of segments")
+	expect_equal(subtitle.get_segment_count(), 1, "merge_segments(): one segment is left")
+	expect_equal(subtitle.get_segment(0).end_time, 6.0, "merge_segments(): the merged segment ends at the last end")
+	expect_equal(subtitle.get_segment(0).text, "a\nb\nc\nd", "merge_segments(): all texts are kept")
