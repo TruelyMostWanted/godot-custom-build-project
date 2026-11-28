@@ -2,13 +2,18 @@ extends Node
 ## Benchmark (not part of the pass/fail checks): cost of running timers.
 ## For N in [1000, 10000, 100000]: N Timer nodes that never fire (wait_time 1000), N Timer nodes that fire
 ## (loop, wait_time spread 0.1..1.0 s) and, only when the engine has TimerServer, the same two variants as
-## TimerInstance code timers. Per variant: creation time, average Performance TIME_PROCESS plus
-## TIME_PHYSICS_PROCESS per frame over 300 frames (after 30 warm-up frames) minus a 0-timer baseline,
-## and the change of MEMORY_STATIC. Prints one Markdown table and quits.
+## TimerInstance code timers. Per variant: creation time, average wall time per frame over 300 frames
+## (after 30 warm-up frames) minus a 0-timer baseline, and the change of MEMORY_STATIC. Prints one Markdown
+## table and quits.
+## Wall time, not Performance TIME_PROCESS: that monitor is the maximum frame of the last second, updated once
+## per second, so it reports spikes (the creation frame, freeing the previous variant) instead of the cost per
+## frame. The script turns off the headless frame sleep (low_processor_usage_mode_sleep_usec) so frames run
+## back to back; with --fixed-fps 60 every frame advances 1/60 s, so firing timers have the same events per
+## frame in every run.
 ## The Timer-node variants use only the old Timer API, so the script runs unchanged on upstream Godot 4.8.
 ##
 ## README (run headless from the repository folder of the test project):
-##   godot --headless --path godot-project res://timers/bench/bench_timers.tscn
+##   godot --headless --fixed-fps 60 --path godot-project res://timers/bench/bench_timers.tscn
 
 const COUNTS: Array[int] = [1000, 10000, 100000]
 const WARMUP_FRAMES := 30
@@ -22,7 +27,9 @@ var _rows: PackedStringArray = []
 
 func _ready() -> void:
 	var has_server := ClassDB.class_exists("TimerServer")
-	print("Timer benchmark, engine %s, TimerServer: %s" % [Engine.get_version_info().string, has_server])
+	var on_server: bool = ProjectSettings.get_setting("application/run/timer_nodes_use_timer_server", false)
+	print("Timer benchmark, engine %s, TimerServer: %s, Timer nodes on TimerServer: %s" % [Engine.get_version_info().string, has_server, on_server])
+	OS.low_processor_usage_mode_sleep_usec = 0
 	_baseline = await _measure_frames()
 	for n in COUNTS:
 		await _run("Timer nodes, idle", n, false, false)
@@ -31,25 +38,23 @@ func _ready() -> void:
 			await _run("TimerInstance, idle", n, false, true)
 			await _run("TimerInstance, firing", n, true, true)
 	print("")
-	print("| variant | N | create ms | process µs/frame | memory KB |")
+	print("| variant | N | create ms | µs/frame | memory KB |")
 	print("|---|---|---|---|---|")
 	for row in _rows:
 		print(row)
 	print("")
-	print("Baseline (no timers): %.1f µs per frame (process + physics), subtracted." % _baseline)
+	print("Baseline (no timers): %.1f µs wall time per frame, subtracted." % _baseline)
 	get_tree().quit()
 
 
-# Average of TIME_PROCESS + TIME_PHYSICS_PROCESS in µs over MEASURE_FRAMES, after WARMUP_FRAMES.
+# Average wall time per frame in µs over MEASURE_FRAMES, after WARMUP_FRAMES.
 func _measure_frames() -> float:
 	for i in WARMUP_FRAMES:
 		await get_tree().process_frame
-	var sum := 0.0
+	var started := Time.get_ticks_usec()
 	for i in MEASURE_FRAMES:
 		await get_tree().process_frame
-		sum += Performance.get_monitor(Performance.TIME_PROCESS)
-		sum += Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)
-	return sum / MEASURE_FRAMES * 1.0e6
+	return float(Time.get_ticks_usec() - started) / MEASURE_FRAMES
 
 
 func _wait_time(index: int, count: int, firing: bool) -> float:
