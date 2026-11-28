@@ -33,6 +33,7 @@ func _run_tests() -> void:
 	_test_issue_cap()
 	_test_json_lines()
 	_test_many_rows()
+	_test_create_from_resource()
 
 
 ## id (int, unique, required), name (not empty), rarity (enum), hp (0..100, default 10), code (pattern): items_schema.tres in code.
@@ -409,3 +410,32 @@ func _test_many_rows() -> void:
 	var result := csv.validate(_item_schema())
 	print("  INFO  %d rows validated in %d ms" % [MANY_ROWS, Time.get_ticks_msec() - start])
 	expect(result.is_valid(), "100 000 valid rows validate")
+
+
+## The sample resource is a DataSchema: it has an enum, a typed array of resources, a nested resource and a packed array.
+func _test_create_from_resource() -> void:
+	var sample := DataSchema.new()
+	sample.add_field(DataField.new())
+	var schema: DataSchema = DataSchema.create_from_resource(sample)
+	expect(schema != null, "create_from_resource returns a schema")
+	expect_equal(schema.extra_fields, DataSchema.EXTRA_FIELDS_ALLOW, "create_from_resource allows extra fields")
+	var names := PackedStringArray()
+	for field: DataField in schema.fields:
+		names.append(field.name)
+	expect(names.has("fields") and names.has("extra_fields") and names.has("file_patterns"), "one field per stored property")
+	expect_equal(schema.get_field("extra_fields").type, TYPE_STRING, "an enum is a String field (names)")
+	expect_equal(schema.get_field("extra_fields").hint, PROPERTY_HINT_ENUM, "the enum hint is kept")
+	expect_equal(schema.get_field("fields").type, TYPE_ARRAY, "an array is an Array field")
+	expect(schema.get_field("fields").element_schema != null, "an array of resources has an element schema")
+	expect(schema.get_field("fields").element_schema.get_field("name") != null, "the element schema describes DataField")
+	expect_equal(schema.get_field("extra_field_template").type, TYPE_NIL, "an unset resource stays untyped")
+	expect(schema.get_field("resource_name") == null, "Resource base properties are left out")
+	expect_equal(schema.get_field("file_patterns").type, TYPE_PACKED_STRING_ARRAY, "a packed array keeps its type")
+	expect(not schema.get_field("fields").required, "generated fields are optional")
+	var options := SerializerOptions.new()
+	options.enums_as_names = false
+	expect_equal(DataSchema.create_from_resource(sample, options).get_field("extra_fields").type, TYPE_INT, "an enum stays a number without enums_as_names")
+	var data := { "type": "DataSchema", "extra_fields": "Allow" }
+	expect(schema.validate(data).is_valid(), "data as the text formats write it validates")
+	data["extra_fields"] = "Maybe"
+	expect(not schema.validate(data).is_valid(), "an unknown enum name is an issue")
