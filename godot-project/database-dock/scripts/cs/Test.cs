@@ -76,9 +76,9 @@ public partial class Test : FeatureTest
 
     private void TestPage()
     {
-        var count = _db.Query("SELECT COUNT(*) AS n FROM \"items\" WHERE \"name\" LIKE ?1 OR \"price\" LIKE ?1;", new Godot.Collections.Array { "%o%" });
+        var count = _db.Query("SELECT COUNT(*) AS n FROM \"items\" WHERE \"name\" LIKE ?1 ESCAPE '\\' OR \"price\" LIKE ?1 ESCAPE '\\';", new Godot.Collections.Array { "%o%" });
         ExpectEqual(count[0]["n"].AsInt64(), 2L, "the filter matches every column with LIKE");
-        var page = _db.Query("SELECT \"id\", * FROM \"items\" ORDER BY \"price\" DESC LIMIT ?1 OFFSET ?2;", new Godot.Collections.Array { 2, 1 });
+        var page = _db.Query("SELECT \"id\", * FROM \"items\" ORDER BY \"price\" DESC, \"id\" LIMIT ?1 OFFSET ?2;", new Godot.Collections.Array { 2, 1 });
         ExpectEqual(page.Count, 2, "one page with LIMIT and OFFSET");
         ExpectEqual(page[0]["name"].AsString(), "Potion", "sorted by a column title");
         var statement = _db.Prepare("SELECT \"id\", * FROM \"items\" LIMIT 1;");

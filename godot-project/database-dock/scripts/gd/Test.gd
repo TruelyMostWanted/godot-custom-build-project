@@ -65,9 +65,9 @@ func _test_keys() -> void:
 
 
 func _test_page() -> void:
-	var count := _db.query("SELECT COUNT(*) AS n FROM \"items\" WHERE \"name\" LIKE ?1 OR \"price\" LIKE ?1;", ["%o%"])
+	var count := _db.query("SELECT COUNT(*) AS n FROM \"items\" WHERE \"name\" LIKE ?1 ESCAPE '\\' OR \"price\" LIKE ?1 ESCAPE '\\';", ["%o%"])
 	expect_equal(count[0]["n"], 2, "the filter matches every column with LIKE")
-	var page := _db.query("SELECT \"id\", * FROM \"items\" ORDER BY \"price\" DESC LIMIT ?1 OFFSET ?2;", [2, 1])
+	var page := _db.query("SELECT \"id\", * FROM \"items\" ORDER BY \"price\" DESC, \"id\" LIMIT ?1 OFFSET ?2;", [2, 1])
 	expect_equal(page.size(), 2, "one page with LIMIT and OFFSET")
 	expect_equal(page[0]["name"], "Potion", "sorted by a column title")
 	var statement := _db.prepare("SELECT \"id\", * FROM \"items\" LIMIT 1;")
