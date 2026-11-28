@@ -25,13 +25,13 @@ public partial class Example : Node
         GD.Print((int)archer["hp"] + 10);
 
         // Add and remove columns.
-        var units = new Csv();
-        units.Parse("name,hp\narcher,60\nknight,120\n");
-        units.InsertColumn(1, "class", "melee");
-        units.SetCell(0, 1, "ranger");
-        GD.Print(units.EncodeToText()); // Prints "name,class,hp\narcher,ranger,60\nknight,melee,120\n"
-        units.RemoveColumn(units.FindColumn("hp"));
-        GD.Print(string.Join(", ", units.Header)); // Prints "name, class"
+        var roster = new Csv();
+        roster.Parse("name,hp\narcher,60\nknight,120\n");
+        roster.InsertColumn(1, "class", "melee");
+        roster.SetCell(0, 1, "ranger");
+        GD.Print(roster.EncodeToText()); // Prints "name,class,hp\narcher,ranger,60\nknight,melee,120\n"
+        roster.RemoveColumn(roster.FindColumn("hp"));
+        GD.Print(string.Join(", ", roster.Header)); // Prints "name, class"
         var players = new Csv();
         players.InsertColumn(0, "id");
         players.InsertColumn(1, "name");
