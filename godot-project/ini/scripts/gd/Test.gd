@@ -5,6 +5,8 @@ extends FeatureTest
 const ROOT := "user://ini/gd/"
 const SETTINGS := "res://ini/resources/settings.ini"
 const HAND_WRITTEN := "; comment\ntop=1\n\n[player]\nname=\"Ann\"\npos=Vector2(1, 2)\nplain=just text\nflags=[1, 2]\n\n[player]\nlevel=3\n"
+const GAME := "res://ini/resources/game.ini"
+const PLAYER_KEYS: Array = ["name", "speed", "lives", "invincible", "spawn"]
 const PASSWORD := "secret"
 
 
@@ -20,6 +22,7 @@ func _run_tests() -> void:
 	_test_stringify()
 	_test_value_styles()
 	_test_serialize()
+	_test_dock_api()
 
 
 func _make_sword() -> Item:
@@ -187,3 +190,56 @@ func _test_serialize() -> void:
 	expect(plain_text.contains("\ncode=\"007\"\n"), "Plain style keeps a string that looks like a number quoted")
 	var from_plain := INI.deserialize(plain_text, &"", plain) as Item
 	expect_equal(from_plain.code, "007", "deserialize() of the Plain style")
+
+
+## The INI dock is editor UI without own API: these tests cover the API it uses. Sections and keys in file order,
+## typed values, an edit as data set to a copy in the same order (rename, undo), empty sections, parse errors.
+func _test_dock_api() -> void:
+	var ini: INI = load(GAME)
+	expect(ini != null, "game.ini loads as INI")
+	expect_equal(Array(ini.get_sections()), ["", "player", "audio"], "sections in file order, keys before the first header in \"\"")
+	expect_equal(Array(ini.get_section_keys("player")), PLAYER_KEYS, "keys in file order")
+	expect_equal(typeof(ini.get_value("player", "lives")), TYPE_INT, "lives is an int")
+	expect_equal(typeof(ini.get_value("player", "speed")), TYPE_FLOAT, "speed is a float")
+	expect_equal(typeof(ini.get_value("player", "invincible")), TYPE_BOOL, "invincible is a bool")
+	expect_equal(ini.get_value("player", "spawn"), Vector2(10, 20), "spawn is a Vector2")
+
+	# Rename a key like the dock: a copy of data with the key replaced at the same position.
+	var before: Dictionary = ini.data.duplicate(true)
+	var renamed := {}
+	var player: Dictionary = before["player"]
+	for key: String in player:
+		renamed["walk_speed" if key == "speed" else key] = player[key]
+	var next: Dictionary = before.duplicate(true)
+	next["player"] = renamed
+	var changed_count: Array[int] = [0]
+	ini.changed.connect(func() -> void: changed_count[0] += 1)
+	ini.data = next
+	expect_equal(changed_count[0], 1, "setting data emits changed once")
+	expect_equal(Array(ini.get_section_keys("player")), ["name", "walk_speed", "lives", "invincible", "spawn"], "a renamed key keeps its position")
+	expect(ini.get_parsed_text().is_empty(), "an edit drops the kept text, so the text editor reloads")
+	expect(ini.encode_to_text().contains("walk_speed=4.5"), "encode_to_text() shows the renamed key")
+
+	# Undo: the copy taken before the edit.
+	ini.data = before
+	expect_equal(Array(ini.get_section_keys("player")), PLAYER_KEYS, "undo restores the order")
+
+	# Typed edits and an empty section.
+	ini.set_value("player", "lives", 5)
+	expect_equal(ini.get_value("player", "lives"), 5, "set_value() keeps the int")
+	var with_section: Dictionary = ini.data.duplicate(true)
+	with_section["network"] = {}
+	ini.data = with_section
+	expect(ini.has_section("network"), "an empty section stays in data")
+	expect(ini.encode_to_text().contains("[network]"), "an empty section is written with its header")
+	ini.set_value("network", "port", 8080)
+	ini.erase_section_key("network", "port")
+	expect(not ini.has_section("network"), "erase_section_key() removes a section without keys, like ConfigFile")
+
+	# A broken file: the dock does not edit, it shows the error.
+	var broken := INI.new()
+	broken.parse("[player
+name=\"Ann\"
+", true)
+	expect(not broken.get_error_message().is_empty(), "a broken header reports an error")
+	expect(broken.get_error_line() > 0, "the error has a line")
