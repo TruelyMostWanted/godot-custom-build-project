@@ -1,0 +1,14 @@
+[gd_scene format=3]
+
+[node name="LoadingScreen" type="LoadingScreen"]
+min_duration = 0.4
+fade_in_duration = 0.1
+fade_out_duration = 0.1
+progress_bar = NodePath("ProgressBar")
+tip_label = NodePath("Tip")
+tips = PackedStringArray("Tip one", "Tip two")
+tip_interval = 0.1
+
+[node name="ProgressBar" type="ProgressBar" parent="."]
+
+[node name="Tip" type="Label" parent="."]

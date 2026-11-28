@@ -8,7 +8,7 @@ using Database = Godot.ResourceDatabase;
 
 namespace TruelyInteractive.ResourceDatabase;
 
-/// <summary>Full API test of Resource Database (ResourceDatabase and PreloadList). Same tests as scripts/gd/Test.gd.
+/// <summary>Full API test of Resource Database (ResourceDatabase and Preloads). Same tests as scripts/gd/Test.gd.
 /// The alias Database avoids the clash between the namespace and the ResourceDatabase class.</summary>
 public partial class Test : FeatureTest
 {
@@ -17,7 +17,7 @@ public partial class Test : FeatureTest
     private const int ThreadCount = 4;
     private const int ItemsPerThread = 100;
 
-    private readonly List<(PreloadList List, Error Error)> _finished = [];
+    private readonly List<(Preloads List, Error Error)> _finished = [];
     private string _swordIron;
     private string _shield;
     private string _swordGold;
@@ -29,14 +29,15 @@ public partial class Test : FeatureTest
         Database.Clear();
         Prepare();
         Database.Singleton.PreloadFinished += OnPreloadFinished;
-        PreloadList list = MakeList();
-        TestPreloadList(list);
-        await TestPreloadFromList(list);
+        Preloads list = MakeList();
+        TestPreloads(list);
+        await TestPreloadFrom(list);
         TestLookup();
         TestFind();
         TestAddAndRemoveErrors();
         await TestStaysInMemory();
         await TestThreadedPreload();
+        TestLegacyType();
         Database.Singleton.PreloadFinished -= OnPreloadFinished;
         TestIfMissingMemoryAndRemove();
         await TestParallelAddAndFind();
@@ -68,10 +69,10 @@ public partial class Test : FeatureTest
     }
 
     // A list with 3 resources, 2 paths and 1 manifest of 2 files.
-    private PreloadList MakeList()
+    private Preloads MakeList()
     {
         var manifest = new FilesManifest { FolderPaths = [Root + "manifest"], Extensions = ["tres"] };
-        return new PreloadList
+        return new Preloads
         {
             Resources = [Item("sword_wood"), Item("bow"), Item("ring")],
             Paths = [_swordIron, _shield],
@@ -80,25 +81,25 @@ public partial class Test : FeatureTest
         };
     }
 
-    private void OnPreloadFinished(PreloadList list, Error error)
+    private void OnPreloadFinished(Preloads list, Error error)
     {
         _finished.Add((list, error));
     }
 
-    private void TestPreloadList(PreloadList list)
+    private void TestPreloads(Preloads list)
     {
-        Expect(!list.IsEmpty(), "PreloadList.IsEmpty is false for a filled list");
-        Expect(new PreloadList().IsEmpty(), "PreloadList.IsEmpty is true for a new list");
-        ExpectEqual(list.Resources.Count, 3, "PreloadList.Resources holds the three resources");
-        ExpectEqual(list.Paths.Length, 2, "PreloadList.Paths holds the two paths");
-        ExpectEqual(list.Manifests.Count, 1, "PreloadList.Manifests holds the manifest");
-        ExpectEqual(list.Keys.Count, 1, "PreloadList.Keys holds the key");
+        Expect(!list.IsEmpty(), "Preloads.IsEmpty is false for a filled list");
+        Expect(new Preloads().IsEmpty(), "Preloads.IsEmpty is true for a new list");
+        ExpectEqual(list.Resources.Count, 3, "Preloads.Resources holds the three resources");
+        ExpectEqual(list.Paths.Length, 2, "Preloads.Paths holds the two paths");
+        ExpectEqual(list.Manifests.Count, 1, "Preloads.Manifests holds the manifest");
+        ExpectEqual(list.Keys.Count, 1, "Preloads.Keys holds the key");
     }
 
-    private async Task TestPreloadFromList(PreloadList list)
+    private async Task TestPreloadFrom(Preloads list)
     {
         Expect(Engine.HasSingleton("ResourceDatabase"), "the ResourceDatabase singleton exists");
-        ExpectEqual(Database.PreloadFromList(list, false), Error.Ok, "PreloadFromList without threads returns Ok");
+        ExpectEqual(Database.PreloadFrom(list, false), Error.Ok, "PreloadFrom without threads returns Ok");
         ExpectEqual(Database.GetEntryCount(), 7L, "GetEntryCount: 3 resources + 2 paths + 2 manifest files");
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         ExpectEqual(_finished.Count, 1, "PreloadFinished is emitted once on the main thread");
@@ -155,9 +156,9 @@ public partial class Test : FeatureTest
 
     private async Task TestThreadedPreload()
     {
-        var list = new PreloadList { Paths = [_arrow] };
+        var list = new Preloads { Paths = [_arrow] };
         _finished.Clear();
-        ExpectEqual(Database.PreloadFromList(list), Error.Ok, "PreloadFromList with threads returns Ok");
+        ExpectEqual(Database.PreloadFrom(list), Error.Ok, "PreloadFrom with threads returns Ok");
         ulong end = Time.GetTicksMsec() + 5000;
         while (_finished.Count == 0 && Time.GetTicksMsec() < end)
         {
@@ -206,6 +207,14 @@ public partial class Test : FeatureTest
         await Task.WhenAll(workers);
         Expect(failures.Count == 0, "4 threads: no failed add or find");
         ExpectEqual(Database.GetEntryCount(), (long)(ThreadCount * ItemsPerThread), "4 threads: no lost entry");
+    }
+
+    /// <summary>The old name PreloadList is deprecated: a .tres with that type loads as Preloads.</summary>
+    private void TestLegacyType()
+    {
+        var legacy = GD.Load<Preloads>("res://resource-database/resources/legacy_preload_list.tres");
+        Expect(legacy != null && legacy.GetClass() == "Preloads", "a .tres with the old type PreloadList loads as Preloads");
+        ExpectEqual(legacy.Paths.Length, 2, "the legacy .tres keeps its paths");
     }
 
     private void TestClear()

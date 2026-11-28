@@ -19,6 +19,7 @@ func _run_tests() -> void:
 	_test_parse_errors()
 	_test_read()
 	_test_edit()
+	_test_columns()
 	_test_blocks()
 	_test_clipboard()
 	_test_typed()
@@ -119,6 +120,27 @@ func _test_edit() -> void:
 	expect_equal(scripted.get_cell(0, 1), "b", "data is scriptable")
 	scripted.clear()
 	expect_equal(scripted.header, PackedStringArray(), "clear() empties the header too")
+
+
+func _test_columns() -> void:
+	var csv := CSV.new()
+	expect_equal(csv.parse("id,name\n1,Ann\n2,Bob\n"), OK, "parse() of two rows")
+	csv.insert_column(1, "team", "red")
+	expect_equal(",".join(csv.header), "id,team,name", "insert_column() adds the name to the header")
+	expect_equal(",".join(csv.get_row(0)), "1,red,Ann", "insert_column() fills every row with the value")
+	expect_equal(csv.get_column_count(), 3, "insert_column() grows the column count by one")
+	csv.insert_column(3)
+	expect_equal(csv.header.size(), 4, "insert_column() at the end appends a column")
+	csv.remove_column(3)
+	csv.remove_column(0)
+	expect_equal(",".join(csv.header), "team,name", "remove_column() removes the header name")
+	expect_equal(",".join(csv.get_row(1)), "red,Bob", "remove_column() removes the cell of every row")
+	expect_equal(csv.encode_to_text(), "team,name\nred,Ann\nred,Bob\n", "encode_to_text() writes the column edits")
+	var created := CSV.new()
+	created.insert_column(0, "id")
+	created.insert_column(1, "name")
+	created.append_row(PackedStringArray(["1", "Ann"]))
+	expect_equal(created.encode_to_text(), "id,name\n1,Ann\n", "a new CSV gets its header from insert_column()")
 
 
 func _test_blocks() -> void:

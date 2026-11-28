@@ -43,6 +43,7 @@ public partial class Test : FeatureTest
         TestIssueCap();
         TestJsonLines();
         TestManyRows();
+        TestCreateFromResource();
         return Task.CompletedTask;
     }
 
@@ -464,5 +465,32 @@ public partial class Test : FeatureTest
         DataValidation result = csv.Validate(ItemSchema());
         GD.Print($"  INFO  {ManyRows} rows validated in {Time.GetTicksMsec() - start} ms");
         Expect(result.IsValid(), "100 000 valid rows validate");
+    }
+
+    /// <summary>The sample resource is a DataSchema: it has an enum, a typed array of resources, a nested resource and a packed array.</summary>
+    private void TestCreateFromResource()
+    {
+        var sample = new DataSchema();
+        sample.AddField(new DataField());
+        DataSchema schema = DataSchema.CreateFromResource(sample);
+        Expect(schema != null, "CreateFromResource returns a schema");
+        ExpectEqual(schema.ExtraFields, DataSchema.ExtraFieldsEnum.Allow, "CreateFromResource allows extra fields");
+        string[] names = schema.Fields.Select(f => (string)f.Name).ToArray();
+        Expect(names.Contains("fields") && names.Contains("extra_fields") && names.Contains("file_patterns"), "one field per stored property");
+        ExpectEqual(schema.GetField("extra_fields").Type, Variant.Type.String, "an enum is a String field (names)");
+        ExpectEqual(schema.GetField("extra_fields").Hint, PropertyHint.Enum, "the enum hint is kept");
+        ExpectEqual(schema.GetField("fields").Type, Variant.Type.Array, "an array is an Array field");
+        Expect(schema.GetField("fields").ElementSchema != null, "an array of resources has an element schema");
+        Expect(schema.GetField("fields").ElementSchema.GetField("name") != null, "the element schema describes DataField");
+        ExpectEqual(schema.GetField("extra_field_template").Type, Variant.Type.Nil, "an unset resource stays untyped");
+        Expect(schema.GetField("resource_name") == null, "Resource base properties are left out");
+        ExpectEqual(schema.GetField("file_patterns").Type, Variant.Type.PackedStringArray, "a packed array keeps its type");
+        Expect(!schema.GetField("fields").Required, "generated fields are optional");
+        var options = new SerializerOptions { EnumsAsNames = false };
+        ExpectEqual(DataSchema.CreateFromResource(sample, options).GetField("extra_fields").Type, Variant.Type.Int, "an enum stays a number without EnumsAsNames");
+        var data = new Godot.Collections.Dictionary { { "type", "DataSchema" }, { "extra_fields", "Allow" } };
+        Expect(schema.Validate(data).IsValid(), "data as the text formats write it validates");
+        data["extra_fields"] = "Maybe";
+        Expect(!schema.Validate(data).IsValid(), "an unknown enum name is an issue");
     }
 }

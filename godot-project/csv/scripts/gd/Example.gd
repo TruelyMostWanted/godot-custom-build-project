@@ -19,6 +19,20 @@ func _ready() -> void:
 	var archer := table.get_typed_row(1, schema)
 	print(archer["hp"] + 10)
 
+	# Add and remove columns.
+	var roster := CSV.new()
+	roster.parse("name,hp\narcher,60\nknight,120\n")
+	roster.insert_column(1, "class", "melee")
+	roster.set_cell(0, 1, "ranger")
+	print(roster.encode_to_text()) # Prints "name,class,hp\narcher,ranger,60\nknight,melee,120\n"
+	roster.remove_column(roster.find_column("hp"))
+	print(roster.header) # Prints ["name", "class"]
+	var players := CSV.new()
+	players.insert_column(0, "id")
+	players.insert_column(1, "name")
+	players.append_row(PackedStringArray(["1", "Ann"]))
+	players.save("user://players.csv")
+
 	# A unit roster with checked data (print instead of push_warning: the C# warning trace contains "error", which fails the runner)
 	var check := table.validate(schema)
 	var bad_rows := check.get_invalid_rows()

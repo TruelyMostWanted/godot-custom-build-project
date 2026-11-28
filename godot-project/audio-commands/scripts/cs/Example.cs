@@ -1,6 +1,6 @@
 using Godot;
 
-namespace TruelyInteractive.AudioCommands;
+namespace TruelyInteractive.AudioCommandsGuide;
 
 /// <summary>Minimal example of Audio Commands: the snippets of the wiki guide, in order. Same as scripts/gd/Example.gd.</summary>
 public partial class Example : Node
@@ -33,7 +33,7 @@ public partial class Example : Node
         GD.Print("Ambience playing: ", AudioMixerServer.IsPlaying("ambience"));
 
         // Build a soundboard from a CSV file.
-        var board = ResourceLoader.Load<AudioCommandList>("user://soundboard.csv", "AudioCommandList");
+        var board = ResourceLoader.Load<AudioCommands>("user://soundboard.csv", "AudioCommands");
         AudioMixerServer.RegisterCommands(board);
         foreach (AudioCommand command in board.Commands)
         {
@@ -45,7 +45,7 @@ public partial class Example : Node
         GD.Print("Pads: ", GetNode("Pads").GetChildCount());
 
         // Start the ambience of a level.
-        var forest = ResourceLoader.Load<AudioCommandList>("user://forest.csv", "AudioCommandList");
+        var forest = ResourceLoader.Load<AudioCommands>("user://forest.csv", "AudioCommands");
         AudioMixerServer.RegisterCommands(forest);
         AudioMixerServer.ExecuteGroup("forest");
         GD.Print("Music playing: ", AudioMixerServer.IsPlaying("music"));
@@ -53,8 +53,8 @@ public partial class Example : Node
         AudioMixerServer.UnregisterCommands(forest);
 
         // Let a mod replace a sound.
-        AudioCommandList baseGame = board;
-        var mod = ResourceLoader.Load<AudioCommandList>("user://mod.csv", "AudioCommandList");
+        AudioCommands baseGame = board;
+        var mod = ResourceLoader.Load<AudioCommands>("user://mod.csv", "AudioCommands");
         AudioMixerServer.RegisterCommands(baseGame);
         AudioMixerServer.RegisterCommands(mod);
         AudioMixerServer.ExecuteNamed("horn");

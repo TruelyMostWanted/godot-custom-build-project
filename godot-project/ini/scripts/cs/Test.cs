@@ -9,6 +9,8 @@ namespace TruelyInteractive.IniFormat;
 /// <summary>Full API test of INI: every method of the Ini class, its two value styles and the INI text of a resource. Same tests as scripts/gd/Test.gd.</summary>
 public partial class Test : FeatureTest
 {
+    private const string Game = "res://ini/resources/game.ini";
+    private static readonly string[] PlayerKeys = ["name", "speed", "lives", "invincible", "spawn"];
     private const string Root = "user://ini/cs/";
     private const string Settings = "res://ini/resources/settings.ini";
     private const string Scripts = "res://text-serialization/scripts/gd/";
@@ -28,6 +30,7 @@ public partial class Test : FeatureTest
         TestStringify();
         TestValueStyles();
         TestSerialize();
+        TestDockApi();
         return Task.CompletedTask;
     }
 
@@ -214,5 +217,58 @@ public partial class Test : FeatureTest
         Expect(plainText.Contains("\ncode=\"007\"\n"), "Plain style keeps a string that looks like a number quoted");
         Resource fromPlain = Ini.Deserialize(plainText, "", plain);
         ExpectEqual((string)fromPlain.Get("code"), "007", "Deserialize() of the Plain style");
+    }
+
+    /// <summary>The INI dock is editor UI without own API: these tests cover the API it uses.</summary>
+    private void TestDockApi()
+    {
+        var ini = GD.Load<Ini>(Game);
+        Expect(ini != null, "game.ini loads as INI");
+        Expect(ini.GetSections().SequenceEqual(new[] { "", "player", "audio" }), "sections in file order, keys before the first header in \"\"");
+        Expect(ini.GetSectionKeys("player").SequenceEqual(PlayerKeys), "keys in file order");
+        ExpectEqual(ini.GetValue("player", "lives").VariantType, Variant.Type.Int, "lives is an int");
+        ExpectEqual(ini.GetValue("player", "speed").VariantType, Variant.Type.Float, "speed is a float");
+        ExpectEqual(ini.GetValue("player", "invincible").VariantType, Variant.Type.Bool, "invincible is a bool");
+        ExpectEqual(ini.GetValue("player", "spawn").AsVector2(), new Vector2(10, 20), "spawn is a Vector2");
+
+        // Rename a key like the dock: a copy of data with the key replaced at the same position.
+        Dictionary before = ini.Data.AsGodotDictionary().Duplicate(true);
+        var renamed = new Dictionary();
+        Dictionary player = before["player"].AsGodotDictionary();
+        foreach (Variant key in player.Keys)
+        {
+            renamed[key.AsString() == "speed" ? "walk_speed" : key] = player[key];
+        }
+        Dictionary next = before.Duplicate(true);
+        next["player"] = renamed;
+        int changedCount = 0;
+        ini.Changed += () => changedCount++;
+        ini.Data = next;
+        ExpectEqual(changedCount, 1, "setting Data emits changed once");
+        Expect(ini.GetSectionKeys("player").SequenceEqual(new[] { "name", "walk_speed", "lives", "invincible", "spawn" }), "a renamed key keeps its position");
+        Expect(ini.GetParsedText().Length == 0, "an edit drops the kept text, so the text editor reloads");
+        Expect(ini.EncodeToText().Contains("walk_speed=4.5"), "EncodeToText() shows the renamed key");
+
+        // Undo: the copy taken before the edit.
+        ini.Data = before;
+        Expect(ini.GetSectionKeys("player").SequenceEqual(PlayerKeys), "undo restores the order");
+
+        // Typed edits and an empty section.
+        ini.SetValue("player", "lives", 5);
+        ExpectEqual(ini.GetValue("player", "lives").AsInt32(), 5, "SetValue() keeps the int");
+        Dictionary withSection = ini.Data.AsGodotDictionary().Duplicate(true);
+        withSection["network"] = new Dictionary();
+        ini.Data = withSection;
+        Expect(ini.HasSection("network"), "an empty section stays in Data");
+        Expect(ini.EncodeToText().Contains("[network]"), "an empty section is written with its header");
+        ini.SetValue("network", "port", 8080);
+        ini.EraseSectionKey("network", "port");
+        Expect(!ini.HasSection("network"), "EraseSectionKey() removes a section without keys, like ConfigFile");
+
+        // A broken file: the dock does not edit, it shows the error.
+        var broken = new Ini();
+        broken.Parse("[player\nname=\"Ann\"\n", true);
+        Expect(broken.GetErrorMessage().Length > 0, "a broken header reports an error");
+        Expect(broken.GetErrorLine() > 0, "the error has a line");
     }
 }

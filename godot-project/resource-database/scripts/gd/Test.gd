@@ -1,5 +1,5 @@
 extends FeatureTest
-## Full API test of Resource Database (ResourceDatabase and PreloadList). Same tests as scripts/cs/Test.cs.
+## Full API test of Resource Database (ResourceDatabase and Preloads). Same tests as scripts/cs/Test.cs.
 
 const ROOT := "user://resource-database/gd/"
 const TYPE := &"DatabaseItem"
@@ -18,14 +18,15 @@ func _run_tests() -> void:
 	ResourceDatabase.clear()
 	_prepare()
 	ResourceDatabase.preload_finished.connect(_on_preload_finished)
-	var list: PreloadList = _make_list()
-	_test_preload_list(list)
-	await _test_preload_from_list(list)
+	var list: Preloads = _make_list()
+	_test_preloads(list)
+	await _test_preload_from(list)
 	_test_lookup()
 	_test_find()
 	_test_add_and_remove_errors()
 	await _test_stays_in_memory()
 	await _test_threaded_preload()
+	_test_legacy_type()
 	ResourceDatabase.preload_finished.disconnect(_on_preload_finished)
 	_test_if_missing_memory_and_remove()
 	_test_parallel_add_and_find()
@@ -56,11 +57,11 @@ func _prepare() -> void:
 
 
 # A list with 3 resources, 2 paths and 1 manifest of 2 files.
-func _make_list() -> PreloadList:
+func _make_list() -> Preloads:
 	var manifest := FilesManifest.new()
 	manifest.folder_paths = PackedStringArray([ROOT + "manifest"])
 	manifest.extensions = PackedStringArray(["tres"])
-	var list := PreloadList.new()
+	var list := Preloads.new()
 	list.resources = [_item("sword_wood"), _item("bow"), _item("ring")]
 	list.paths = PackedStringArray([_sword_iron, _shield])
 	list.manifests = [manifest]
@@ -68,22 +69,22 @@ func _make_list() -> PreloadList:
 	return list
 
 
-func _on_preload_finished(list: PreloadList, error: Error) -> void:
+func _on_preload_finished(list: Preloads, error: Error) -> void:
 	_finished.append([list, error])
 
 
-func _test_preload_list(list: PreloadList) -> void:
-	expect(not list.is_empty(), "PreloadList.is_empty is false for a filled list")
-	expect(PreloadList.new().is_empty(), "PreloadList.is_empty is true for a new list")
-	expect_equal(list.resources.size(), 3, "PreloadList.resources holds the three resources")
-	expect_equal(list.paths.size(), 2, "PreloadList.paths holds the two paths")
-	expect_equal(list.manifests.size(), 1, "PreloadList.manifests holds the manifest")
-	expect_equal(list.keys.size(), 1, "PreloadList.keys holds the key")
+func _test_preloads(list: Preloads) -> void:
+	expect(not list.is_empty(), "Preloads.is_empty is false for a filled list")
+	expect(Preloads.new().is_empty(), "Preloads.is_empty is true for a new list")
+	expect_equal(list.resources.size(), 3, "Preloads.resources holds the three resources")
+	expect_equal(list.paths.size(), 2, "Preloads.paths holds the two paths")
+	expect_equal(list.manifests.size(), 1, "Preloads.manifests holds the manifest")
+	expect_equal(list.keys.size(), 1, "Preloads.keys holds the key")
 
 
-func _test_preload_from_list(list: PreloadList) -> void:
+func _test_preload_from(list: Preloads) -> void:
 	expect(Engine.has_singleton("ResourceDatabase"), "the ResourceDatabase singleton exists")
-	expect_equal(ResourceDatabase.preload_from_list(list, false), OK, "preload_from_list without threads returns OK")
+	expect_equal(ResourceDatabase.preload_from(list, false), OK, "preload_from without threads returns OK")
 	expect_equal(ResourceDatabase.get_entry_count(), 7, "get_entry_count: 3 resources + 2 paths + 2 manifest files")
 	await get_tree().process_frame
 	expect_equal(_finished.size(), 1, "preload_finished is emitted once on the main thread")
@@ -135,10 +136,10 @@ func _test_stays_in_memory() -> void:
 
 
 func _test_threaded_preload() -> void:
-	var list := PreloadList.new()
+	var list := Preloads.new()
 	list.paths = PackedStringArray([_arrow])
 	_finished.clear()
-	expect_equal(ResourceDatabase.preload_from_list(list), OK, "preload_from_list with threads returns OK")
+	expect_equal(ResourceDatabase.preload_from(list), OK, "preload_from with threads returns OK")
 	var end: int = Time.get_ticks_msec() + 5000
 	while _finished.is_empty() and Time.get_ticks_msec() < end:
 		await get_tree().process_frame
@@ -146,6 +147,13 @@ func _test_threaded_preload() -> void:
 	expect(_finished[0][0] == list, "preload_finished passes the threaded list")
 	expect(ResourceDatabase.has_resource(_arrow), "the threaded preload stored the resource")
 	expect(not ResourceDatabase.is_preloading(), "is_preloading is false afterwards")
+
+
+## The old name PreloadList is deprecated: a .tres with that type loads as Preloads.
+func _test_legacy_type() -> void:
+	var legacy: Preloads = load("res://resource-database/resources/legacy_preload_list.tres")
+	expect(legacy != null and legacy.get_class() == "Preloads", "a .tres with the old type PreloadList loads as Preloads")
+	expect_equal(legacy.paths.size(), 2, "the legacy .tres keeps its paths")
 
 
 func _test_if_missing_memory_and_remove() -> void:
