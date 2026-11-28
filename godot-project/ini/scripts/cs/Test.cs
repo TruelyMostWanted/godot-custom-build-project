@@ -267,9 +267,7 @@ public partial class Test : FeatureTest
 
         // A broken file: the dock does not edit, it shows the error.
         var broken = new Ini();
-        broken.Parse("[player
-name=\"Ann\"
-", true);
+        broken.Parse("[player\nname=\"Ann\"\n", true);
         Expect(broken.GetErrorMessage().Length > 0, "a broken header reports an error");
         Expect(broken.GetErrorLine() > 0, "the error has a line");
     }

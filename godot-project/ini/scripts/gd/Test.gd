@@ -238,8 +238,6 @@ func _test_dock_api() -> void:
 
 	# A broken file: the dock does not edit, it shows the error.
 	var broken := INI.new()
-	broken.parse("[player
-name=\"Ann\"
-", true)
+	broken.parse("[player\nname=\"Ann\"\n", true)
 	expect(not broken.get_error_message().is_empty(), "a broken header reports an error")
 	expect(broken.get_error_line() > 0, "the error has a line")
