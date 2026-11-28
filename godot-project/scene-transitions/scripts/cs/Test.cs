@@ -125,7 +125,7 @@ public partial class Test : FeatureTest
         ExpectEqual(screen.Skippable, true, "skippable override");
         ExpectEqual(screen.AutoFinish, false, "auto_finish override");
         ExpectEqual(screen.FreeCurrentSceneBeforeLoading, true, "free_current_scene_before_loading override");
-        Expect(screen.PreloadAssets == list, "preload_assets override");
+        Expect(screen.PreloadAssets == preloads, "preload_assets override");
         screen.PreloadAssets = null;
 
         screen.MinDuration = -1.0;
@@ -190,7 +190,7 @@ public partial class Test : FeatureTest
             startedState = StateOf(screen);
             startedFade = screen.GetFade();
         };
-        screen.ProgressChanged += progress => lastProgress = progress;
+        screen.ProgressChanged += progress => lastProgress = (float)progress;
         screen.Loaded += () =>
         {
             loaded++;

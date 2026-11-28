@@ -86,7 +86,7 @@ func _test_defaults() -> void:
 	expect_equal(screen.skippable, true, "skippable override")
 	expect_equal(screen.auto_finish, false, "auto_finish override")
 	expect_equal(screen.free_current_scene_before_loading, true, "free_current_scene_before_loading override")
-	expect(screen.preload_assets == list, "preload_assets override")
+	expect(screen.preload_assets == preloads, "preload_assets override")
 	screen.preload_assets = null
 
 	screen.min_duration = -1.0
