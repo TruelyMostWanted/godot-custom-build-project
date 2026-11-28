@@ -73,6 +73,18 @@ public partial class Example : Node
         var loaded = ResourceLoader.Load("user://items.csv", "ItemTable");
         var loadedEntries = loaded.Get("entries").AsGodotArray();
         GD.Print(loadedEntries[0].As<Resource>().Get("name"));
+        // Reading a big file row by row
+        var file = FileAccess.Open("user://big.csv", FileAccess.ModeFlags.Write);
+        file.StoreString("name,level\nplayer0,0\nplayer1,1\nplayer2,2\n");
+        file.Close();
+        var reader = CsvReader.Open("user://big.csv");
+        GD.Print(reader.GetHeader());
+        GD.Print(reader.ReadRow());
+        GD.Print(reader.ReadRecord());
+        GD.Print(reader.CountRows());
+        reader.SeekRow(2);
+        GD.Print(reader.ReadRows(1));
+        reader.Close();
         GetTree().Quit();
     }
 }

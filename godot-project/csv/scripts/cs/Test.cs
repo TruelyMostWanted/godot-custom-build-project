@@ -24,6 +24,7 @@ public partial class Test : FeatureTest
 
     protected override Task RunTests()
     {
+        RunStreaming();
         TestDataFile();
         TestImport();
         TestParse();
@@ -332,5 +333,71 @@ public partial class Test : FeatureTest
         double elapsedMs = (Time.GetTicksUsec() - start) / 1000.0;
         ExpectEqual(page.Count, 500, "GetCells() reads a page of 500 rows");
         Expect(elapsedMs < PageMs, $"page read and cell edit in 100 000 rows under {PageMs} ms ({elapsedMs:F2} ms)");
+    }
+
+    private const string FilePath = "user://csv_reader_check.csv";
+    private const string BadPath = "user://csv_reader_check_bad.csv";
+    private const int RowsStreaming = 2500;
+
+    private static void Write(string path, string text)
+    {
+        var file = FileAccess.Open(path, FileAccess.ModeFlags.Write);
+        file.StoreString(text);
+        file.Close();
+    }
+
+    private void RunStreaming()
+    {
+        // Streaming reader.
+        var text = "name,level\n";
+        for (int row = 0; row < RowsStreaming; row++)
+        {
+            text += $"player{row},{row % 50}\n";
+        }
+        text += "\"Bob, the 2nd\",7\n";
+        Write(FilePath, text);
+        var reader = CsvReader.Open(FilePath);
+        Expect(reader != null, "open returns a reader");
+        Expect(string.Join(",", reader.GetHeader()) == "name,level", "get_header");
+        var first = reader.ReadRow();
+        Expect(string.Join(",", first) == "player0,0", "read_row returns the first row");
+        Expect(reader.GetRowIndex() == 1, "get_row_index counts the rows read");
+        var record = reader.ReadRecord();
+        Expect((string)record["name"] == "player1" && (string)record["level"] == "1", "read_record keys by header");
+        var page = reader.ReadRows(3);
+        Expect(page.Count == 3 && ((string[])page[0])[0] == "player2", "read_rows returns Array of PackedStringArray");
+
+        Expect(reader.CountRows() == RowsStreaming + 1, "count_rows");
+        Expect(reader.GetRowIndex() == 5, "count_rows keeps the position");
+        Expect(reader.SeekRow(2000) == Error.Ok, "seek_row far ahead");
+        Expect(reader.ReadRow()[0] == "player2000", "row after seek_row");
+        Expect(reader.SeekRow(10) == Error.Ok, "seek_row back");
+        Expect(reader.ReadRow()[0] == "player10", "row after seek back");
+        Expect(reader.SkipRows(5) == Error.Ok, "skip_rows");
+        Expect(reader.ReadRow()[0] == "player16", "row after skip_rows");
+        Expect(reader.SeekRow(RowsStreaming) == Error.Ok, "seek_row to the last row");
+        Expect(string.Join("|", reader.ReadRow()) == "Bob, the 2nd|7", "quoted cell with the delimiter");
+        Expect(!reader.IsEof(), "not at the end before the next read");
+        Expect(reader.ReadRow().Length == 0, "empty row at the end");
+        Expect(reader.IsEof(), "is_eof after the end");
+        Expect(reader.SeekRow(RowsStreaming + 100) == Error.FileEof, "seek_row past the end");
+        var csv = new Csv();
+        csv.Parse(text);
+        Expect(reader.SeekRow(1234) == Error.Ok && string.Join("|", reader.ReadRow()) == string.Join("|", csv.GetRow(1234)), "same row as CSV");
+        Expect(reader.GetError() == Error.Ok, "no error");
+        reader.Close();
+        Expect(!reader.IsOpen(), "close");
+        Expect(reader.SeekRow(0) == Error.Unconfigured, "seek_row after close");
+
+        Write(BadPath, "a,b\n1,2\n3,4,5\n");
+        var bad = CsvReader.Open(BadPath);
+        Expect(string.Join(",", bad.ReadRow()) == "1,2", "row before the error");
+        Expect(bad.ReadRow().Length == 0, "invalid row stops the reader");
+        Expect(bad.GetError() == Error.ParseError && bad.GetErrorLine() == 3, "get_error, get_error_line");
+        Expect(bad.GetErrorMessage().Contains("3 cells"), "get_error_message");
+        Expect(bad.CountRows() == -1, "count_rows on an invalid file");
+        Expect(bad.SeekRow(0) == Error.Ok && bad.GetError() == Error.Ok, "seek_row clears the error");
+        DirAccess.RemoveAbsolute(FilePath);
+        DirAccess.RemoveAbsolute(BadPath);
     }
 }

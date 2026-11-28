@@ -9,6 +9,7 @@ func _run_tests() -> void:
 	_test_player_and_speakers()
 	_test_accessibility()
 	await _test_changes()
+	_test_table_label()
 
 
 func _segment(start: float, end: float, text: String, speaker: StringName = &"", kind := SubtitleSegment.KIND_DIALOG) -> SubtitleSegment:
@@ -141,3 +142,78 @@ func _test_changes() -> void:
 	label.queue_free()
 	AccessibilitySettingsServer.set_subtitles_enabled(enabled)
 	AccessibilitySettingsServer.set_captions_enabled(captions)
+
+
+func _test_table_label() -> void:
+	_test_preview_properties()
+	_test_translatable_speakers()
+	_test_translated_speaker()
+
+
+func _segment_table_label(start: float, end: float, text: String, speaker: StringName = &"", kind := SubtitleSegment.KIND_DIALOG) -> SubtitleSegment:
+	var segment := SubtitleSegment.new()
+	segment.start_time = start
+	segment.end_time = end
+	segment.text = text
+	segment.speaker = speaker
+	segment.kind = kind
+	return segment
+
+
+func _test_preview_properties() -> void:
+	var label := SubtitleLabel.new()
+	expect_equal(label.preview_speaker, &"Speaker", "preview_speaker default")
+	expect_equal(label.preview_text, "The subtitle line appears here.", "preview_text default")
+	label.preview_speaker = &"Anna"
+	label.preview_text = "Hello"
+	expect_equal(label.preview_speaker, &"Anna", "preview_speaker is set")
+	expect_equal(label.preview_text, "Hello", "preview_text is set")
+	label.refresh()
+	expect_equal(label.text, "", "no preview while the game runs")
+	label.free()
+
+
+func _test_translatable_speakers() -> void:
+	var subtitle := Subtitle.new()
+	subtitle.add_segment(_segment_table_label(0.0, 1.0, "Hello", &"Anna"))
+	subtitle.add_segment(_segment_table_label(1.0, 2.0, "Run!", &"Ben"))
+	subtitle.add_segment(_segment_table_label(2.0, 3.0, "Again", &"Anna"))
+	subtitle.add_segment(_segment_table_label(3.0, 4.0, "Door", &"Door", SubtitleSegment.KIND_SOUND))
+	var strings := subtitle.get_translatable_strings()
+	expect_equal(strings.size(), 6, "four texts, then two speakers")
+	expect_equal(strings[5], PackedStringArray(["Ben", "speaker", "", "Speaker name"]), "speaker entry with the context speaker")
+	expect_equal(strings[4][0], "Anna", "each speaker once")
+	var speakers := 0
+	for entry in strings:
+		if entry[1] == "speaker":
+			speakers += 1
+	expect_equal(speakers, 2, "the speaker of a caption is not listed")
+
+
+func _test_translated_speaker() -> void:
+	var german := Translation.new()
+	german.locale = "de"
+	german.add_message(&"Anna", &"Annchen", &"speaker")
+	var domain := TranslationServer.get_or_add_domain(&"subtitles")
+	domain.add_translation(german)
+	var subtitle := Subtitle.new()
+	var segment := _segment_table_label(0.0, 1.0, "Hello", &"Anna")
+	subtitle.add_segment(segment)
+	expect_equal(SubtitleServer.get_display_speaker(subtitle, segment), "Anna", "auto_translate off: the name as is")
+	subtitle.auto_translate = true
+	TranslationServer.set_locale_for(&"subtitles", "de")
+	expect_equal(SubtitleServer.get_display_speaker(subtitle, segment), "Annchen", "translated through the subtitles channel")
+	var player := SubtitlePlayer.new()
+	player.subtitle = subtitle
+	add_child(player)
+	var label := SubtitleLabel.new()
+	add_child(label)
+	label.follow_accessibility_settings = false
+	label.player = label.get_path_to(player)
+	player.play(0.5)
+	expect_equal(label.text, "[font_size=%d]Annchen: Hello[/font_size]" % label.get_display_font_size(), "the label shows the translated name")
+	TranslationServer.clear_locale_for(&"subtitles")
+	expect_equal(SubtitleServer.get_display_speaker(subtitle, segment), "Anna", "back to the source name")
+	label.queue_free()
+	player.queue_free()
+	domain.remove_translation(german)

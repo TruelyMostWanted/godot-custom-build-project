@@ -62,6 +62,19 @@ func _ready() -> void:
 	if not check.valid:
 		print("Too fast to read: ", check.fast_reading_segments)
 
+	# Timing tools of the Subtitles dock as methods.
+	var timed := Subtitle.new()
+	var first := SubtitleSegment.new()
+	first.start_time = 1.5
+	first.end_time = 3.0
+	first.text = "Hello there"
+	timed.add_segment(first)
+	timed.shift_times(-0.5)
+	timed.sync_times(1.0, 2.0, 59.5, 62.5)
+	var second_index: int = timed.split_segment(0, 2.5)
+	timed.merge_segments(0)
+	print("Split made segment ", second_index, ", segments after merge: ", timed.get_segment_count())
+
 	SubtitleServer.text_changed.disconnect(_on_subtitle_text_changed)
 	get_tree().quit()
 

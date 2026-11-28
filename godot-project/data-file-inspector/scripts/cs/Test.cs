@@ -3,6 +3,8 @@ using System.Threading.Tasks;
 using Godot;
 using Godot.Collections;
 using TruelyInteractive.Checks;
+using GArray = Godot.Collections.Array;
+using GDict = Godot.Collections.Dictionary;
 
 namespace TruelyInteractive.DataFileInspector;
 
@@ -27,6 +29,7 @@ public partial class Test : FeatureTest
 
     protected override Task RunTests()
     {
+        RunPerFormat();
         TestSummaries();
         TestParseStatus();
         TestSchemaStatus();
@@ -117,5 +120,117 @@ public partial class Test : FeatureTest
         };
         ExpectEqual(csv.GetCell(0, 1), "b", "Data stays scriptable");
         ExpectEqual(csv.FindColumn("y"), 1, "Header stays scriptable");
+    }
+
+    private const string IniText = "version=2\n\n[player]\nname=\"knight\"\nhp=100\n\n[audio]\nvolume=0.8\n";
+    private const string XmlText = "<units version=\"1\"><unit id=\"knight\" hp=\"100\"/><unit id=\"archer\" hp=\"80\"/></units>\n";
+    private const string YamlText = "name: knight\n---\nname: archer\n---\n- 1\n- 2\n";
+    private const string TomlText = "title = \"Game\"\n\n[server]\nport = 8080\n\n[[unit]]\nname = \"knight\"\n\n[[unit]]\nname = \"archer\"\n";
+    private const string CsvText = "name,hp\nknight,100\narcher,80\n";
+
+    private void RunPerFormat()
+    {
+        TestIni();
+        TestXml();
+        TestYaml();
+        TestToml();
+        TestCsv();
+        TestTextDocument();
+    }
+
+    private void TestIni()
+    {
+        var ini = new Ini();
+        ExpectEqual(ini.Parse(IniText), Error.Ok, "INI parses");
+        GDict sections = ini.Data.AsGodotDictionary();
+        Expect(sections.Count == 3, "INI: 3 sections (one without a name)");
+        Expect(sections.ContainsKey(""), "INI: keys without a section are in section \"\"");
+        Expect(ini.GetValue("", "version").AsInt32() == 2, "INI: version without a section");
+        Expect(ini.GetValue("player", "hp").VariantType == Variant.Type.Int, "INI: hp is an int");
+        Expect(ini.GetValue("audio", "volume").VariantType == Variant.Type.Float, "INI: volume is a float");
+    }
+
+    private void TestXml()
+    {
+        var xml = new Xml();
+        ExpectEqual(xml.Parse(XmlText), Error.Ok, "XML parses");
+        GDict root = xml.Data.AsGodotDictionary();
+        Expect(root["name"].AsString() == "units", "XML: root element units");
+        GArray children = root["children"].AsGodotArray();
+        Expect(children.Count == 2, "XML: 2 child nodes");
+        GDict archer = children[1].AsGodotDictionary();
+        Expect(archer["attributes"].AsGodotDictionary()["id"].AsString() == "archer", "XML: attribute id of the second unit");
+    }
+
+    private void TestYaml()
+    {
+        var yaml = new Yaml();
+        ExpectEqual(yaml.Parse(YamlText), Error.Ok, "YAML parses");
+        Expect(yaml.GetDocumentCount() == 3, "YAML: 3 documents");
+        Expect(yaml.Data.AsGodotDictionary()["name"].AsString() == "knight", "YAML: data is the first document");
+        Expect(yaml.GetDocument(1).AsGodotDictionary()["name"].AsString() == "archer", "YAML: second document");
+        Expect(yaml.GetDocument(2).AsGodotArray().Count == 2, "YAML: third document has 2 items");
+    }
+
+    private void TestToml()
+    {
+        var toml = new Toml();
+        ExpectEqual(toml.Parse(TomlText), Error.Ok, "TOML parses");
+        GDict root = toml.Data.AsGodotDictionary();
+        Expect(root["server"].VariantType == Variant.Type.Dictionary, "TOML: [server] is a table");
+        Expect(root["unit"].VariantType == Variant.Type.Array, "TOML: [[unit]] is an array");
+        GArray units = root["unit"].AsGodotArray();
+        Expect(units.Count == 2, "TOML: 2 units");
+        Expect(units[1].VariantType == Variant.Type.Dictionary, "TOML: each unit is a table");
+        Expect(root["title"].AsString() == "Game", "TOML: title is a key");
+    }
+
+    private void TestCsv()
+    {
+        var csv = new Csv();
+        ExpectEqual(csv.Parse(CsvText), Error.Ok, "CSV parses");
+        Expect(csv.Header.SequenceEqual(new[] { "name", "hp" }), "CSV: header stays stored");
+        Expect(csv.GetRowCount() == 2, "CSV: 2 rows");
+        Expect(csv.GetColumnCount() == 2, "CSV: 2 columns");
+    }
+
+    private void TestTextDocument()
+    {
+        var texts = new (string Class, string Text)[]
+        {
+            ("CSV", CsvText),
+            ("INI", IniText),
+            ("XML", XmlText),
+            ("TOML", TomlText),
+            ("YAML", YamlText),
+        };
+        foreach (var (cls, text) in texts)
+        {
+            var format = ClassDB.Instantiate(cls).As<TextDataFormat>();
+            Expect(format != null, cls + " is a TextDataFormat");
+            if (format == null)
+            {
+                continue;
+            }
+            ExpectEqual(format.Parse(text, true), Error.Ok, cls + " parses with kept text");
+            Expect(format.GetParsedText() == text, cls + " keeps the parsed text");
+            Expect(format.EncodeToText() != "", cls + " encodes its data");
+            Expect(format.GetRecognizedExtensions().Length > 0, cls + " has file extensions");
+        }
+
+        var broken = new (string Class, string Text)[]
+        {
+            ("INI", "[broken\n"),
+            ("XML", "<a>"),
+            ("TOML", "[a\n"),
+            ("YAML", "a: [1,\n"),
+        };
+        foreach (var (cls, text) in broken)
+        {
+            var format = ClassDB.Instantiate(cls).As<TextDataFormat>();
+            Expect(format.Parse(text) != Error.Ok, cls + " reports a parse error");
+            Expect(format.GetErrorMessage() != "", cls + " has an error message");
+            Expect(format.GetErrorLine() > 0, cls + " has an error line");
+        }
     }
 }
