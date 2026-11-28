@@ -8,6 +8,12 @@ const LOADING_SCENE := "res://scene-transitions/resources/loading_screen.tscn"
 const CustomTransitionScript := preload("res://scene-transitions/scripts/gd/custom_transition.gd")
 
 
+## A condition that is true once the node is freed. It captures the instance id, not the node (a lambda capturing a freed node errors).
+func _freed(node: Node) -> Callable:
+	var id := node.get_instance_id()
+	return func(): return not is_instance_id_valid(id)
+
+
 func _wait_until(condition: Callable, timeout_msec: int = 8000) -> bool:
 	var start := Time.get_ticks_msec()
 	while not condition.call():
@@ -185,7 +191,7 @@ func _test_auto_finish() -> void:
 		await get_tree().process_frame
 	expect_equal(screen.get_state(), TransitionScreen.STATE_LOADED, "auto_finish=false stays loaded")
 	screen.finish()
-	expect(await _wait_until(func(): return not is_instance_valid(screen)), "finish() ends the transition")
+	expect(await _wait_until(_freed(screen)), "finish() ends the transition")
 
 	# finish() skips a long min_duration.
 	var long_screen := TransitionScreen.new()
@@ -196,7 +202,7 @@ func _test_auto_finish() -> void:
 	expect(await _wait_until(func(): return long_screen.get_state() == TransitionScreen.STATE_LOADED), "long min_duration reaches loaded")
 	expect_equal(long_screen.get_state(), TransitionScreen.STATE_LOADED, "min_duration holds the screen")
 	long_screen.finish()
-	expect(await _wait_until(func(): return not is_instance_valid(long_screen), 3000), "finish() skips min_duration")
+	expect(await _wait_until(_freed(long_screen), 3000), "finish() skips min_duration")
 
 
 func _test_custom_fade() -> void:
@@ -205,7 +211,7 @@ func _test_custom_fade() -> void:
 	screen.fade_out_duration = 0.1
 	add_child(screen)
 	var fades := screen.fades
-	expect(await _wait_until(func(): return not is_instance_valid(screen)), "a screen with _update_fade() completes")
+	expect(await _wait_until(_freed(screen)), "a screen with _update_fade() completes")
 	expect(fades.size() > 2, "_update_fade() is called every frame of a fade")
 	expect_equal(fades.max(), 1.0, "_update_fade() receives the fully visible fade")
 	expect_equal(fades[-1], 0.0, "_update_fade() ends at 0")
@@ -228,7 +234,7 @@ func _test_scene_change() -> void:
 	screen.loaded.connect(func():
 		info.loaded_fade = screen.get_fade()
 		info.progress = screen.get_progress())
-	expect(await _wait_until(func(): return not is_instance_valid(screen)), "the transition completes")
+	expect(await _wait_until(_freed(screen)), "the transition completes")
 	expect_equal(info.loaded_fade, 1.0, "the scene changes while fully visible")
 	expect_equal(info.progress, 1.0, "progress is 1.0 when loaded")
 	expect(tree.current_scene != null and tree.current_scene.name == "NextScene", "current_scene is the next scene")
@@ -287,7 +293,7 @@ func _test_splash_skip() -> void:
 	key.pressed = true
 	tree.root.push_input(key)
 	expect_equal(skipped.count, 1, "a key press emits skipped")
-	expect(await _wait_until(func(): return not is_instance_valid(splash), 1500), "skipping ends the 2 second minimum")
+	expect(await _wait_until(_freed(splash), 1500), "skipping ends the 2 second minimum")
 	expect(tree.current_scene != null and tree.current_scene.name == "NextScene", "the splash changed to its next scene")
 	await _restore_current_scene()
 
@@ -317,7 +323,7 @@ func _test_errors() -> void:
 		rec.error = error)
 	failing.finished.connect(func(): rec.finished += 1)
 	tree.root.add_child(failing)
-	expect(await _wait_until(func(): return not is_instance_valid(failing)), "the screen for a missing scene finishes")
+	expect(await _wait_until(_freed(failing)), "the screen for a missing scene finishes")
 	expect_equal(rec.loaded, 0, "loaded is not emitted when loading fails")
 	expect_equal(rec.failed, 1, "load_failed is emitted once")
 	expect(rec.error != OK, "load_failed carries the error")
@@ -332,7 +338,7 @@ func _test_errors() -> void:
 	await tree.process_frame
 	await tree.process_frame
 	expect_equal(tree.change_scene_with_transition(NEXT_SCENE), ERR_BUSY, "a second transition returns ERR_BUSY")
-	expect(await _wait_until(func(): return not is_instance_valid(overlay)), "the running overlay finishes")
+	expect(await _wait_until(_freed(overlay)), "the running overlay finishes")
 
 
 
@@ -405,7 +411,7 @@ func _test_animation_flow() -> void:
 	player.animation_started.connect(func(animation_name): played.append(animation_name))
 	get_tree().root.add_child(screen)
 	var start := Time.get_ticks_msec()
-	expect(await _wait_until_animation_progress(func(): return not is_instance_valid(screen)), "an animated screen completes")
+	expect(await _wait_until_animation_progress(_freed(screen)), "an animated screen completes")
 	expect(Time.get_ticks_msec() - start < 5000, "the animation length replaces the 30 s fade durations")
 	expect_equal(played, [&"intro", &"outro"] as Array[StringName], "the player plays intro, then outro")
 
@@ -417,7 +423,7 @@ func _test_fallbacks() -> void:
 	screen.outro_animation = &"outro"
 	screen.fade_in_duration = 0.1
 	get_tree().root.add_child(screen)
-	expect(await _wait_until_animation_progress(func(): return not is_instance_valid(screen)), "a missing intro animation falls back to the fade")
+	expect(await _wait_until_animation_progress(_freed(screen)), "a missing intro animation falls back to the fade")
 
 	var no_player := TransitionScreen.new()
 	no_player.intro_animation = &"intro"
@@ -425,19 +431,19 @@ func _test_fallbacks() -> void:
 	no_player.fade_in_duration = 0.1
 	no_player.fade_out_duration = 0.1
 	get_tree().root.add_child(no_player)
-	expect(await _wait_until_animation_progress(func(): return not is_instance_valid(no_player)), "animation names without a player fall back to the fade")
+	expect(await _wait_until_animation_progress(_freed(no_player)), "animation names without a player fall back to the fade")
 
 
 ## ResourceDatabase.preload_progress: one emission per file, ending at 1.0 before preload_finished.
 func _test_preload_progress() -> void:
-	expect_equal(ResourceDatabase.get_preload_progress(), 1.0, "no preload: progress is 1.0")
+	expect_equal(ResourceDatabase.get_preload_progress().get_ratio(), 1.0, "no preload: progress is 1.0")
 	var preloads := Preloads.new()
 	preloads.paths = PackedStringArray([NEXT_SCENE, "res://icon.svg"])
 	var values: Array[float] = []
 	var order: Array[String] = []
 	var on_progress := func(source, progress):
 		if source == preloads:
-			values.append(progress)
+			values.append(progress.get_ratio())
 			order.append("progress")
 	var on_finished := func(source, _error):
 		if source == preloads:
@@ -451,7 +457,7 @@ func _test_preload_progress() -> void:
 	expect_equal(values.size(), 2, "one preload_progress per file")
 	expect(values.size() == 2 and is_equal_approx(values[0], 0.5) and is_equal_approx(values[1], 1.0), "progress is 0.5, then 1.0")
 	expect_equal(order.back(), "finished", "preload_finished comes after the last progress")
-	expect_equal(ResourceDatabase.get_preload_progress(), 1.0, "finished: progress is 1.0")
+	expect_equal(ResourceDatabase.get_preload_progress().get_ratio(), 1.0, "finished: progress is 1.0")
 	ResourceDatabase.clear()
 
 
@@ -500,7 +506,7 @@ func _test_screen_progress() -> void:
 		values.append(progress)
 		counts.append(counter.text))
 	get_tree().root.add_child(screen)
-	expect(await _wait_until_animation_progress(func(): return not is_instance_valid(screen)), "a screen with preload_assets completes")
+	expect(await _wait_until_animation_progress(_freed(screen)), "a screen with preload_assets completes")
 	var ascending := true
 	for idx in range(1, values.size()):
 		ascending = ascending and values[idx] >= values[idx - 1]

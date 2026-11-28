@@ -215,8 +215,9 @@ public partial class Test : FeatureTest
         label.Player = label.GetPathTo(player);
         player.Play(0.5);
         ExpectEqual(label.Text, $"[font_size={label.GetDisplayFontSize()}]Annchen: Hello[/font_size]", "the label shows the translated name");
-        TranslationServer.ClearLocaleFor("subtitles");
+        TranslationServer.SetLocaleFor("subtitles", "en");
         ExpectEqual(SubtitleServer.GetDisplaySpeaker(subtitle, segment), "Anna", "back to the source name");
+        TranslationServer.ClearLocaleFor("subtitles");
         label.QueueFree();
         player.QueueFree();
         domain.RemoveTranslation(german);

@@ -447,11 +447,11 @@ public partial class Test : FeatureTest
     private readonly List<double> _progressValues = new();
     private readonly List<string> _order = new();
 
-    private void OnPreloadProgress(Preloads source, double progress)
+    private void OnPreloadProgress(Preloads source, LoadProgress progress)
     {
         if (source == _watched)
         {
-            _progressValues.Add(progress);
+            _progressValues.Add(progress.GetRatio());
             _order.Add("progress");
         }
     }
@@ -554,24 +554,24 @@ public partial class Test : FeatureTest
         Expect(await WaitUntilAnimationProgress(() => !IsInstanceValid(noPlayer)), "animation names without a player fall back to the fade");
     }
 
-    /// <summary>ResourceDatabase.PreloadProgress: one emission per file, ending at 1.0 before PreloadFinished.</summary>
+    /// <summary>Godot.ResourceDatabase.PreloadProgress: one emission per file, ending at 1.0 before PreloadFinished.</summary>
     private async Task TestPreloadProgress()
     {
-        ExpectEqual((float)ResourceDatabase.GetPreloadProgress(), 1.0f, "no preload: progress is 1.0");
+        ExpectEqual((float)Godot.ResourceDatabase.GetPreloadProgress().GetRatio(), 1.0f, "no preload: progress is 1.0");
         _watched = new Preloads { Paths = [NextScene, "res://icon.svg"] };
         _progressValues.Clear();
         _order.Clear();
-        ResourceDatabase.Singleton.PreloadProgress += OnPreloadProgress;
-        ResourceDatabase.Singleton.PreloadFinished += OnPreloadFinished;
-        ExpectEqual(ResourceDatabase.PreloadFrom(_watched, false), Error.Ok, "PreloadFrom returns Ok");
+        Godot.ResourceDatabase.Singleton.PreloadProgress += OnPreloadProgress;
+        Godot.ResourceDatabase.Singleton.PreloadFinished += OnPreloadFinished;
+        ExpectEqual(Godot.ResourceDatabase.PreloadFrom(_watched, false), Error.Ok, "PreloadFrom returns Ok");
         Expect(await WaitUntilAnimationProgress(() => _order.Contains("finished")), "PreloadFinished follows");
-        ResourceDatabase.Singleton.PreloadProgress -= OnPreloadProgress;
-        ResourceDatabase.Singleton.PreloadFinished -= OnPreloadFinished;
+        Godot.ResourceDatabase.Singleton.PreloadProgress -= OnPreloadProgress;
+        Godot.ResourceDatabase.Singleton.PreloadFinished -= OnPreloadFinished;
         ExpectEqual(_progressValues.Count, 2, "one PreloadProgress per file");
         Expect(_progressValues.Count == 2 && Mathf.IsEqualApprox(_progressValues[0], 0.5) && Mathf.IsEqualApprox(_progressValues[1], 1.0), "progress is 0.5, then 1.0");
         ExpectEqual(_order[_order.Count - 1], "finished", "PreloadFinished comes after the last progress");
-        ExpectEqual((float)ResourceDatabase.GetPreloadProgress(), 1.0f, "finished: progress is 1.0");
-        ResourceDatabase.Clear();
+        ExpectEqual((float)Godot.ResourceDatabase.GetPreloadProgress().GetRatio(), 1.0f, "finished: progress is 1.0");
+        Godot.ResourceDatabase.Clear();
     }
 
     /// <summary>ResourceLoader.LoadThreadedGetManifestStatus(): n / X loaded for a FilesManifest, advancing every call.</summary>
@@ -627,14 +627,15 @@ public partial class Test : FeatureTest
         Expect(ascending, "the progress never goes back");
         Expect(values.Count > 0 && Mathf.IsEqualApprox(values[values.Count - 1], 1.0), "the progress ends at 1.0");
         ExpectEqual(lastCount, "1 / 1", "the count label shows 1 / 1 at the end");
-        Expect(ResourceDatabase.HasResource("res://icon.svg"), "the preload assets are loaded");
-        ResourceDatabase.Clear();
+        Expect(Godot.ResourceDatabase.HasResource("res://icon.svg"), "the preload assets are loaded");
+        Godot.ResourceDatabase.Clear();
     }
 
     private async Task RunTemplates()
     {
         TestSplashTemplate();
         TestLoadingTemplate();
+        await NextFrame();
         await TestSaveAndRun();
         TestCountLabelEmptyUntilTotal();
     }

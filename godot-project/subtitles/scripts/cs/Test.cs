@@ -303,7 +303,7 @@ public partial class Test : FeatureTest
         subtitle.AddSegment(spoken);
         subtitle.AddSegment(Segment(0.0, 1.0, ""));
         var strings = subtitle.GetTranslatableStrings();
-        ExpectEqual(strings.Count, 2, "GetTranslatableStrings skips segments without text");
+        ExpectEqual(strings.Count, 3, "GetTranslatableStrings skips segments without text, adds one entry per speaker");
         ExpectEqual(string.Join("|", strings[0]), "Hello|||", "entry: text, empty context");
         ExpectEqual(string.Join("|", strings[1]), "Run!|chase||Speaker: Anna", "entry: text, context, speaker comment");
     }

@@ -275,7 +275,7 @@ func _test_translatable_strings() -> void:
 	subtitle.add_segment(spoken)
 	subtitle.add_segment(_segment(0.0, 1.0, ""))
 	var strings: Array = subtitle.get_translatable_strings()
-	expect_equal(strings.size(), 2, "get_translatable_strings skips segments without text")
+	expect_equal(strings.size(), 3, "get_translatable_strings skips segments without text, adds one entry per speaker")
 	expect_equal(strings[0], PackedStringArray(["Hello", "", "", ""]), "entry: text, empty context")
 	expect_equal(strings[1], PackedStringArray(["Run!", "chase", "", "Speaker: Anna"]), "entry: text, context, speaker comment")
 
