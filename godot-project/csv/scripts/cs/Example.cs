@@ -24,6 +24,26 @@ public partial class Example : Node
         Godot.Collections.Dictionary archer = table.GetTypedRow(1, schema);
         GD.Print((int)archer["hp"] + 10);
 
+        // Add and remove columns.
+        var units = new Csv();
+        units.Parse("name,hp
+archer,60
+knight,120
+");
+        units.InsertColumn(1, "class", "melee");
+        units.SetCell(0, 1, "ranger");
+        GD.Print(units.EncodeToText()); // Prints "name,class,hp
+archer,ranger,60
+knight,melee,120
+"
+        units.RemoveColumn(units.FindColumn("hp"));
+        GD.Print(string.Join(", ", units.Header)); // Prints "name, class"
+        var players = new Csv();
+        players.InsertColumn(0, "id");
+        players.InsertColumn(1, "name");
+        players.AppendRow(new[] { "1", "Ann" });
+        players.Save("user://players.csv");
+
         // A unit roster with checked data (print instead of PushWarning: the C# warning trace contains "error", which fails the runner)
         DataValidation check = table.Validate(schema);
         var badRows = check.GetInvalidRows();
