@@ -26,16 +26,10 @@ public partial class Example : Node
 
         // Add and remove columns.
         var units = new Csv();
-        units.Parse("name,hp
-archer,60
-knight,120
-");
+        units.Parse("name,hp\narcher,60\nknight,120\n");
         units.InsertColumn(1, "class", "melee");
         units.SetCell(0, 1, "ranger");
-        GD.Print(units.EncodeToText()); // Prints "name,class,hp
-archer,ranger,60
-knight,melee,120
-"
+        GD.Print(units.EncodeToText()); // Prints "name,class,hp\narcher,ranger,60\nknight,melee,120\n"
         units.RemoveColumn(units.FindColumn("hp"));
         GD.Print(string.Join(", ", units.Header)); // Prints "name, class"
         var players = new Csv();

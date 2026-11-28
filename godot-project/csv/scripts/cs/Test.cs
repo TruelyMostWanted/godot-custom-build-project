@@ -154,10 +154,7 @@ public partial class Test : FeatureTest
     private void TestColumns()
     {
         var csv = new Csv();
-        ExpectEqual(csv.Parse("id,name
-1,Ann
-2,Bob
-"), Error.Ok, "Parse() of two rows");
+        ExpectEqual(csv.Parse("id,name\n1,Ann\n2,Bob\n"), Error.Ok, "Parse() of two rows");
         csv.InsertColumn(1, "team", "red");
         ExpectEqual(string.Join(",", csv.Header), "id,team,name", "InsertColumn() adds the name to the header");
         ExpectEqual(string.Join(",", csv.GetRow(0)), "1,red,Ann", "InsertColumn() fills every row with the value");
@@ -168,17 +165,12 @@ public partial class Test : FeatureTest
         csv.RemoveColumn(0);
         ExpectEqual(string.Join(",", csv.Header), "team,name", "RemoveColumn() removes the header name");
         ExpectEqual(string.Join(",", csv.GetRow(1)), "red,Bob", "RemoveColumn() removes the cell of every row");
-        ExpectEqual(csv.EncodeToText(), "team,name
-red,Ann
-red,Bob
-", "EncodeToText() writes the column edits");
+        ExpectEqual(csv.EncodeToText(), "team,name\nred,Ann\nred,Bob\n", "EncodeToText() writes the column edits");
         var created = new Csv();
         created.InsertColumn(0, "id");
         created.InsertColumn(1, "name");
         created.AppendRow(new[] { "1", "Ann" });
-        ExpectEqual(created.EncodeToText(), "id,name
-1,Ann
-", "a new CSV gets its header from InsertColumn()");
+        ExpectEqual(created.EncodeToText(), "id,name\n1,Ann\n", "a new CSV gets its header from InsertColumn()");
     }
 
     private void TestBlocks()

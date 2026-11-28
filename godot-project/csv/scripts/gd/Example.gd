@@ -21,16 +21,10 @@ func _ready() -> void:
 
 	# Add and remove columns.
 	var units := CSV.new()
-	units.parse("name,hp
-archer,60
-knight,120
-")
+	units.parse("name,hp\narcher,60\nknight,120\n")
 	units.insert_column(1, "class", "melee")
 	units.set_cell(0, 1, "ranger")
-	print(units.encode_to_text()) # Prints "name,class,hp
-archer,ranger,60
-knight,melee,120
-"
+	print(units.encode_to_text()) # Prints "name,class,hp\narcher,ranger,60\nknight,melee,120\n"
 	units.remove_column(units.find_column("hp"))
 	print(units.header) # Prints ["name", "class"]
 	var players := CSV.new()

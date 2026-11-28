@@ -124,10 +124,7 @@ func _test_edit() -> void:
 
 func _test_columns() -> void:
 	var csv := CSV.new()
-	expect_equal(csv.parse("id,name
-1,Ann
-2,Bob
-"), OK, "parse() of two rows")
+	expect_equal(csv.parse("id,name\n1,Ann\n2,Bob\n"), OK, "parse() of two rows")
 	csv.insert_column(1, "team", "red")
 	expect_equal(",".join(csv.header), "id,team,name", "insert_column() adds the name to the header")
 	expect_equal(",".join(csv.get_row(0)), "1,red,Ann", "insert_column() fills every row with the value")
@@ -138,17 +135,12 @@ func _test_columns() -> void:
 	csv.remove_column(0)
 	expect_equal(",".join(csv.header), "team,name", "remove_column() removes the header name")
 	expect_equal(",".join(csv.get_row(1)), "red,Bob", "remove_column() removes the cell of every row")
-	expect_equal(csv.encode_to_text(), "team,name
-red,Ann
-red,Bob
-", "encode_to_text() writes the column edits")
+	expect_equal(csv.encode_to_text(), "team,name\nred,Ann\nred,Bob\n", "encode_to_text() writes the column edits")
 	var created := CSV.new()
 	created.insert_column(0, "id")
 	created.insert_column(1, "name")
 	created.append_row(PackedStringArray(["1", "Ann"]))
-	expect_equal(created.encode_to_text(), "id,name
-1,Ann
-", "a new CSV gets its header from insert_column()")
+	expect_equal(created.encode_to_text(), "id,name\n1,Ann\n", "a new CSV gets its header from insert_column()")
 
 
 func _test_blocks() -> void:
