@@ -4,6 +4,9 @@ using TruelyInteractive.Checks;
 
 namespace TruelyInteractive.SubtitleDisplay;
 
+// The test project has a namespace TruelyInteractive.SubtitlePlayer too.
+using SubtitlePlayer = Godot.SubtitlePlayer;
+
 /// <summary>Full API test of Subtitle Display (SubtitleLabel): defaults, speakers, accessibility, captions, reparenting. Same tests as scripts/gd/Test.gd.</summary>
 public partial class Test : FeatureTest
 {

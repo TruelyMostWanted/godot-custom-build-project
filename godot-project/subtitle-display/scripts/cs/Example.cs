@@ -2,6 +2,9 @@ using Godot;
 
 namespace TruelyInteractive.SubtitleDisplay;
 
+// The test project has a namespace TruelyInteractive.SubtitlePlayer too.
+using SubtitlePlayer = Godot.SubtitlePlayer;
+
 /// <summary>Minimal example of Subtitle Display: the snippets of the wiki guide, in order. Same as scripts/gd/Example.gd.</summary>
 public partial class Example : Node
 {
